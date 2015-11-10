@@ -48,6 +48,8 @@ static uint32_t buffer_being_read;
 
 static uint32_t max_n_words;
 
+uint32_t last_spike;
+
 /* PRIVATE FUNCTIONS - static for inlining */
 
 static inline void _setup_synaptic_dma_read() {
@@ -71,6 +73,7 @@ static inline void _setup_synaptic_dma_read() {
             next_buffer->sdram_writeback_address = row_address;
             next_buffer->originating_spike = spike;
             next_buffer->n_bytes_transferred = n_bytes_to_transfer;
+            last_spike = spike;
 
             // Start a DMA transfer to fetch this synaptic row into current
             // buffer
