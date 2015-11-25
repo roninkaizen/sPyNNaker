@@ -205,7 +205,7 @@ class SpikeSourceArray(
                                     vertex_slice.hi_atom + 1):
                     for timeStamp in sorted(self._spike_times[neuron]):
                         time_stamp_in_ticks = int(
-                            math.ceil((timeStamp * 1000.0) /
+                            math.ceil(float(int(timeStamp * 1000.0)) /
                                       self._machine_time_step))
                         send_buffer.add_key(time_stamp_in_ticks,
                                             neuron - vertex_slice.lo_atom)
@@ -216,7 +216,7 @@ class SpikeSourceArray(
                 neuron_list = range(vertex_slice.n_atoms)
                 for timeStamp in sorted(self._spike_times):
                     time_stamp_in_ticks = int(
-                        math.ceil((timeStamp * 1000.0) /
+                        math.ceil(float(int(timeStamp * 1000.0)) /
                                   self._machine_time_step))
 
                     # add to send_buffer collection
@@ -431,7 +431,7 @@ class SpikeSourceArray(
             return getattr(self, key)
         raise Exception("Population {} does not have parameter {}".format(
             self, key))
-            
+
     def set_value(self, key, value):
         """ Set a property of the overall model
         :param key: the name of the param to change
