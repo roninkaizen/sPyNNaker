@@ -303,14 +303,14 @@ void neuron_do_timestep_update(timer_t time) {
     // record neuron state (membrane potential) if needed
     if (recording_is_channel_enabled(recording_flags, V_RECORDING_CHANNEL)) {
         voltages->time = time;
-        recording_record(V_RECORDING_CHANNEL, voltages, voltages_size);
+        recording_record(time, V_RECORDING_CHANNEL, voltages, voltages_size);
     }
 
     // record neuron inputs if needed
     if (recording_is_channel_enabled(
             recording_flags, GSYN_RECORDING_CHANNEL)) {
         inputs->time = time;
-        recording_record(GSYN_RECORDING_CHANNEL, inputs, input_size);
+        recording_record(time, GSYN_RECORDING_CHANNEL, inputs, input_size);
     }
 
     // do logging stuff if required

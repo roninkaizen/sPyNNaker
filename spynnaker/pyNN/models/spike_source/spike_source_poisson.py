@@ -93,6 +93,7 @@ class SpikeSourcePoisson(
             "Buffers", "buffer_size_before_receive")
         self._time_between_requests = config.getint(
             "Buffers", "time_between_requests")
+        self._spike_schedule = None
 
     @property
     def rate(self):
@@ -185,7 +186,7 @@ class SpikeSourcePoisson(
         self._write_basic_setup_info(
             spec, self._POISSON_SPIKE_SOURCE_REGIONS.SYSTEM_REGION.value)
         self.write_recording_data(
-            spec, ip_tags, [spike_history_region_sz],
+            spec, ip_tags, [spike_history_region_sz], [self._spike_schedule],
             buffer_size_before_receive, self._time_between_requests)
 
     def _write_poisson_parameters(self, spec, key, num_neurons):
@@ -302,11 +303,12 @@ class SpikeSourcePoisson(
         return self._spike_recorder.record
 
     # @implements AbstractSpikeRecordable.set_recording_spikes
-    def set_recording_spikes(self):
+    def set_recording_spikes(self, schedule=[]):
         ip_address = config.get("Buffers", "receive_buffer_host")
         port = config.getint("Buffers", "receive_buffer_port")
         self.set_buffering_output(ip_address, port)
         self._spike_recorder.record = True
+        self._spike_schedule = schedule
 
     # inherited from partitionable vertex
     def get_sdram_usage_for_atoms(self, vertex_slice, graph):
@@ -317,7 +319,7 @@ class SpikeSourcePoisson(
             self._spike_buffer_max_size))
         total_size = \
             ((constants.DATA_SPECABLE_BASIC_SETUP_INFO_N_WORDS * 4) +
-             self.get_recording_data_size(1) +
+             self.get_recording_data_size(1, [self._spike_schedule]) +
              self.get_buffer_state_region_size(1) +
              poisson_params_sz + spike_hist_buff_sz)
         total_size += self._get_number_of_mallocs_used_by_dsg(
@@ -365,7 +367,7 @@ class SpikeSourcePoisson(
 
         # Basic setup plus 8 bytes for recording flags and recording size
         setup_sz = ((constants.DATA_SPECABLE_BASIC_SETUP_INFO_N_WORDS * 4) +
-                    self.get_recording_data_size(1))
+                    self.get_recording_data_size(1, [self._spike_schedule]))
 
         poisson_params_sz = self.get_params_bytes(vertex_slice)
 

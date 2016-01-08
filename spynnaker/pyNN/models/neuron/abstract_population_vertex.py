@@ -117,6 +117,9 @@ class AbstractPopulationVertex(
             "Buffers", "buffer_size_before_receive")
         self._time_between_requests = config.getint(
             "Buffers", "time_between_requests")
+        self._spikes_schedule = None
+        self._v_schedule = None
+        self._gsyn_schedule = None
 
         # Set up synapse handling
         self._synapse_manager = SynapticManager(
@@ -189,8 +192,10 @@ class AbstractPopulationVertex(
         if self._additional_input is not None:
             per_neuron_usage += \
                 self._additional_input.get_sdram_usage_per_neuron_in_bytes()
+        recording_size = self.get_recording_data_size(
+            3, [self._spikes_schedule, self._v_schedule, self._gsyn_schedule])
         return ((constants.DATA_SPECABLE_BASIC_SETUP_INFO_N_WORDS * 4) +
-                self.get_recording_data_size(3) +
+                recording_size +
                 (per_neuron_usage * vertex_slice.n_atoms) +
                 self._neuron_model.get_sdram_usage_in_bytes(
                     vertex_slice.n_atoms))
@@ -242,10 +247,12 @@ class AbstractPopulationVertex(
         spec.comment("\nReserving memory space for data regions:\n\n")
 
         # Reserve memory:
+        recording_size = self.get_recording_data_size(
+            3, [self._spikes_schedule, self._v_schedule, self._gsyn_schedule])
         spec.reserve_memory_region(
             region=constants.POPULATION_BASED_REGIONS.SYSTEM.value,
             size=((constants.DATA_SPECABLE_BASIC_SETUP_INFO_N_WORDS * 4) +
-                  self.get_recording_data_size(3)), label='System')
+                  recording_size), label='System')
 
         spec.reserve_memory_region(
             region=constants.POPULATION_BASED_REGIONS.NEURON_PARAMS.value,
@@ -272,11 +279,13 @@ class AbstractPopulationVertex(
         # Write this to the system region (to be picked up by the simulation):
         self._write_basic_setup_info(
             spec, constants.POPULATION_BASED_REGIONS.SYSTEM.value)
+
         self.write_recording_data(
             spec, ip_tags,
             [spike_history_region_sz, neuron_potential_region_sz,
-             gsyn_region_sz], buffer_size_before_receive,
-            time_between_requests)
+             gsyn_region_sz],
+            [self._spikes_schedule, self._v_schedule, self._gsyn_schedule],
+            buffer_size_before_receive, time_between_requests)
 
     def _write_neuron_parameters(
             self, spec, key, vertex_slice):
@@ -427,11 +436,12 @@ class AbstractPopulationVertex(
         return self._spike_recorder.record
 
     # @implements AbstractSpikeRecordable.set_recording_spikes
-    def set_recording_spikes(self):
+    def set_recording_spikes(self, schedule=[]):
         self._change_requires_mapping = not self._spike_recorder.record
         self.set_buffering_output(
             self._receive_buffer_host, self._receive_buffer_port)
         self._spike_recorder.record = True
+        self._spikes_schedule = schedule
 
     # @implements AbstractSpikeRecordable.get_spikes
     def get_spikes(self, placements, graph_mapper, buffer_manager):
@@ -446,11 +456,12 @@ class AbstractPopulationVertex(
         return self._v_recorder.record_v
 
     # @implements AbstractVRecordable.set_recording_v
-    def set_recording_v(self):
+    def set_recording_v(self, schedule=[]):
         self.set_buffering_output(
             self._receive_buffer_host, self._receive_buffer_port)
         self._change_requires_mapping = not self._v_recorder.record_v
         self._v_recorder.record_v = True
+        self._v_schedule = schedule
 
     # @implements AbstractVRecordable.get_v
     def get_v(self, n_machine_time_steps, placements, graph_mapper,
@@ -466,11 +477,12 @@ class AbstractPopulationVertex(
         return self._gsyn_recorder.record_gsyn
 
     # @implements AbstractGSynRecordable.set_recording_gsyn
-    def set_recording_gsyn(self):
+    def set_recording_gsyn(self, schedule=[]):
         self.set_buffering_output(
             self._receive_buffer_host, self._receive_buffer_port)
         self._change_requires_mapping = not self._gsyn_recorder.record_gsyn
         self._gsyn_recorder.record_gsyn = True
+        self._gsyn_schedule = schedule
 
     # @implements AbstractGSynRecordable.get_gsyn
     def get_gsyn(self, n_machine_time_steps, placements, graph_mapper,

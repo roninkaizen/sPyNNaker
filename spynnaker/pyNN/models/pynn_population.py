@@ -411,7 +411,7 @@ class Population(object):
         self.initialize('v', distribution)
         self._change_requires_mapping = True
 
-    def record(self, to_file=None):
+    def record(self, to_file=None, schedule=[]):
         """ Record spikes from all cells in the Population.
 
         :param to_file: file to write the spike data to
@@ -422,7 +422,7 @@ class Population(object):
                 "This population does not support the recording of spikes!")
 
         # Tell the vertex to record spikes
-        self._vertex.set_recording_spikes()
+        self._vertex.set_recording_spikes(schedule)
 
         # set the file to store the spikes in once retrieved
         self._record_spike_file = to_file
@@ -430,7 +430,7 @@ class Population(object):
         # state that something has changed in the population,
         self._change_requires_mapping = True
 
-    def record_gsyn(self, to_file=None):
+    def record_gsyn(self, to_file=None, schedule=[]):
         """ Record the synaptic conductance for all cells in the Population.
 
         :param to_file: the file to write the recorded gsyn to.
@@ -443,13 +443,13 @@ class Population(object):
                 "You are trying to record the conductance from a model which "
                 "does not use conductance input.  You will receive "
                 "current measurements instead.")
-        self._vertex.set_recording_gsyn()
+        self._vertex.set_recording_gsyn(schedule)
         self._record_gsyn_file = to_file
 
         # state that something has changed in the population,
         self._change_requires_mapping = True
 
-    def record_v(self, to_file=None):
+    def record_v(self, to_file=None, schedule=[]):
         """ Record the membrane potential for all cells in the Population.
 
         :param to_file: the file to write the recorded v to.
@@ -458,7 +458,7 @@ class Population(object):
             raise Exception(
                 "This population does not support the recording of v")
 
-        self._vertex.set_recording_v()
+        self._vertex.set_recording_v(schedule)
         self._record_v_file = to_file
 
         # state that something has changed in the population,

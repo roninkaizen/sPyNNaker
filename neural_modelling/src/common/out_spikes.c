@@ -51,7 +51,7 @@ void out_spikes_record(uint8_t channel, uint32_t time) {
     // copy out-spikes to the appropriate recording channel
     spikes->time = time;
     recording_record(
-        channel, spikes, (out_spikes_size + 1) * sizeof(uint32_t));
+        time, channel, spikes, (out_spikes_size + 1) * sizeof(uint32_t));
 }
 
 //! \brief Check if any spikes have been recorded

@@ -82,7 +82,8 @@ static bool initialise_recording(){
     };
     uint8_t n_regions_to_record = NUMBER_OF_REGIONS_TO_RECORD;
     uint32_t *recording_flags_from_system_conf =
-        &system_region[SIMULATION_N_TIMING_DETAIL_WORDS];
+        &system_region[
+            SIMULATION_N_TIMING_DETAIL_WORDS];
     regions_e state_region = BUFFERING_OUT_CONTROL_REGION;
 
     bool success = recording_initialize(

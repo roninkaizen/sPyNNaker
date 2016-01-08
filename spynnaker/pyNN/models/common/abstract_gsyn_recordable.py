@@ -17,8 +17,14 @@ class AbstractGSynRecordable(object):
         """
 
     @abstractmethod
-    def set_recording_gsyn(self):
+    def set_recording_gsyn(self, schedule=[]):
         """ Sets gsyn to being recorded
+
+        :param schedule: a list of tuples of start and end times in ms between\
+                which the recording will take place.  The last end time can be\
+                None, in which case recording will end at the end of\
+                simulation.  If the schedule is empty, recording will be done\
+                for the whole simulation.
         """
 
     @abstractmethod

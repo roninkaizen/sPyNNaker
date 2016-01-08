@@ -146,12 +146,12 @@ class SpikeSourceArray(
         return self._spike_recorder.record
 
     # @implements AbstractSpikeRecordable.set_recording_spikes
-    def set_recording_spikes(self):
+    def set_recording_spikes(self, schedule=[]):
         self.enable_recording(
             self._ip_address, self._port, self._board_address,
             self._send_buffer_notification_tag,
             self._spike_recorder_buffer_size,
-            self._buffer_size_before_receive)
+            self._buffer_size_before_receive, schedule)
         self._requires_mapping = not self._spike_recorder.record
         self._spike_recorder.record = True
 
