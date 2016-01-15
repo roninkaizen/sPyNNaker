@@ -202,17 +202,21 @@ class AbstractPopulationVertex(
 
     # @implements AbstractPopulationVertex.get_sdram_usage_for_atoms
     def get_sdram_usage_for_atoms(self, vertex_slice, graph):
+        spike_history_sz, _ = self._get_recording_and_buffer_sizes(
+            self._spike_buffer_max_size,
+            self._spike_recorder.get_sdram_usage_in_bytes(
+                vertex_slice.n_atoms, self._no_machine_time_steps))
+        v_history_sz, _ = self._get_recording_and_buffer_sizes(
+            self._v_buffer_max_size,
+            self._v_recorder.get_sdram_usage_in_bytes(
+                vertex_slice.n_atoms, self._no_machine_time_steps))
+        gsyn_history_sz, _ = self._get_recording_and_buffer_sizes(
+            self._gsyn_buffer_max_size,
+            self._gsyn_recorder.get_sdram_usage_in_bytes(
+                vertex_slice.n_atoms, self._no_machine_time_steps))
         return (self._get_sdram_usage_for_neuron_params(vertex_slice) +
                 self.get_buffer_state_region_size(3) +
-                min((self._spike_recorder.get_sdram_usage_in_bytes(
-                    vertex_slice.n_atoms, self._no_machine_time_steps),
-                    self._spike_buffer_max_size)) +
-                min((self._v_recorder.get_sdram_usage_in_bytes(
-                    vertex_slice.n_atoms, self._no_machine_time_steps),
-                    self._v_buffer_max_size)) +
-                min((self._gsyn_recorder.get_sdram_usage_in_bytes(
-                    vertex_slice.n_atoms, self._no_machine_time_steps),
-                    self._gsyn_buffer_max_size)) +
+                spike_history_sz + v_history_sz + gsyn_history_sz +
                 self._synapse_manager.get_sdram_usage_in_bytes(
                     vertex_slice, graph.incoming_edges_to_vertex(self)) +
                 (self._get_number_of_mallocs_used_by_dsg(
