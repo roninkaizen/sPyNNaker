@@ -95,7 +95,7 @@ static inline final_state_t _plasticity_update_synapse(
               delayed_post_time);
 
         // Apply spike to state
-        io_printf(IO_BUF, "Post-spike:	now= %u,	", time);
+        // io_printf(IO_BUF, "Post-spike:	now= %u,	", time);
         current_state = timing_apply_post_spike(
             delayed_post_time, *post_window.next_trace, delayed_last_pre_time,
             last_pre_trace, post_window.prev_time, post_window.prev_trace,
@@ -108,13 +108,13 @@ static inline final_state_t _plasticity_update_synapse(
     const uint32_t delayed_pre_time = time + delay_axonal;
     log_debug("\t\tApplying pre-synaptic event at time:%u last post time:%u\n",
               delayed_pre_time, post_window.prev_time);
-    io_printf(IO_BUF, "Pre-spike: 	now= %u,	", time);
+    // io_printf(IO_BUF, "Pre-spike: 	now= %u,	", time);
     // Apply spike to state
     // **NOTE** dendritic delay is subtracted
     current_state = timing_apply_pre_spike(
         delayed_pre_time, new_pre_trace, delayed_last_pre_time, last_pre_trace,
         post_window.prev_time, post_window.prev_trace, current_state);
-    io_printf(IO_BUF, "======\n");
+    // io_printf(IO_BUF, "======\n");
 
     // Return final synaptic word and weight
     return synapse_structure_get_final_state(current_state);
