@@ -494,13 +494,9 @@ class Spinnaker(object):
                 algorithms.append("FrontEndCommonNotificationProtocol")
                 algorithms.append(
                     "FrontEndCommonPartitionableGraphApplicationDataLoader")
-                algorithms.append("FrontEndCommonPartitionableGraphHost"
-                                  "ExecuteDataSpecification")
                 algorithms.append("FrontEndCommomLoadExecutableImages")
                 algorithms.append("FrontEndCommonRoutingTableLoader")
                 algorithms.append("FrontEndCommonTagsLoader")
-                algorithms.append("FrontEndCommomPartitionableGraphData"
-                                  "SpecificationWriter")
 
                 # if the end user wants reload script, add the reload script
                 # creator to the list (reload script currently only supported
@@ -514,6 +510,11 @@ class Spinnaker(object):
                         "The reload script cannot handle multi-runs, nor can"
                         "it handle resets, therefore it will only contain the "
                         "initial run")
+
+            algorithms.append(
+                "FrontEndCommomPartitionableGraphDataSpecificationWriter")
+            algorithms.append(
+                "FrontEndCommonPartitionableGraphHostExecuteDataSpecification")
 
             if (config.getboolean("Reports", "writeMemoryMapReport") and
                     not config.getboolean("Machine", "virtual_board")):
