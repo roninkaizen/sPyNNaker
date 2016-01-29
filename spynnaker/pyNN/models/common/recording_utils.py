@@ -4,6 +4,7 @@ from spynnaker.pyNN import exceptions
 import struct
 import logging
 import numpy
+import math
 
 logger = logging.getLogger(__name__)
 
@@ -77,3 +78,14 @@ def pull_off_cached_lists(no_loads, cache_file):
         # Seek to the end of the file (for windows compatibility)
         cache_file.seek(0, 2)
         return numpy.concatenate(lists)
+
+
+def convert_schedule_to_machine_timesteps(schedule, machine_time_step):
+    """ Converts a schedule in an array of (start, stop) times in millseconds\
+        into a schedule in machine time steps
+    """
+
+    return [
+        (int(math.floor((start * 1000.0) / float(machine_time_step))),
+         int(math.ceil((stop * 1000.0) / float(machine_time_step))))
+        for (start, stop) in schedule]

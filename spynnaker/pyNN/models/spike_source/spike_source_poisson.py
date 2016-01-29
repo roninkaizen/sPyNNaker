@@ -13,6 +13,7 @@ from spynnaker.pyNN.models.common.population_settable_change_requires_mapping \
     import PopulationSettableChangeRequiresMapping
 from spynnaker.pyNN.models.common.spike_recorder import SpikeRecorder
 from spynnaker.pyNN.utilities.conf import config
+from spynnaker.pyNN.models.common import recording_utils
 
 from spinn_front_end_common.abstract_models.abstract_data_specable_vertex\
     import AbstractDataSpecableVertex
@@ -308,7 +309,9 @@ class SpikeSourcePoisson(
         port = config.getint("Buffers", "receive_buffer_port")
         self.set_buffering_output(ip_address, port)
         self._spike_recorder.record = True
-        self._spike_schedule = schedule
+        self._spike_schedule = \
+            recording_utils.convert_schedule_to_machine_timesteps(
+                schedule, self._machine_time_step)
 
     # inherited from partitionable vertex
     def get_sdram_usage_for_atoms(self, vertex_slice, graph):

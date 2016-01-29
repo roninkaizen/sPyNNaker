@@ -1,5 +1,6 @@
 # spynnaker imports
 from spynnaker.pyNN.utilities import constants
+from spynnaker.pyNN.models.common import recording_utils
 from spynnaker.pyNN.models.abstract_models.abstract_mappable \
     import AbstractMappable
 from spynnaker.pyNN.models.common.simple_population_settable \
@@ -147,11 +148,14 @@ class SpikeSourceArray(
 
     # @implements AbstractSpikeRecordable.set_recording_spikes
     def set_recording_spikes(self, schedule=[]):
+        timestep_schedule = \
+            recording_utils.convert_schedule_to_machine_timesteps(
+                schedule, self._machine_time_step)
         self.enable_recording(
             self._ip_address, self._port, self._board_address,
             self._send_buffer_notification_tag,
             self._spike_recorder_buffer_size,
-            self._buffer_size_before_receive, schedule)
+            self._buffer_size_before_receive, timestep_schedule)
         self._requires_mapping = not self._spike_recorder.record
         self._spike_recorder.record = True
 

@@ -13,6 +13,7 @@ from spynnaker.pyNN.models.neuron.population_partitioned_vertex import \
     PopulationPartitionedVertex
 from spynnaker.pyNN.models.neuron.synaptic_manager import SynapticManager
 from spynnaker.pyNN.utilities import utility_calls
+from spynnaker.pyNN.models.common import recording_utils
 from spynnaker.pyNN.models.abstract_models.abstract_population_initializable \
     import AbstractPopulationInitializable
 from spynnaker.pyNN.models.abstract_models.abstract_population_settable \
@@ -445,7 +446,9 @@ class AbstractPopulationVertex(
         self.set_buffering_output(
             self._receive_buffer_host, self._receive_buffer_port)
         self._spike_recorder.record = True
-        self._spikes_schedule = schedule
+        self._spikes_schedule = \
+            recording_utils.convert_schedule_to_machine_timesteps(
+                schedule, self._machine_time_step)
 
     # @implements AbstractSpikeRecordable.get_spikes
     def get_spikes(self, placements, graph_mapper, buffer_manager):
@@ -465,7 +468,9 @@ class AbstractPopulationVertex(
             self._receive_buffer_host, self._receive_buffer_port)
         self._change_requires_mapping = not self._v_recorder.record_v
         self._v_recorder.record_v = True
-        self._v_schedule = schedule
+        self._v_schedule = \
+            recording_utils.convert_schedule_to_machine_timesteps(
+                schedule, self._machine_time_step)
 
     # @implements AbstractVRecordable.get_v
     def get_v(self, n_machine_time_steps, placements, graph_mapper,
@@ -486,7 +491,9 @@ class AbstractPopulationVertex(
             self._receive_buffer_host, self._receive_buffer_port)
         self._change_requires_mapping = not self._gsyn_recorder.record_gsyn
         self._gsyn_recorder.record_gsyn = True
-        self._gsyn_schedule = schedule
+        self._gsyn_schedule = \
+            recording_utils.convert_schedule_to_machine_timesteps(
+                schedule, self._machine_time_step)
 
     # @implements AbstractGSynRecordable.get_gsyn
     def get_gsyn(self, n_machine_time_steps, placements, graph_mapper,
