@@ -135,7 +135,7 @@ class DelayExtensionVertex(AbstractPartitionableVertex,
                 placement.x, placement.y, placement.p, hostname, report_folder,
                 write_text_specs, application_run_time_folder)
 
-        spec = DataSpecificationGenerator(data_writer, report_writer)
+        spec = DataSpecificationGenerator(data_writer, report_writer, placement, reverse_ip_tags)
 
         # Reserve memory:
         spec.comment("\nReserving memory space for data regions:\n\n")
@@ -181,10 +181,10 @@ class DelayExtensionVertex(AbstractPartitionableVertex,
                                     placement.p, subvertex, num_delay_blocks,
                                     delay_blocks, vertex_slice, key)
         # End-of-Spec:
-        spec.end_specification()
+        packet_list=spec.end_specification()
         data_writer.close()
 
-        return data_writer.filename
+        return [data_writer.filename, packet_list]
 
     def write_setup_info(self, spec):
 
