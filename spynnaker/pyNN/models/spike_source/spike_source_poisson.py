@@ -346,7 +346,7 @@ class SpikeSourcePoisson(
                 placement.x, placement.y, placement.p, hostname, report_folder,
                 write_text_specs, application_run_time_folder)
 
-        spec = DataSpecificationGenerator(data_writer, report_writer)
+        spec = DataSpecificationGenerator(data_writer, report_writer, placement, reverse_ip_tags)
 
         vertex_slice = graph_mapper.get_subvertex_slice(subvertex)
 
@@ -387,10 +387,10 @@ class SpikeSourcePoisson(
         self._write_poisson_parameters(spec, key, vertex_slice.n_atoms)
 
         # End-of-Spec:
-        spec.end_specification()
+        packet_list=spec.end_specification()
         data_writer.close()
 
-        return data_writer.filename
+        return [data_writer.filename, packet_list]
 
     def get_binary_file_name(self):
         return "spike_source_poisson.aplx"
