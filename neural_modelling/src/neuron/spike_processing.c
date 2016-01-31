@@ -5,9 +5,16 @@
 #include "../common/in_spikes.h"
 #include <spin1_api.h>
 #include <debug.h>
+#include <circular_buffer.h>
 
 // The number of DMA Buffers to use
 #define N_DMA_BUFFERS 2
+
+// The number of delay slots
+#define N_DELAY_SLOTS SYNAPSE_DELAY_MASK + 1
+
+// The number of items that can fit in the delay buffers for each delay slot
+#define DELAY_BUFFER_SIZE 256
 
 // DMA tags
 #define DMA_TAG_READ_SYNAPTIC_ROW 0
@@ -44,9 +51,19 @@ static uint32_t next_buffer_to_fill;
 // The index of the buffer currently being filled by a DMA read
 static uint32_t buffer_being_read;
 
+// The maximum number of words in any row
 static uint32_t max_n_words;
 
+// The last spike received
 static spike_t spike;
+
+// Pointers to the buffers of future delay
+static circular_buffer future_delay_buffers[N_DELAY_SLOTS];
+
+// Pointer to the buffer for the current delay slot - this is switched in as
+// the time moves on
+static circular_buffer current_delay_buffer;
+
 
 /* PRIVATE FUNCTIONS - static for inlining */
 
@@ -74,14 +91,42 @@ static inline void _setup_synaptic_dma_read() {
     // Set up to store the dma location and size to read
     address_t row_address;
     size_t n_bytes_to_transfer;
+    uint32_t next_rowlet;
+
+    bool setup_done = false;
+
+    // If there's more rows to process from the current delay buffer,
+    // read those first
+    while (!setup_done && circular_buffer_get_next(
+            current_delay_buffer, &next_rowlet)) {
+
+        uint32_t delay = rowlet_delay(next_rowlet);
+        if (delay > 0) {
+
+            // If the delay is still in the future, push it back
+            delay -= N_DELAY_SLOTS;
+            circular_buffer_add(
+                future_delay_buffers[time & SYNAPSE_DELAY_MASK],
+                rowlet_set_delay(next_rowlet, delay));
+        } else {
+
+            // If the delay is 0, process it now
+            row_address = rowlet_address(next_rowlet);
+            n_bytes_to_transfer =
+                rowlet_length(next_rowlet) + N_SYNAPSE_ROW_HEADER_WORDS;
+            _do_dma_read(row_address, n_bytes_to_transfer);
+            setup_done = true;
+        }
+    }
 
     // If there's more rows to process from the previous spike
-    if (population_table_get_next_address(&row_address, &n_bytes_to_transfer)) {
+    if (!setup_done && population_table_get_next_address(
+            &row_address, &n_bytes_to_transfer)) {
         _do_dma_read(row_address, n_bytes_to_transfer);
+        setup_done = true;
     }
 
     // If there's more incoming spikes
-    uint32_t setup_done = false;
     while (!setup_done && in_spikes_get_next_spike(&spike)) {
         log_debug("Checking for row for spike 0x%.8x\n", spike);
 
@@ -169,6 +214,27 @@ void _dma_complete_callback(uint unused, uint tag) {
         uint32_t current_buffer_index = buffer_being_read;
         dma_buffer *current_buffer = &dma_buffers[current_buffer_index];
 
+        // Process a future rowlet if there is one
+        uint32_t next_rowlet = synapse_row_next_rowlet(current_buffer->row);
+        if (next_rowlet != 0) {
+
+            uint32_t delay = rowlet_delay(next_rowlet);
+            if (delay == 0) {
+
+                // If the delay is 0, the rowlet is to be processed in this
+                // tick
+                circular_buffer_add(current_delay_buffer, next_rowlet);
+            } else {
+
+                // Otherwise, this is future rowlet
+                circular_buffer_add(
+                    future_delay_buffers[
+                        (time + delay + N_DELAY_SLOTS - 1) &
+                        SYNAPSE_DELAY_MASK],
+                    next_rowlet);
+            }
+        }
+
         // Start the next DMA transfer, so it is complete when we are finished
         _setup_synaptic_dma_read();
 
@@ -241,6 +307,12 @@ bool spike_processing_initialise(
         return false;
     }
 
+    // Allocate the future delay buffers
+    for (uint32_t i = 0; i < N_DELAY_SLOTS; i++) {
+        future_delay_buffers[i] = circular_buffer_initialize(DELAY_BUFFER_SIZE);
+    }
+    current_delay_buffer = circular_buffer_initialize(DELAY_BUFFER_SIZE);
+
     // Set up the callbacks
     spin1_callback_on(MC_PACKET_RECEIVED,
             _multicast_packet_received_callback, mc_packet_callback_priority);
@@ -253,6 +325,23 @@ bool spike_processing_initialise(
 
 void spike_processing_finish_write(uint32_t process_id) {
     _setup_synaptic_dma_write(process_id);
+}
+
+void spike_processing_do_timestep_update(uint32_t time) {
+
+    // Get the next buffer to process in this timestep
+    circular_buffer temp = current_delay_buffer;
+    uint32_t buffer_index = time & SYNAPSE_DELAY_MASK;
+    current_delay_buffer = future_delay_buffers[buffer_index];
+    future_delay_buffers[buffer_index] = temp;
+
+    // Kick of processing, if not already running
+    uint sr = spin1_int_disable();
+    if (!dma_busy) {
+        dma_busy = true;
+        _setup_synaptic_dma_read();
+    }
+    spin1_mode_restore(sr);
 }
 
 void spike_processing_print_buffer_overflows() {
