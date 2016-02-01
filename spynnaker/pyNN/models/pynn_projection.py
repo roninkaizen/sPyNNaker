@@ -93,8 +93,9 @@ class Projection(object):
         post_vertex_max_supported_delay_ms = \
             postsynaptic_population._get_vertex.maximum_delay_supported_in_ms
 
-        if max_delay > (post_vertex_max_supported_delay_ms +
-                        delay_extention_max_supported_delay):
+        if (post_vertex_max_supported_delay_ms is not None and max_delay > (
+                post_vertex_max_supported_delay_ms +
+                delay_extention_max_supported_delay)):
             raise exceptions.ConfigurationException(
                 "The maximum delay {} for projection is not supported".format(
                     max_delay))
@@ -131,7 +132,8 @@ class Projection(object):
                 self._projection_edge, EDGE_PARTITION_ID)
 
         # If the delay exceeds the post vertex delay, add a delay extension
-        if max_delay > post_vertex_max_supported_delay_ms:
+        if (post_vertex_max_supported_delay_ms is not None and
+                max_delay > post_vertex_max_supported_delay_ms):
             delay_edge = self._add_delay_extension(
                 presynaptic_population, postsynaptic_population, label,
                 max_delay, post_vertex_max_supported_delay_ms,
