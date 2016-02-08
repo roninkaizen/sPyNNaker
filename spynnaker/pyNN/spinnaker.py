@@ -496,13 +496,11 @@ class Spinnaker(object):
                 algorithms.append("FrontEndCommonMachineInterfacer")
                 algorithms.append("FrontEndCommonApplicationRunner")
                 algorithms.append("FrontEndCommonNotificationProtocol")
-
-
-                if self._exec_dse_on_host is True:
-                    algorithms.append(
+                algorithms.append(
                     "FrontEndCommonPartitionableGraphApplicationDataLoader")
-                    algorithms.append("FrontEndCommonPartitionableGraphHost"
-                                  "ExecuteDataSpecification")
+
+                algorithms.append("FrontEndCommonPartitionableGraphHostExecuteDataSpecification")
+
 
                 algorithms.append("FrontEndCommomLoadExecutableImages")
                 algorithms.append("FrontEndCommonRoutingTableLoader")
@@ -511,6 +509,9 @@ class Spinnaker(object):
                 if self._exec_dse_on_host is True:
                     algorithms.append("FrontEndCommomPartitionableGraphData"
                                   "SpecificationWriter")
+                else:
+                    algorithms.append("FrontEndCommomPartitionableGraphData"
+                                  "SpecificationWriterAndSender")
 
                 # if the end user wants reload script, add the reload script
                 # creator to the list (reload script currently only supported
@@ -570,10 +571,9 @@ class Spinnaker(object):
                 # add functions for updating the models
                 algorithms.append("FrontEndCommonRuntimeUpdater")
             if not self._has_ran and not executing_reset:
-                if self._exec_dse_on_host is True:
+                if self._exec_dse_on_host:
                     algorithms.append(
                     "FrontEndCommonPartitionableGraphApplicationDataLoader")
-
                 algorithms.append("FrontEndCommomLoadExecutableImages")
             if not executing_reset:
                 algorithms.append("FrontEndCommonNotificationProtocol")
