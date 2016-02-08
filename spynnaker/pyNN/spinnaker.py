@@ -158,6 +158,10 @@ class Spinnaker(object):
         self._ring_buffer_sigma = float(config.getfloat(
             "Simulation", "ring_buffer_sigma"))
 
+        self._exec_dse_on_host = config.getboolean("SpecExecution", "specExecOnHost")
+
+
+
         # set up machine targeted data
         self._set_up_machine_specifics(timestep, min_delay, max_delay,
                                        host_name)
@@ -492,14 +496,20 @@ class Spinnaker(object):
                 algorithms.append("FrontEndCommonMachineInterfacer")
                 algorithms.append("FrontEndCommonApplicationRunner")
                 algorithms.append("FrontEndCommonNotificationProtocol")
-                algorithms.append(
+
+
+                if self._exec_dse_on_host is True:
+                    algorithms.append(
                     "FrontEndCommonPartitionableGraphApplicationDataLoader")
-                algorithms.append("FrontEndCommonPartitionableGraphHost"
+                    algorithms.append("FrontEndCommonPartitionableGraphHost"
                                   "ExecuteDataSpecification")
+
                 algorithms.append("FrontEndCommomLoadExecutableImages")
                 algorithms.append("FrontEndCommonRoutingTableLoader")
                 algorithms.append("FrontEndCommonTagsLoader")
-                algorithms.append("FrontEndCommomPartitionableGraphData"
+
+                if self._exec_dse_on_host is True:
+                    algorithms.append("FrontEndCommomPartitionableGraphData"
                                   "SpecificationWriter")
 
                 # if the end user wants reload script, add the reload script
@@ -560,8 +570,10 @@ class Spinnaker(object):
                 # add functions for updating the models
                 algorithms.append("FrontEndCommonRuntimeUpdater")
             if not self._has_ran and not executing_reset:
-                algorithms.append(
+                if self._exec_dse_on_host is True:
+                    algorithms.append(
                     "FrontEndCommonPartitionableGraphApplicationDataLoader")
+
                 algorithms.append("FrontEndCommomLoadExecutableImages")
             if not executing_reset:
                 algorithms.append("FrontEndCommonNotificationProtocol")

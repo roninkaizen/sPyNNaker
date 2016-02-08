@@ -338,13 +338,19 @@ class AbstractPopulationVertex(
     def generate_data_spec(
             self, subvertex, placement, subgraph, graph, routing_info,
             hostname, graph_mapper, report_folder, ip_tags,
-            reverse_ip_tags, write_text_specs, application_run_time_folder):
+            reverse_ip_tags, write_text_specs, application_run_time_folder, on_host_flag=True, queue=None):
 
         # Create new DataSpec for this processor:
         data_writer, report_writer = self.get_data_spec_file_writers(
             placement.x, placement.y, placement.p, hostname, report_folder,
             write_text_specs, application_run_time_folder)
-        spec = DataSpecificationGenerator(data_writer, report_writer)
+
+        if on_host_flag is True:
+            spec = DataSpecificationGenerator(data_writer, report_writer, on_host_flag=on_host_flag)
+        else:
+            spec = DataSpecificationGenerator(data_writer, report_writer, placement=placement, reverse_iptags=reverse_ip_tags, queue=queue, on_host_flag=on_host_flag)
+
+
         spec.comment("\n*** Spec for block of {} neurons ***\n".format(
             self.model_name))
         vertex_slice = graph_mapper.get_subvertex_slice(subvertex)
