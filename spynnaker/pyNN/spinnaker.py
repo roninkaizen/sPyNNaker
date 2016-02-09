@@ -164,6 +164,9 @@ class Spinnaker(object):
         self._exec_dse_on_host = config.getboolean(
                 "SpecExecution", "specExecOnHost")
 
+        self._exec_dsg_sending = config.getboolean(
+                "SpecExecution", "sendAsync")
+
         # set up machine targeted data
         self._set_up_machine_specifics(timestep, min_delay, max_delay,
                                        host_name)
@@ -499,8 +502,10 @@ class Spinnaker(object):
                     algorithms.append(
                         "FrontEndCommonPartitionableGraphHostExecuteDataSpecification")
                 else:
-                    algorithms.append(
-                        "FrontEndCommonPartitionableGraphMachineExecuteDataSpecification")
+                    if self._exec_dsg_sending is False:
+                        algorithms.append(
+                            "FrontEndCommonPartitionableGraphMachineExecuteDataSpecification")
+
 
                 algorithms.append("FrontEndCommonMachineInterfacer")
                 algorithms.append("FrontEndCommonApplicationRunner")
@@ -508,8 +513,18 @@ class Spinnaker(object):
                 algorithms.append("FrontEndCommomLoadExecutableImages")
                 algorithms.append("FrontEndCommonRoutingTableLoader")
                 algorithms.append("FrontEndCommonTagsLoader")
-                algorithms.append("FrontEndCommomPartitionableGraphData"
-                                  "SpecificationWriter")
+
+                if self._exec_dse_on_host:
+                    algorithms.append("FrontEndCommomPartitionableGraphData"
+                                      "SpecificationWriter")
+                else:
+                    if self._exec_dsg_sending:
+                        algorithms.append("FrontEndCommomPartitionableGraphData"
+                                          "SpecificationWriterAndSender")
+                    else:
+                        algorithms.append("FrontEndCommomPartitionableGraphData"
+                                      "SpecificationWriter")
+
 
                 # if the end user wants reload script, add the reload script
                 # creator to the list (reload script currently only supported
@@ -579,8 +594,9 @@ class Spinnaker(object):
                     algorithms.append(
                         "FrontEndCommonPartitionableGraphApplicationDataLoader")
                 else:
-                    algorithms.append(
-                        "FrontEndCommonPartitionableGraphMachineExecuteDataSpecification")
+                    if self._exec_dsg_sending is False:
+                        algorithms.append(
+                            "FrontEndCommonPartitionableGraphMachineExecuteDataSpecification")
 
                 algorithms.append("FrontEndCommomLoadExecutableImages")
             if not executing_reset:
