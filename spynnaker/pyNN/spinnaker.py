@@ -164,8 +164,7 @@ class Spinnaker(object):
         self._exec_dse_on_host = config.getboolean(
                 "SpecExecution", "specExecOnHost")
 
-        self._exec_dsg_sending = config.getboolean(
-                "SpecExecution", "sendAsync")
+        self._exec_dsg_sending = config.getboolean("SpecExecution", "sendAsync")
 
         # set up machine targeted data
         self._set_up_machine_specifics(timestep, min_delay, max_delay,
