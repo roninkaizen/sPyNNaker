@@ -10,25 +10,24 @@ from spynnaker.pyNN.models.neuron.synapse_dynamics\
 from spynnaker.pyNN.models.neuron.synapse_io.abstract_synapse_io \
     import AbstractSynapseIO
 
-_N_HEADER_WORDS = 3
+_N_HEADER_WORDS = 5
 
 
-class SynapseIORowBased(AbstractSynapseIO):
-    """ A SynapseRowIO implementation that uses a row for each source neuron,
-        where each row consists of a fixed region, a plastic region, and a\
-        fixed-plastic region (this is the bits of the plastic row that don't\
-        actually change).  The plastic region structure is determined by the\
-        synapse dynamics of the connector.
+class SynapseIORowletBased(AbstractSynapseIO):
+    """ A SynapseRowIO implementation that uses a set of rowlets for each\
+        source neuron, with delays for each full set of connections being\
+        split into this set of rowlets.
     """
 
-    def __init__(self, machine_time_step):
+    def __init__(self, machine_time_step, n_delays_per_rowlet=4):
         AbstractSynapseIO.__init__(self)
         self._machine_time_step = machine_time_step
+        self._n_delays_per_rowlet = n_delays_per_rowlet
 
     def get_maximum_delay_supported_in_ms(self):
 
-        # There are 16 slots, one per time step
-        return 16 * (self._machine_time_step / 1000.0)
+        # All delays are handled in this model
+        return None
 
     def _n_words(self, n_bytes):
         return math.ceil(float(n_bytes) / 4.0)
@@ -38,47 +37,31 @@ class SynapseIORowBased(AbstractSynapseIO):
             n_post_slices, post_slice_index, pre_vertex_slice,
             post_vertex_slice, n_delay_stages, population_table):
 
-        # Find the maximum row length - i.e. the maximum number of bytes
-        # that will be needed by any row for both rows with delay extensions
-        # and rows without
-        max_delay_supported = self.get_maximum_delay_supported_in_ms()
-        next_max_delay_supported = (
-            max_delay_supported + numpy.finfo(numpy.double).tiny)
-        max_delay = max_delay_supported * (n_delay_stages + 1)
+        # Get the maximum delay and the delay that will be represented by the
+        # first block (after which rows are generic)
+        max_delay = synapse_info.connector.get_delay_maximum()
+        max_delay_first_set = (
+            self._n_delays_per_rowlet * (self._machine_time_step / 1000.0))
 
         max_undelayed_row_length = synapse_info.connector\
             .get_n_connections_from_pre_vertex_maximum(
                 n_pre_slices, pre_slice_index, n_post_slices,
                 post_slice_index, pre_vertex_slice, post_vertex_slice,
-                0, max_delay_supported)
-        max_delayed_row_length = 0
-        if n_delay_stages > 0:
-            max_delayed_row_length = synapse_info.connector\
-                .get_n_connections_from_pre_vertex_maximum(
-                    n_pre_slices, pre_slice_index, n_post_slices,
-                    post_slice_index, pre_vertex_slice, post_vertex_slice,
-                    next_max_delay_supported, max_delay)
+                0, max_delay_first_set)
 
         # Get the row sizes
         dynamics = synapse_info.synapse_dynamics
         undelayed_size = 0
-        delayed_size = 0
         if isinstance(dynamics, AbstractStaticSynapseDynamics):
             undelayed_size = dynamics.get_n_words_for_static_connections(
                 max_undelayed_row_length)
-            delayed_size = dynamics.get_n_words_for_static_connections(
-                max_delayed_row_length)
         else:
             undelayed_size = dynamics.get_n_words_for_plastic_connections(
                 max_undelayed_row_length)
-            delayed_size = dynamics.get_n_words_for_plastic_connections(
-                max_delayed_row_length)
 
         # Adjust for the allowed row lengths from the population table
         undelayed_max_bytes = population_table.get_allowed_row_length(
             undelayed_size) * 4
-        delayed_max_bytes = population_table.get_allowed_row_length(
-            delayed_size) * 4
 
         # Add on the header words and multiply by the number of rows in the
         # block
@@ -87,12 +70,11 @@ class SynapseIORowBased(AbstractSynapseIO):
             n_bytes_undelayed = (
                 ((_N_HEADER_WORDS * 4) + undelayed_max_bytes) *
                 pre_vertex_slice.n_atoms)
-        n_bytes_delayed = 0
-        if delayed_max_bytes > 0:
-            n_bytes_delayed = (
-                ((_N_HEADER_WORDS * 4) + delayed_max_bytes) *
-                pre_vertex_slice.n_atoms * n_delay_stages)
-        return (n_bytes_undelayed, n_bytes_delayed)
+
+        # Work out how much will be needed by the remaining rowlets
+        n_rowlets_per_row = int(math.ceil(max_delay))
+
+        return (n_bytes_undelayed, 0)
 
     @staticmethod
     def _get_max_row_length_and_row_data(
