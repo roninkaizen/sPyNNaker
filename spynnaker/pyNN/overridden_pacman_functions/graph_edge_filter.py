@@ -1,4 +1,4 @@
-# pacman imports
+ # pacman imports
 from pacman.model.partitionable_graph.multi_cast_partitionable_edge \
     import MultiCastPartitionableEdge
 from pacman.model.partitioned_graph.partitioned_graph import PartitionedGraph
