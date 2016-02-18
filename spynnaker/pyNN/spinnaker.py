@@ -164,7 +164,9 @@ class Spinnaker(object):
         self._exec_dse_on_host = config.getboolean(
                 "SpecExecution", "specExecOnHost")
 
-        self._exec_dsg_sending = config.getboolean("SpecExecution", "sendAsync")
+        self._exec_dsg_async_sending = config.getboolean("SpecExecution", "sendAsync")
+
+        self._exec_dsg_with_sdp = config.getboolean("SpecExecution", "useSDP")
 
         # set up machine targeted data
         self._set_up_machine_specifics(timestep, min_delay, max_delay,
@@ -495,15 +497,18 @@ class Spinnaker(object):
                     self._txrx.close()
                     self._txrx = None
 
+                #Just for the executors
                 if self._exec_dse_on_host:
                     # The following lines are not split to avoid error
                     # in future search
                     algorithms.append(
                         "FrontEndCommonPartitionableGraphHostExecuteDataSpecification")
                 else:
-                    if self._exec_dsg_sending is False:
+                    if self._exec_dsg_async_sending:
+                        pass
+                    else:
                         algorithms.append(
-                            "FrontEndCommonPartitionableGraphMachineExecuteDataSpecification")
+                                "FrontEndCommonPartitionableGraphMachineExecuteDataSpecification")
 
 
                 algorithms.append("FrontEndCommonMachineInterfacer")
@@ -513,13 +518,18 @@ class Spinnaker(object):
                 algorithms.append("FrontEndCommonRoutingTableLoader")
                 algorithms.append("FrontEndCommonTagsLoader")
 
+                #if I want to include the DSG writer alone
                 if self._exec_dse_on_host:
                     algorithms.append("FrontEndCommomPartitionableGraphData"
                                       "SpecificationWriter")
                 else:
-                    if self._exec_dsg_sending:
-                        algorithms.append("FrontEndCommomPartitionableGraphData"
-                                          "SpecificationWriterAndSender")
+                    if self._exec_dsg_async_sending:
+                        if self._exec_dsg_with_sdp:
+                            algorithms.append("FrontEndCommomPartitionableGraphData"
+                                              "SpecificationWriterAndSender")
+                        else:
+                            algorithms.append("FrontEndCommomPartitionableGraphData"
+                                          "SpecificationWriterAndSendNoSDP")
                     else:
                         algorithms.append("FrontEndCommomPartitionableGraphData"
                                       "SpecificationWriter")
@@ -540,6 +550,7 @@ class Spinnaker(object):
 
             if (config.getboolean("Reports", "writeMemoryMapReport") and
                     not config.getboolean("Machine", "virtual_board")):
+
                 if self._exec_dse_on_host:
                     algorithms.append("FrontEndCommonMemoryMapOnHostReport")
                 else:
@@ -587,13 +598,14 @@ class Spinnaker(object):
                 algorithms.append("FrontEndCommonRuntimeUpdater")
             if not self._has_ran and not executing_reset:
 
+
                 if self._exec_dse_on_host:
                     # The following lines are not split to avoid error
                     # in future search
                     algorithms.append(
                         "FrontEndCommonPartitionableGraphApplicationDataLoader")
                 else:
-                    if self._exec_dsg_sending is False:
+                    if self._exec_dsg_async_sending is False:
                         algorithms.append(
                             "FrontEndCommonPartitionableGraphMachineExecuteDataSpecification")
 
