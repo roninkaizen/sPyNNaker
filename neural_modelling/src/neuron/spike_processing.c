@@ -5,7 +5,7 @@
 #include "../common/in_spikes.h"
 #include <spin1_api.h>
 #include <debug.h>
-#include <circular_buffer.h>
+#include "delay_buffer.h"
 
 // The number of DMA Buffers to use
 #define N_DMA_BUFFERS 2
@@ -58,23 +58,27 @@ static uint32_t max_n_words;
 static spike_t spike;
 
 // Pointers to the buffers of future delay
-static circular_buffer future_delay_buffers[N_DELAY_SLOTS];
+static delay_buffer future_delay_buffers[N_DELAY_SLOTS];
 
 // Pointer to the buffer for the current delay slot - this is switched in as
 // the time moves on
-static circular_buffer current_delay_buffer;
+static delay_buffer current_delay_buffer;
+
+// The current position in the current delay buffer
+static uint32_t delay_position = 0xFFFFFFFF;
 
 
 /* PRIVATE FUNCTIONS - static for inlining */
 
 static inline void _do_dma_read(
-        address_t row_address, size_t n_bytes_to_transfer) {
+        spike_t current_spike, address_t row_address,
+        size_t n_bytes_to_transfer) {
 
     // Write the SDRAM address of the plastic region and the
     // Key of the originating spike to the beginning of DMA buffer
     dma_buffer *next_buffer = &dma_buffers[next_buffer_to_fill];
     next_buffer->sdram_writeback_address = row_address;
-    next_buffer->originating_spike = spike;
+    next_buffer->originating_spike = current_spike;
     next_buffer->n_bytes_transferred = n_bytes_to_transfer;
 
     // Start a DMA transfer to fetch this synaptic row into current
@@ -91,38 +95,23 @@ static inline void _setup_synaptic_dma_read() {
     // Set up to store the dma location and size to read
     address_t row_address;
     size_t n_bytes_to_transfer;
-    uint32_t next_rowlet;
 
     bool setup_done = false;
 
     // If there's more rows to process from the current delay buffer,
     // read those first
-    while (!setup_done && circular_buffer_get_next(
-            current_delay_buffer, &next_rowlet)) {
+    if (delay_buffer_decrement_and_find_next_zero_delay(
+            current_delay_buffer, &delay_position, &row_address,
+            &n_bytes_to_transfer)) {
 
-        uint32_t delay = rowlet_delay(next_rowlet);
-        if (delay > 0) {
-
-            // If the delay is still in the future, push it back
-            delay -= N_DELAY_SLOTS;
-            circular_buffer_add(
-                future_delay_buffers[time & SYNAPSE_DELAY_MASK],
-                rowlet_set_delay(next_rowlet, delay));
-        } else {
-
-            // If the delay is 0, process it now
-            row_address = rowlet_address(next_rowlet);
-            n_bytes_to_transfer =
-                rowlet_length(next_rowlet) + N_SYNAPSE_ROW_HEADER_WORDS;
-            _do_dma_read(row_address, n_bytes_to_transfer);
-            setup_done = true;
-        }
+        _do_dma_read(spike, row_address, n_bytes_to_transfer);
+        setup_done = true;
     }
 
     // If there's more rows to process from the previous spike
     if (!setup_done && population_table_get_next_address(
             &row_address, &n_bytes_to_transfer)) {
-        _do_dma_read(row_address, n_bytes_to_transfer);
+        _do_dma_read(spike, row_address, n_bytes_to_transfer);
         setup_done = true;
     }
 
@@ -133,7 +122,7 @@ static inline void _setup_synaptic_dma_read() {
         // Decode spike to get address of destination synaptic row
         if (population_table_get_first_address(
                 spike, &row_address, &n_bytes_to_transfer)) {
-            _do_dma_read(row_address, n_bytes_to_transfer);
+            _do_dma_read(spike, row_address, n_bytes_to_transfer);
             setup_done = true;
         }
     }
@@ -215,28 +204,38 @@ void _dma_complete_callback(uint unused, uint tag) {
         dma_buffer *current_buffer = &dma_buffers[current_buffer_index];
 
         // Process a future rowlet if there is one
-        uint32_t next_rowlet = synapse_row_next_rowlet(current_buffer->row);
+        address_t next_rowlet = synapse_row_next_rowlet_address(
+            current_buffer->row);
+        bool setup_done = false;
         if (next_rowlet != 0) {
 
-            uint32_t delay = rowlet_delay(next_rowlet);
+            uint32_t delay = synapse_row_next_rowlet_delay(
+                current_buffer->row);
+            uint32_t rowlet_length = synapse_row_next_rowlet_length(
+                current_buffer->row) + N_SYNAPSE_ROW_HEADER_WORDS;
             if (delay == 0) {
 
-                // If the delay is 0, the rowlet is to be processed in this
-                // tick
-                circular_buffer_add(current_delay_buffer, next_rowlet);
+                // If the delay is 0, get the rowlet now
+                _do_dma_read(
+                    current_buffer->originating_spike, next_rowlet,
+                    rowlet_length);
+                setup_done = true;
             } else {
 
                 // Otherwise, this is future rowlet
-                circular_buffer_add(
-                    future_delay_buffers[
-                        (time + delay + N_DELAY_SLOTS - 1) &
-                        SYNAPSE_DELAY_MASK],
-                    next_rowlet);
+                uint32_t buffer = (time + delay) & SYNAPSE_DELAY_MASK;
+                uint32_t n_delays =
+                    (delay + SYNAPSE_DELAY_MASK) >> SYNAPSE_DELAY_BITS;
+                delay_buffer_add_item(
+                    future_delay_buffers[buffer],
+                    n_delays, next_rowlet, rowlet_length);
             }
         }
 
         // Start the next DMA transfer, so it is complete when we are finished
-        _setup_synaptic_dma_read();
+        if (!setup_done) {
+            _setup_synaptic_dma_read();
+        }
 
         // Process synaptic row repeatedly
         bool subsequent_spikes;
@@ -311,7 +310,7 @@ bool spike_processing_initialise(
     for (uint32_t i = 0; i < N_DELAY_SLOTS; i++) {
         future_delay_buffers[i] = circular_buffer_initialize(DELAY_BUFFER_SIZE);
     }
-    current_delay_buffer = circular_buffer_initialize(DELAY_BUFFER_SIZE);
+    current_delay_buffer = future_delay_buffers[0];
 
     // Set up the callbacks
     spin1_callback_on(MC_PACKET_RECEIVED,
@@ -330,10 +329,9 @@ void spike_processing_finish_write(uint32_t process_id) {
 void spike_processing_do_timestep_update(uint32_t time) {
 
     // Get the next buffer to process in this timestep
-    circular_buffer temp = current_delay_buffer;
     uint32_t buffer_index = time & SYNAPSE_DELAY_MASK;
     current_delay_buffer = future_delay_buffers[buffer_index];
-    future_delay_buffers[buffer_index] = temp;
+    delay_position = 0xFFFFFFFF;
 
     // Kick of processing, if not already running
     uint sr = spin1_int_disable();

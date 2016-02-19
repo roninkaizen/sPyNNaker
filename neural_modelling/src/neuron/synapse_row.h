@@ -79,7 +79,7 @@ typedef __uint_t(SYNAPSE_WEIGHT_BITS) weight_t;
 #endif
 typedef uint16_t control_t;
 
-#define N_SYNAPSE_ROW_HEADER_WORDS 4
+#define N_SYNAPSE_ROW_HEADER_WORDS 5
 
 
 // The data structure layout supported by this API is designed for
@@ -95,45 +95,36 @@ typedef uint16_t control_t;
 // the nature of the synaptic row structure is held in the lower
 // part of row[1].
 //
-//   0:  [ <rowlet_address> | <len> | <min_delay> ]
-//   1:  [ N = <plastic elements>         | <tag> ]
-//   2:  [ First word of plastic region           ]
+//   0:  [ <rowlet_address>     | <rowlet_length> ]
+//   1:  [           <rowlet_delay>               ]
+//   2:  [ N = <plastic elements>         | <tag> ]
+//   3:  [ First word of plastic region           ]
 //   ...
 //   N:  [ Last word of plastic region            ]
 // N+1:  [ First word of fixed region             ]
 //   ...
 //  M:   [ Last word of fixed region              ]
 
-// 22-bit address = ~16MB addressable by word
-static inline address_t rowlet_address(uint32_t value) {
-    return (address_t) (value >> 22);
+
+static inline address_t synapse_row_next_rowlet_address(address_t row) {
+    return (address_t) ((row[0] & 0xFFFFFF00) >> 6);
 }
 
-// 6-bit length = max rowlet length = 63
-static inline size_t rowlet_length(uint32_t value) {
-    return (size_t) (value >> 4) & 0x3F;
+static inline uint32_t synapse_row_next_rowlet_length(address_t row) {
+    return (uint32_t) (row[0] & 0xFF);
 }
 
-// 4-bit delay = max next delay = 16
-static inline uint32_t rowlet_delay(uint32_t value) {
-    return value & 0xF;
-}
-
-static inline uint32_t rowlet_set_delay(uint32_t value, uint32_t delay) {
-    return (value & ~0xF) | (delay & 0xF);
-}
-
-static inline uint32_t synapse_row_next_rowlet(address_t row) {
-    return (uint32_t) row[0];
+static inline uint32_t synapse_row_next_rowlet_delay(address_t row) {
+    return (uint32_t) row[1];
 }
 
 static inline size_t synapse_row_plastic_size(address_t row) {
-    return (size_t) row[1];
+    return (size_t) row[2];
 }
 
 // Returns the address of the plastic region
 static inline address_t synapse_row_plastic_region(address_t row) {
-    return ((address_t) (&(row[2])));
+    return ((address_t) (&(row[3])));
 }
 
 // Returns the address of the nonplastic (or fixed) region
