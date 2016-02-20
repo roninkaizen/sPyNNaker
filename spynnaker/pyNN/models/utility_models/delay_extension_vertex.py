@@ -129,13 +129,16 @@ class DelayExtensionVertex(AbstractPartitionableVertex,
     def generate_data_spec(
             self, subvertex, placement, sub_graph, graph, routing_info,
             hostname, graph_mapper, report_folder, ip_tags, reverse_ip_tags,
-            write_text_specs, application_run_time_folder, queue=None):
+            write_text_specs, application_run_time_folder, queue=None, give_placement=False):
         data_writer, report_writer = \
             self.get_data_spec_file_writers(
                 placement.x, placement.y, placement.p, hostname, report_folder,
                 write_text_specs, application_run_time_folder)
 
-        spec = DataSpecificationGenerator(data_writer, report_writer, queue)
+        if give_placement:
+            spec = DataSpecificationGenerator(data_writer, report_writer, queue, (placement.x, placement.y, placement.p))
+        else:
+            spec = DataSpecificationGenerator(data_writer, report_writer, queue)
 
         # Reserve memory:
         spec.comment("\nReserving memory space for data regions:\n\n")
