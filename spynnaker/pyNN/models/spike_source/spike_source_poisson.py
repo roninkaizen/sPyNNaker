@@ -190,7 +190,7 @@ class SpikeSourcePoisson(
             spec, ip_tags, [spike_history_region_sz], [self._spike_schedule],
             buffer_size_before_receive, self._time_between_requests)
 
-    def _write_poisson_parameters(self, spec, key, num_neurons):
+    def _write_poisson_parameters(self, spec, key, num_neurons, vertex_slice):
         """ Generate Neuron Parameter data for Poisson spike sources
 
         :param spec:
@@ -231,11 +231,11 @@ class SpikeSourcePoisson(
         for i in range(0, num_neurons):
 
             # Get the parameter values for source i:
-            rate_val = generate_parameter(self._rate, i)
-            start_val = generate_parameter(self._start, i)
+            rate_val = generate_parameter(self._rate, i + vertex_slice.lo_atom)
+            start_val = generate_parameter(self._start, i + vertex_slice.lo_atom)
             end_val = None
             if self._duration is not None:
-                end_val = generate_parameter(self._duration, i) + start_val
+                end_val = generate_parameter(self._duration, i + vertex_slice.lo_atom) + start_val
 
             # Decide if it is a fast or slow source and
             spikes_per_tick = \
@@ -389,7 +389,7 @@ class SpikeSourcePoisson(
                 subedges[0])
             key = keys_and_masks[0].key
 
-        self._write_poisson_parameters(spec, key, vertex_slice.n_atoms)
+        self._write_poisson_parameters(spec, key, vertex_slice.n_atoms, vertex_slice)
 
         # End-of-Spec:
         spec.end_specification()
