@@ -29,7 +29,7 @@ typedef struct slow_spike_source_t {
 } slow_spike_source_t;
 
 //! data structure for spikes which have at least one spike fired per timer
-//! tick; this is separated from spikes which have multiple timer ticks\
+//! tick; this is separated from spikes which have multiple timer ticks
 //! between firings as there are separate algorithms for each type.
 typedef struct fast_spike_source_t {
     uint32_t neuron_id;
@@ -39,11 +39,12 @@ typedef struct fast_spike_source_t {
 } fast_spike_source_t;
 
 //! spike source array region ids in human readable form
-typedef enum region{
+typedef enum region {
     SYSTEM, POISSON_PARAMS,
     BUFFERING_OUT_SPIKE_RECORDING_REGION,
-    BUFFERING_OUT_CONTROL_REGION
-}region;
+    BUFFERING_OUT_CONTROL_REGION,
+    PROVENANCE_REGION
+} region;
 
 #define NUMBER_OF_REGIONS_TO_RECORD 1
 
@@ -54,7 +55,7 @@ typedef enum callback_priorities{
 //! what each position in the poisson parameter region actually represent in
 //! terms of data (each is a word)
 typedef enum poisson_region_parameters{
-    HAS_KEY, TRANSMISSION_KEY, PARAMETER_SEED_START_POSITION,
+    HAS_KEY, TRANSMISSION_KEY, RANDOM_BACKOFF, PARAMETER_SEED_START_POSITION,
 } poisson_region_parameters;
 
 // Globals
@@ -83,6 +84,10 @@ static bool has_been_given_key;
 
 //! A variable that contains the key value that this model should transmit with
 static uint32_t key;
+
+//! An amount of microseconds to back off before starting the timer, in an
+//! attempt to avoid overloading the network
+static uint32_t random_backoff_us;
 
 //! keeps track of which types of recording should be done to this model.
 static uint32_t recording_flags = 0;
@@ -136,7 +141,8 @@ bool read_poisson_parameters(address_t address) {
 
     has_been_given_key = address[HAS_KEY];
     key = address[TRANSMISSION_KEY];
-    log_info("\tkey = %08x", key);
+    random_backoff_us = address[RANDOM_BACKOFF];
+    log_info("\t key = %08x, back off = %u", key, random_backoff_us);
 
     uint32_t seed_size = sizeof(mars_kiss64_seed_t) / sizeof(uint32_t);
     memcpy(spike_source_seed, &address[PARAMETER_SEED_START_POSITION],
@@ -149,7 +155,7 @@ bool read_poisson_parameters(address_t address) {
     num_slow_spike_sources = address[PARAMETER_SEED_START_POSITION + seed_size];
     num_fast_spike_sources = address[PARAMETER_SEED_START_POSITION +
                                      seed_size + 1];
-    log_info("\tslow spike sources = %u, fast spike sources = %u,",
+    log_info("\t slow spike sources = %u, fast spike sources = %u,",
              num_slow_spike_sources, num_fast_spike_sources);
 
     // Allocate DTCM for array of slow spike sources and copy block of data
@@ -249,8 +255,7 @@ static bool initialize(uint32_t *timer_period) {
     address_t system_region = data_specification_get_region(
             SYSTEM, address);
     if (!simulation_read_timing_details(
-            system_region, APPLICATION_NAME_HASH, timer_period,
-            &simulation_ticks, &infinite_run)) {
+            system_region, APPLICATION_NAME_HASH, timer_period)) {
         return false;
     }
 
@@ -270,6 +275,27 @@ static bool initialize(uint32_t *timer_period) {
     return true;
 }
 
+void resume_callback() {
+
+    // handle resetting the recording state
+    // Get the recording information
+    address_t address = data_specification_get_data_address();
+    address_t system_region = data_specification_get_region(
+        SYSTEM, address);
+    uint8_t regions_to_record[] = {
+        BUFFERING_OUT_SPIKE_RECORDING_REGION,
+    };
+    uint8_t n_regions_to_record = NUMBER_OF_REGIONS_TO_RECORD;
+    uint32_t *recording_flags_from_system_conf =
+        &system_region[SIMULATION_N_TIMING_DETAIL_WORDS];
+    uint8_t state_region = BUFFERING_OUT_CONTROL_REGION;
+
+    recording_initialize(
+        n_regions_to_record, regions_to_record,
+        recording_flags_from_system_conf, state_region, 2,
+        &recording_flags);
+}
+
 //! \brief Timer interrupt callback
 //! \param[in] timer_count the number of times this call back has been
 //!            executed since start of simulation
@@ -287,32 +313,19 @@ void timer_callback(uint timer_count, uint unused) {
     // If a fixed number of simulation ticks are specified and these have passed
     if (infinite_run != TRUE && time >= simulation_ticks) {
 
+        // go into pause and resume state to avoid another tick
+        simulation_handle_pause_resume(resume_callback);
+
         // Finalise any recordings that are in progress, writing back the final
         // amounts of samples recorded to SDRAM
         if (recording_flags > 0) {
             recording_finalise();
         }
-        // go into pause and resume state
-        simulation_handle_pause_resume(timer_callback, TIMER);
+        return;
+    }
 
-        // handle resetting the recording state
-        // Get the recording information
-        address_t address = data_specification_get_data_address();
-        address_t system_region = data_specification_get_region(
-            SYSTEM, address);
-        uint8_t regions_to_record[] = {
-            BUFFERING_OUT_SPIKE_RECORDING_REGION,
-        };
-        uint8_t n_regions_to_record = NUMBER_OF_REGIONS_TO_RECORD;
-        uint32_t *recording_flags_from_system_conf =
-            &system_region[SIMULATION_N_TIMING_DETAIL_WORDS];
-        uint8_t state_region = BUFFERING_OUT_CONTROL_REGION;
-
-        recording_initialize(
-            n_regions_to_record, regions_to_record,
-            recording_flags_from_system_conf, state_region, 2,
-            &recording_flags);
-        }
+    // Sleep for a random time
+    spin1_delay_us(random_backoff_us);
 
     // Loop through slow spike sources
     slow_spike_source_t *slow_spike_sources = slow_spike_source_array;
@@ -410,6 +423,7 @@ void c_main(void) {
     // Load DTCM data
     uint32_t timer_period;
     if (!initialize(&timer_period)) {
+        log_error("Error in initialisation - exiting!");
         rt_error(RTE_SWERR);
     }
 
@@ -432,6 +446,8 @@ void c_main(void) {
     simulation_register_simulation_sdp_callback(
         &simulation_ticks, &infinite_run, SDP);
 
-    log_info("Starting");
+    // set up provenance registration
+    simulation_register_provenance_callback(NULL, PROVENANCE_REGION);
+
     simulation_run();
 }

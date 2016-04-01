@@ -17,7 +17,7 @@ class AbstractSpikeRecordable(object):
         """
 
     @abstractmethod
-    def set_recording_spikes(self, schedule=[]):
+    def set_recording_spikes(self, schedule=None):
         """ Sets spikes to being recorded
 
         :param schedule: a list of tuples of start and end times in ms between\
