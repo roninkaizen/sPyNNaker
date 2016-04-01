@@ -1,6 +1,3 @@
-"""
-SpikeSourceFromFile
-"""
 
 # spynnaker imports
 from spynnaker.pyNN.models.spike_source.spike_source_array import \
@@ -12,28 +9,26 @@ import numpy
 
 
 class SpikeSourceFromFile(SpikeSourceArray):
-    """
-    helper class that allows spikes froma  file to be read in and added to a
-    buffered spike soruce
+    """ SpikeSourceArray that works from a file
     """
 
     def __init__(
             self, n_neurons, spike_time_file, machine_time_step,
-            spikes_per_second, ring_buffer_sigma, timescale_factor, port=None,
-            tag=None, ip_address=None, board_address=None, min_atom=None,
-            max_atom=None, min_time=None, max_time=None,
-            max_on_chip_memory_usage_for_spikes_in_bytes=None,
-            constraints=None, label="SpikeSourceArray"):
+            timescale_factor, port=None, tag=None, ip_address=None,
+            board_address=None, min_atom=None, max_atom=None, min_time=None,
+            max_time=None, max_on_chip_memory_usage_for_spikes_in_bytes=None,
+            constraints=None, split_value="\t", label="SpikeSourceArray"):
 
         spike_times = utility_calls.read_spikes_from_file(
-            spike_time_file, min_atom, max_atom, min_time, max_time)
+            spike_time_file, min_atom, max_atom, min_time, max_time,
+            split_value)
 
         SpikeSourceArray.__init__(
             self, n_neurons, spike_times, machine_time_step,
-            spikes_per_second, ring_buffer_sigma, timescale_factor, port=port,
+            timescale_factor, port=port,
             tag=tag, ip_address=ip_address, board_address=board_address,
-            max_on_chip_memory_usage_for_spikes_in_bytes=
-            max_on_chip_memory_usage_for_spikes_in_bytes,
+            max_on_chip_memory_usage_for_spikes_in_bytes=(
+                max_on_chip_memory_usage_for_spikes_in_bytes),
             constraints=constraints, label=label)
 
     @staticmethod
@@ -57,7 +52,8 @@ class SpikeSourceFromFile(SpikeSourceArray):
             subsampled_times = []
             while t_index < t_last:
                 spikes_in_interval = 0
-                while t_index < t_last and times[t_index] <= t_start + interval:
+                while (t_index < t_last and
+                        times[t_index] <= t_start + interval):
                     spikes_in_interval += 1
                     if spikes_in_interval >= interval:
                         t_start = times[t_index] + interval
@@ -75,18 +71,8 @@ class SpikeSourceFromFile(SpikeSourceArray):
         return sub_sampled_array
 
     @staticmethod
-    def _convert_spike_list_to_timed_spikes(spike_list, min_idx, max_idx,
-                                            tmin, tmax, tstep):
-        """
-
-        :param spike_list:
-        :param min_idx:
-        :param max_idx:
-        :param tmin:
-        :param tmax:
-        :param tstep:
-        :return:
-        """
+    def _convert_spike_list_to_timed_spikes(
+            spike_list, min_idx, max_idx, tmin, tmax, tstep):
         times = numpy.array(range(tmin, tmax, tstep))
         spike_ids = sorted(spike_list)
         possible_neurons = range(min_idx, max_idx)
@@ -96,8 +82,4 @@ class SpikeSourceFromFile(SpikeSourceArray):
 
     @property
     def spike_times(self):
-        """
-        helper method for acquiring the spike times
-        :return:
-        """
         return self._spike_times

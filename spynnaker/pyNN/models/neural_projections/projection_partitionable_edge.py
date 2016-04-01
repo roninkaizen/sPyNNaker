@@ -1,107 +1,89 @@
 from pacman.model.partitionable_graph.multi_cast_partitionable_edge\
     import MultiCastPartitionableEdge
-from pacman.utilities.progress_bar import ProgressBar
+from pacman.utilities.utility_objs.timer import Timer
+
+from spinn_machine.utilities.progress_bar import ProgressBar
 
 from spynnaker.pyNN.utilities import conf
 from spynnaker.pyNN.models.neural_projections.projection_partitioned_edge \
     import ProjectionPartitionedEdge
-from spynnaker.pyNN.models.neural_properties.synapse_dynamics.\
-    fixed_synapse_row_io import FixedSynapseRowIO
-from spynnaker.pyNN.models.neural_properties.synapse_row_info \
-    import SynapseRowInfo
-from spynnaker.pyNN.models.neural_properties.synaptic_list import SynapticList
-
-from spinn_front_end_common.utilities.timer import Timer
 
 import logging
+import copy
+
 logger = logging.getLogger(__name__)
 
 
 class ProjectionPartitionableEdge(MultiCastPartitionableEdge):
+    """ An edge which terminates on an AbstractPopulationVertex
+    """
 
-    def __init__(self, presynaptic_population, postsynaptic_population,
-                 machine_time_step, connector=None, synapse_list=None,
-                 synapse_dynamics=None, label=None):
+    def __init__(
+            self, pre_vertex, post_vertex, synapse_information, label=None):
         MultiCastPartitionableEdge.__init__(
-            self, presynaptic_population._get_vertex,
-            postsynaptic_population._get_vertex, label=label)
+            self, pre_vertex, post_vertex, label=label)
 
-        self._connector = connector
-        self._synapse_dynamics = synapse_dynamics
-        self._synapse_list = synapse_list
-        self._synapse_row_io = FixedSynapseRowIO()
+        # A list of all synapse information for all the projections that are
+        # represented by this edge
+        self._synapse_information = [synapse_information]
+
+        # The edge from the delay extension of the pre_vertex to the
+        # post_vertex - this might be None if no long delays are present
+        self._delay_edge = None
+
         self._stored_synaptic_data_from_machine = None
 
-        # If there are synapse dynamics for this connector, create a plastic
-        # synapse list
-        if synapse_dynamics is not None:
-            self._synapse_row_io = synapse_dynamics.get_synapse_row_io()
+    def add_synapse_information(self, synapse_information):
+        synapse_information.index = len(self._synapse_information)
+        self._synapse_information.append(synapse_information)
 
-    def create_subedge(self, presubvertex, postsubvertex, constraints=None,
-                       label=None):
-        """
-        Creates a subedge from this edge
-        """
-        if constraints is None:
-            constraints = list()
-        constraints.extend(self.constraints)
-        return ProjectionPartitionedEdge(presubvertex, postsubvertex,
-                                         constraints)
+    @property
+    def synapse_information(self):
+        return self._synapse_information
 
-    def get_max_n_words(self, vertex_slice=None):
-        """
-        Gets the maximum number of words for a subvertex at the end of the
-        connection
-        :param vertex_slice: the vertex slice for this vertex which contains \
-        the lo and hi atoms for this slice
-        """
-        if vertex_slice is None:
-            return max([self._synapse_row_io.get_n_words(
-                synapse_row)
-                for synapse_row in self._synapse_list.get_rows()])
-        else:
-            return max([self._synapse_row_io.get_n_words(
-                synapse_row, vertex_slice)
-                for synapse_row in self._synapse_list.get_rows()])
+    @property
+    def delay_edge(self):
+        return self._delay_edge
 
-    def get_n_rows(self):
-        """
-        Gets the number of synaptic rows coming in to a subvertex at the end of
-        the connection
-        """
-        return self._synapse_list.get_n_rows()
+    @delay_edge.setter
+    def delay_edge(self, delay_edge):
+        self._delay_edge = delay_edge
 
-    def get_synapse_row_io(self):
-        """
-        Gets the row reader and writer
-        """
-        return self._synapse_row_io
+    @property
+    def n_delay_stages(self):
+        if self._delay_edge is None:
+            return 0
+        return self._delay_edge.pre_vertex.n_delay_stages
+
+    def create_subedge(
+            self, pre_subvertex, post_subvertex, label=None):
+        return ProjectionPartitionedEdge(
+            self._synapse_information, pre_subvertex, post_subvertex, label)
 
     def get_synaptic_list_from_machine(self, graph_mapper, partitioned_graph,
                                        placements, transceiver, routing_infos):
-        """
-        Get synaptic data for all connections in this Projection from the
-        machine.
+        """ Get synaptic data for all connections in this Projection from the\
+            machine.
         """
         if self._stored_synaptic_data_from_machine is None:
             timer = None
-            if conf.config.getboolean("Reports", "outputTimesForSections"):
+            if conf.config.getboolean("Reports", "display_algorithm_timings"):
                 timer = Timer()
                 timer.start_timing()
 
-            logger.debug("Reading synapse data for edge between {} and {}"
-                         .format(self._pre_vertex.label,
-                                 self._post_vertex.label))
             subedges = \
                 graph_mapper.get_partitioned_edges_from_partitionable_edge(
                     self)
             if subedges is None:
                 subedges = list()
 
-            synaptic_list = [SynapseRowInfo([], [], [], [])
-                             for _ in range(self._pre_vertex.n_atoms)]
+            synaptic_list = copy.copy(self._synapse_list)
+            synaptic_list_rows = synaptic_list.get_rows()
             progress_bar = ProgressBar(
-                len(subedges), "progress on reading back synaptic matrix")
+                len(subedges),
+                "Reading back synaptic matrix for edge between"
+                " {} and {}".format(self._pre_vertex.label,
+                                    self._post_vertex.label))
             for subedge in subedges:
                 n_rows = subedge.get_n_rows(graph_mapper)
                 pre_vertex_slice = \
@@ -119,32 +101,17 @@ class ProjectionPartitionableEdge(MultiCastPartitionableEdge):
                     routing_infos, subedge.weight_scales).get_rows()
 
                 for i in range(len(rows)):
-                    synaptic_list[i + pre_vertex_slice.lo_atom].append(
-                        rows[i], lo_atom=post_vertex_slice.lo_atom)
+                    synaptic_list_rows[
+                        i + pre_vertex_slice.lo_atom].set_slice_values(
+                            rows[i], vertex_slice=post_vertex_slice)
                 progress_bar.update()
             progress_bar.end()
-            self._stored_synaptic_data_from_machine = SynapticList(
-                synaptic_list)
-            if conf.config.getboolean("Reports", "outputTimesForSections"):
-                timer.take_sample()
+            self._stored_synaptic_data_from_machine = synaptic_list
+            if conf.config.getboolean("Reports", "display_algorithm_timings"):
+                logger.info("Time to read matrix: {}".format(
+                    timer.take_sample()))
 
         return self._stored_synaptic_data_from_machine
-
-    @property
-    def synapse_dynamics(self):
-        """
-
-        :return: returns the synapse_dynamics for the edge
-        """
-        return self._synapse_dynamics
-
-    @property
-    def synapse_list(self):
-        """
-
-        :return: returns the synaptic list for the edge
-        """
-        return self._synapse_list
 
     def is_multi_cast_partitionable_edge(self):
         return True

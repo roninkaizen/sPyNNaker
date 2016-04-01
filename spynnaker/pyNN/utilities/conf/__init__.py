@@ -43,8 +43,6 @@ spynnaker_user = os.path.expanduser("~/.spynnaker.cfg")
 spynnaker_others = (spynnaker_user, "spynnaker.cfg")
 located_spynnaker = list()
 
-legacy_pacmans = (os.path.expanduser("~/.pacman.cfg"), "pacman.cfg")
-
 found_spynnakers = False
 for possible_spynnaker_file in spynnaker_others:
     if os.path.isfile(possible_spynnaker_file):
@@ -52,34 +50,21 @@ for possible_spynnaker_file in spynnaker_others:
         located_spynnaker.append(os.path.abspath(possible_spynnaker_file))
 
 
-found_pacmans = False
-for possible_pacman_file in legacy_pacmans:
-    if os.path.isfile(possible_pacman_file):
-        if found_spynnakers:
-            raise exceptions.ConfigurationException(
-                "The configuration tools discovered a "
-                ".spynnaker.cfg/.pacman.cfg in path \n"
-                "{}\n as well as a non-default spynnaker.cfg in path {}."
-                " Spynnaker does not support integration of pacman.cfg and "
-                "spynnaker.cfg. Please remove or merge these files. "
-                "Recommendation is to rename the merged file to spynnaker.cfg"
-                .format(possible_pacman_file, located_spynnaker))
-        else:
-            found_pacmans = True
-
 with open(default) as f:
     config.readfp(f)
 if found_spynnakers:
     read = config.read(spynnaker_others)
-elif found_pacmans:
-    read = config.read(legacy_pacmans)
 else:
-
     # Create a default spynnaker.cfg in the user home directory and get them
     # to update it.
     _install_cfg()
 
 read.append(default)
+
+machine_spec_file_path = config.get("Machine", "machine_spec_file")
+if machine_spec_file_path != "None":
+    config.read(machine_spec_file_path)
+    read.append(machine_spec_file_path)
 
 
 # creates a directory if needed, or deletes it and rebuilds it

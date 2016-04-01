@@ -11,7 +11,7 @@
 //---------------------------------------
 // Macros
 //---------------------------------------
-#define MAX_POST_SYNAPTIC_EVENTS 32
+#define MAX_POST_SYNAPTIC_EVENTS 16
 
 //---------------------------------------
 // Structures
@@ -32,13 +32,34 @@ typedef struct {
 } post_event_window_t;
 
 //---------------------------------------
-// Function declarations
-//---------------------------------------
-post_event_history_t *post_events_init_buffers(uint32_t n_neurons);
-
-//---------------------------------------
 // Inline functions
 //---------------------------------------
+static inline post_event_history_t *post_events_init_buffers(
+        uint32_t n_neurons) {
+    post_event_history_t *post_event_history =
+        (post_event_history_t*) spin1_malloc(
+            n_neurons * sizeof(post_event_history_t));
+
+    // Check allocations succeeded
+    if (post_event_history == NULL) {
+        log_error(
+            "Unable to allocate global STDP structures - Out of DTCM: Try "
+            "reducing the number of neurons per core to fix this problem ");
+        return NULL;
+    }
+
+    // Loop through neurons
+    for (uint32_t n = 0; n < n_neurons; n++) {
+
+        // Add initial placeholder entry to buffer
+        post_event_history[n].times[0] = 0;
+        post_event_history[n].traces[0] = timing_get_initial_post_trace();
+        post_event_history[n].count_minus_one = 0;
+    }
+
+    return post_event_history;
+}
+
 static inline post_event_window_t post_events_get_window(
         const post_event_history_t *events, uint32_t begin_time) {
 
@@ -56,7 +77,7 @@ static inline post_event_window_t post_events_get_window(
         window.next_time = event_time--;
     }
 
-    // Keep looping while event occured after start
+    // Keep looping while event occurred after start
     // Of window and we haven't hit beginning of array
     while (*event_time > begin_time && event_time != events->times);
 
@@ -97,7 +118,7 @@ static inline post_event_window_t post_events_get_window_delayed(
         }
     }
 
-    // Keep looping while event occured after start
+    // Keep looping while event occurred after start
     // Of window and we haven't hit beginning of array
     while (*event_time > begin_time && event_time != events->times);
 
@@ -123,7 +144,7 @@ static inline post_event_window_t post_events_next(post_event_window_t window) {
     window.prev_time = *window.next_time++;
     window.prev_trace = *window.next_trace++;
 
-    // Decrement remining events
+    // Decrement remaining events
     window.num_events--;
     return window;
 }
@@ -139,7 +160,7 @@ static inline post_event_window_t post_events_next_delayed(
     // Go onto next event
     window.next_time++;
 
-    // Decrement remining events
+    // Decrement remaining events
     window.num_events--;
     return window;
 }

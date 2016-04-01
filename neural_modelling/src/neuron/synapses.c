@@ -29,7 +29,7 @@ static uint32_t ring_buffer_to_input_left_shifts[SYNAPSE_TYPE_COUNT];
 static input_t input_buffers[INPUT_BUFFER_SIZE];
 
 // The synapse shaping parameters
-static synapse_param_t *neuron_synapse_shaping_params[SYNAPSE_TYPE_COUNT];
+static synapse_param_t *neuron_synapse_shaping_params;
 
 // Count of the number of times the ring buffers have saturated
 static uint32_t saturation_count = 0;
@@ -151,10 +151,10 @@ static inline void _print_inputs() {
 
 
 // This is the "inner loop" of the neural simulation.
-// Every spike event could cause upto 256 different weights to
+// Every spike event could cause up to 256 different weights to
 // be put into the ring buffer.
-static inline void _process_fixed_synapses(address_t fixed_region_address,
-                                           uint32_t time) {
+static inline void _process_fixed_synapses(
+        address_t fixed_region_address, uint32_t time) {
     register uint32_t *synaptic_words = synapse_row_fixed_weight_controls(
         fixed_region_address);
     register uint32_t fixed_synapse = synapse_row_num_fixed_synapses(
@@ -167,7 +167,7 @@ static inline void _process_fixed_synapses(address_t fixed_region_address,
     for (; fixed_synapse > 0; fixed_synapse--) {
 
         // Get the next 32 bit word from the synaptic_row
-        // (should autoincrement pointer in single instruction)
+        // (should auto increment pointer in single instruction)
         uint32_t synaptic_word = *synaptic_words++;
 
         // Extract components from this word
@@ -198,6 +198,20 @@ static inline void _process_fixed_synapses(address_t fixed_region_address,
     }
 }
 
+//! private method for doing output debug data on the synapses
+static inline void _print_synapse_parameters() {
+//! only if the models are compiled in debug mode will this method contain
+//! said lines.
+#if LOG_LEVEL >= LOG_DEBUG
+    log_debug("-------------------------------------\n");
+    for (index_t n = 0; n < n_neurons; n++) {
+        synapse_types_print_parameters(&(neuron_synapse_shaping_params[n]));
+    }
+    log_debug("-------------------------------------\n");
+    //}
+#endif // LOG_LEVEL >= LOG_DEBUG
+}
+
 
 /* INTERFACE FUNCTIONS */
 
@@ -218,19 +232,17 @@ bool synapses_initialise(address_t address, uint32_t n_neurons_value,
     }
 
     // Get the synapse shaping data
-    for (index_t synapse_index = 0; synapse_index < SYNAPSE_TYPE_COUNT;
-            synapse_index++) {
-        log_debug("\tCopying %u synapse type %u parameters of size %u",
-                n_neurons, synapse_index, sizeof(synapse_param_t));
+    if (sizeof(synapse_param_t) > 0) {
+        log_debug("\tCopying %u synapse type parameters of size %u",
+                n_neurons, sizeof(synapse_param_t));
 
         // Allocate block of memory for this synapse type'synapse_index
         // pre-calculated per-neuron decay
-        neuron_synapse_shaping_params[synapse_index] =
-            (synapse_param_t *) spin1_malloc(
+        neuron_synapse_shaping_params = (synapse_param_t *) spin1_malloc(
                 sizeof(synapse_param_t) * n_neurons);
 
         // Check for success
-        if (neuron_synapse_shaping_params[synapse_index] == NULL) {
+        if (neuron_synapse_shaping_params == NULL) {
             log_error("Cannot allocate neuron synapse parameters"
                       "- Out of DTCM");
             return false;
@@ -238,25 +250,26 @@ bool synapses_initialise(address_t address, uint32_t n_neurons_value,
 
         log_debug(
             "\tCopying %u bytes from %u", n_neurons * sizeof(synapse_param_t),
-            address + ((n_neurons * synapse_index
-                       * sizeof(synapse_param_t)) / 4));
-        memcpy(neuron_synapse_shaping_params[synapse_index],
-                address + ((n_neurons * synapse_index
-                           * sizeof(synapse_param_t)) / 4),
-                n_neurons * sizeof(synapse_param_t));
+            address + ((n_neurons * sizeof(synapse_param_t)) / 4));
+        memcpy(neuron_synapse_shaping_params, address,
+               n_neurons * sizeof(synapse_param_t));
     }
 
     // Get the ring buffer left shifts
     uint32_t ring_buffer_input_left_shifts_base =
-        ((n_neurons * SYNAPSE_TYPE_COUNT * sizeof(synapse_param_t)) / 4);
+        ((n_neurons * sizeof(synapse_param_t)) / 4);
     for (index_t synapse_index = 0; synapse_index < SYNAPSE_TYPE_COUNT;
-           synapse_index++) {
+            synapse_index++) {
         ring_buffer_to_input_left_shifts[synapse_index] =
             address[ring_buffer_input_left_shifts_base + synapse_index];
+        log_info("synapse type %s, ring buffer to input left shift %u",
+                 synapse_types_get_type_char(synapse_index),
+                 ring_buffer_to_input_left_shifts[synapse_index]);
     }
     *ring_buffer_to_input_buffer_left_shifts = ring_buffer_to_input_left_shifts;
 
     log_info("synapses_initialise: completed successfully");
+    _print_synapse_parameters();
     return true;
 }
 
@@ -279,7 +292,7 @@ void synapses_do_timestep_update(timer_t time) {
         for (uint32_t synapse_type_index = 0;
                 synapse_type_index < SYNAPSE_TYPE_COUNT; synapse_type_index++) {
 
-            // Get index in the ring buffers for the current timeslot for
+            // Get index in the ring buffers for the current time slot for
             // this synapse type and neuron
             uint32_t ring_buffer_index = synapses_get_ring_buffer_index(
                 time, synapse_type_index, neuron_index);
@@ -303,7 +316,7 @@ void synapses_do_timestep_update(timer_t time) {
     spin1_mode_restore(state);
 }
 
-void synapses_process_synaptic_row(uint32_t time, synaptic_row_t row,
+bool synapses_process_synaptic_row(uint32_t time, synaptic_row_t row,
                                    bool write, uint32_t process_id) {
 
     _print_synaptic_row(row);
@@ -321,10 +334,12 @@ void synapses_process_synaptic_row(uint32_t time, synaptic_row_t row,
         address_t plastic_region_address = synapse_row_plastic_region(row);
 
         // Process any plastic synapses
-        synapse_dynamics_process_plastic_synapses(plastic_region_address,
-                fixed_region_address, ring_buffers, time);
+        if (!synapse_dynamics_process_plastic_synapses(plastic_region_address,
+                fixed_region_address, ring_buffers, time)) {
+            return false;
+        }
 
-        // Perform DMA writeback
+        // Perform DMA write back
         if (write) {
             spike_processing_finish_write(process_id);
         }
@@ -336,23 +351,25 @@ void synapses_process_synaptic_row(uint32_t time, synaptic_row_t row,
     // that the DMA controller is ready to read next synaptic row afterwards
     _process_fixed_synapses(fixed_region_address, time);
     //}
+    return true;
 }
 
-void synapses_print_saturation_count() {
-    if (saturation_count > 0) {
-        log_warning("Ring buffer saturation events: %d\n", saturation_count);
-    }
+//! \brief returns the number of times the synapses have saturated their
+//!        weights.
+//! \return the number of times the synapses have saturated.
+uint32_t synapses_get_saturation_count() {
+    return saturation_count;
 }
 
-//! \either prints the counters for plastic and fixed pre synaptic events based
-//! on (if the model was compiled with SYNAPSE_BENCHMARK parameter) or does
-//! nothing (the assumption being that a empty function will be removed by the
-//! compiler and therefore there is no code bloat)
-//! \return Nothing, this method does not return anything
-void synapses_print_pre_synaptic_events() {
+//! \brief returns the counters for plastic and fixed pre synaptic events based
+//! on (if the model was compiled with SYNAPSE_BENCHMARK parameter) or
+//! returns 0
+//! \return the counter for plastic and fixed pre synaptic events or 0
+uint32_t synapses_get_pre_synaptic_events() {
 #ifdef SYNAPSE_BENCHMARK
-	log_info("\t%u fixed pre-synaptic events.\n",
-			num_fixed_pre_synaptic_events);
-	synapse_dynamics_print_plastic_pre_synaptic_events();
+    return (num_fixed_pre_synaptic_events +
+            synapse_dynamics_get_plastic_pre_synaptic_events());
+#else
+    return 0;
 #endif // SYNAPSE_BENCHMARK
 }
