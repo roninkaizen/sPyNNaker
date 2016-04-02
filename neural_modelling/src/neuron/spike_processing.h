@@ -12,6 +12,8 @@ void spike_processing_finish_write(uint32_t process_id);
 
 void spike_processing_do_timestep_update(uint32_t time);
 
-void spike_processing_print_buffer_overflows();
+//! \brief returns the number of times the input buffer has overflowed
+//! \return the number of times the input buffer has overflowed
+uint32_t spike_processing_get_buffer_overflows();
 
 #endif // _SPIKE_PROCESSING_H_
