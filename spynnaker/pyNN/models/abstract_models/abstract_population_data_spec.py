@@ -177,8 +177,8 @@ class AbstractPopulationDataSpec(
         # Define profiler time scale
         MS_SCALE = (1.0 / 200032.4)
 
-        # Create a dictionary to hold each sub-vertex's profiling data
-        vertex_profiling_data = {}
+        # Create a list to hold each sub-vertex's profiling data
+        vertex_profiling_data = []
         subvertices = graph_mapper.get_subvertices_from_vertex(self)
         for subvertex in subvertices:
             placement = placements.get_placement_of_subvertex(subvertex)
@@ -271,7 +271,7 @@ class AbstractPopulationDataSpec(
                 tag_dictionary[tag] = (tag_entry_times_ms, tag_durations_ms)
 
             # Stick tag dictionary in profiling data
-            vertex_profiling_data[(subvertex_slice.lo_atom, subvertex_slice.hi_atom)] = tag_dictionary
+            vertex_profiling_data.append(((subvertex_slice.lo_atom, subvertex_slice.hi_atom), tag_dictionary))
 
         return vertex_profiling_data
 

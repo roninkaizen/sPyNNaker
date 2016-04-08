@@ -2,7 +2,7 @@ import logging
 import numpy as np
 import random
 import spynnaker.pyNN as sim
-
+from spynnaker.pyNN.utilities import profiling
 from six import iteritems
 
 n_stim = 1000
@@ -18,7 +18,7 @@ current = 0.0 # 0Hz
 static = False
 
 record_spikes = True
-
+profile = True
 # FixedNumberPost not implemented - Mega yawn
 def make_connection_list(num_pre, num_post, fixed_number_post, weight, delay):
     connections = []
@@ -38,6 +38,9 @@ pop_stim = sim.Population(n_stim, sim.SpikeSourcePoisson, {"rate":stim_rate, "du
                           label="stim")
 pop_neurons = sim.Population(n_neurons, sim.IF_curr_exp, {"tau_refrac":2.0, "i_offset":current},
                              label="pop")
+
+if profile:
+    pop_neurons.profile(1E5)
 
 if record_spikes:
     pop_neurons.record()
@@ -65,6 +68,11 @@ if record_spikes:
     else:
         mean_out_rate = np.mean(num_spikes) / (duration / 1000.0)
     print("Out rate:%fHz (post spikes per pre:%f)" % (mean_out_rate, mean_out_rate/stim_rate))
+
+if profile:
+    profiling_data = pop_neurons.get_profiling_data()
+    profiling.print_summary(profiling_data[0][1], duration)
+
 
 # End simulation
 sim.end()
