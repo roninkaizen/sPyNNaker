@@ -16,6 +16,7 @@
 
 #include "../common/in_spikes.h"
 #include "neuron.h"
+#include "profiler.h"
 #include "synapses.h"
 #include "spike_processing.h"
 #include "population_table.h"
@@ -47,6 +48,7 @@ typedef enum regions_e {
     SPIKE_RECORDING_REGION,
     POTENTIAL_RECORDING_REGION,
     GSYN_RECORDING_REGION
+    PROFILER_REGION
 } regions_e;
 
 // Globals
@@ -152,6 +154,11 @@ static bool initialize(uint32_t *timer_period) {
     if (!spike_processing_initialise(row_max_n_words)) {
         return false;
     }
+
+    // Setup profiler
+    profiler_read_region(data_specification_get_region(PROFILER_REGION, address));
+    profiler_init();
+
     log_info("Initialise: finished");
     return true;
 }
@@ -170,6 +177,8 @@ void timer_callback(uint timer_count, uint unused) {
     use(timer_count);
     use(unused);
 
+    profiler_write_entry_disable_irq_fiq(PROFILER_ENTER | PROFILER_TIMER);
+
     time++;
 
     log_debug("Timer tick %u \n", time);
@@ -185,6 +194,8 @@ void timer_callback(uint timer_count, uint unused) {
 
         spike_processing_print_buffer_overflows();
 
+        profiler_write_entry_disable_irq_fiq(PROFILER_EXIT | PROFILER_TIMER);
+
         // Finalise any recordings that are in progress, writing back the final
         // amounts of samples recorded to SDRAM
         recording_finalise();
@@ -195,6 +206,8 @@ void timer_callback(uint timer_count, uint unused) {
     // otherwise do synapse and neuron time step updates
     synapses_do_timestep_update(time);
     neuron_do_timestep_update(time);
+
+    profiler_write_entry_disable_irq_fiq(PROFILER_EXIT | PROFILER_TIMER);
 }
 
 //! \The only entry point for this model. it initialises the model, sets up the

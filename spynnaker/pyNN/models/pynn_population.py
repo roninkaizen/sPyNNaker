@@ -648,6 +648,22 @@ class Population(object):
                 "This population does not support its max_atoms_per_core "
                 "variable being adjusted by the end user. Sorry")
 
+    # NONE PYNN API CALL
+    def profile(self, num_samples):
+        if not isinstance(self._vertex, AbstractPopulationVertex):
+            raise Exception("This population does not support profiling!")
+        else:
+            self._vertex.profiler_num_samples = num_samples
+    
+    def get_profiling_data(self):
+        if not isinstance(self._vertex, AbstractPopulationVertex):
+            raise Exception("This population does not support profiling!")
+        else:
+            return self._vertex.get_profiling_data(
+                txrx=self._spinnaker.transceiver,
+                placements=self._spinnaker.placements,
+                graph_mapper=self._spinnaker.graph_mapper)
+            
     @property
     def size(self):
         return self._vertex.n_atoms
