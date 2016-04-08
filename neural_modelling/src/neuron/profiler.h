@@ -13,8 +13,9 @@
 #define PROFILER_EXIT           0
 
 // Profiler tags
-#define PROFILER_TIMER          0
-#define PROFILER_DMA            1
+#define PROFILER_TIMER                    0
+#define PROFILER_PROCESS_FIXED_SYNAPSES   1
+#define PROFILER_PROCESS_PLASTIC_SYNAPSES 1
 
 #ifdef PROFILER_ENABLED
 
