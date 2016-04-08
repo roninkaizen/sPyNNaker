@@ -40,6 +40,7 @@
 //! human readable definitions of each region in SDRAM
 typedef enum regions_e {
     SYSTEM_REGION,
+    PROFILER_REGION,
     NEURON_PARAMS_REGION,
     SYNAPSE_PARAMS_REGION,
     POPULATION_TABLE_REGION,
@@ -47,8 +48,7 @@ typedef enum regions_e {
     SYNAPSE_DYNAMICS_REGION,
     SPIKE_RECORDING_REGION,
     POTENTIAL_RECORDING_REGION,
-    GSYN_RECORDING_REGION
-    PROFILER_REGION
+    GSYN_RECORDING_REGION,
 } regions_e;
 
 // Globals
@@ -199,6 +199,8 @@ void timer_callback(uint timer_count, uint unused) {
         // Finalise any recordings that are in progress, writing back the final
         // amounts of samples recorded to SDRAM
         recording_finalise();
+
+        profiler_finalise();
 
         spin1_exit(0);
         return;

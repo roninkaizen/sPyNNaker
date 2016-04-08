@@ -5,6 +5,7 @@ AbstractPopulationDataSpec
 # data specable imports
 from data_specification.data_specification_generator import \
     DataSpecificationGenerator
+from data_specification import utility_calls as dsg_utility_calls
 
 # spynnaker imports
 from spynnaker.pyNN.utilities import constants
@@ -21,6 +22,8 @@ from spinn_front_end_common.abstract_models\
 # general imports
 import os
 import logging
+import numpy
+import struct
 from abc import ABCMeta
 from abc import abstractmethod
 from six import add_metaclass
@@ -52,6 +55,9 @@ class AbstractPopulationDataSpec(
         self._spikes_per_second = spikes_per_second
         self._ring_buffer_sigma = ring_buffer_sigma
         self._flush_time = flush_time
+
+        # By default, profiling is disabled
+        self.profiler_num_samples = 0
 
     def _reserve_population_based_memory_regions(
             self, spec, neuron_params_sz, synapse_params_sz,
@@ -120,6 +126,15 @@ class AbstractPopulationDataSpec(
                 size=gsyn_hist_buff_sz, label='gsynHistBuffer',
                 empty=True)
 
+        if self.profiler_num_samples != 0:
+            spec.reserve_memory_region(
+                region=constants.POPULATION_BASED_REGIONS.PROFILING.value,
+                size=(8 + (self.profiler_num_samples * 8)), label="profilerRegion")
+        else:
+            spec.reserve_memory_region(
+                region=constants.POPULATION_BASED_REGIONS.PROFILING.value,
+                size=4, label="profilerRegion")
+
     def _write_setup_info(self, spec, spike_history_region_sz,
                           neuron_potential_region_sz, gsyn_region_sz):
         """
@@ -156,6 +171,109 @@ class AbstractPopulationDataSpec(
         spec.write_value(data=spike_history_region_sz)
         spec.write_value(data=neuron_potential_region_sz)
         spec.write_value(data=gsyn_region_sz)
+
+
+    def get_profiling_data(self, txrx, placements, graph_mapper):
+        # Define profiler time scale
+        MS_SCALE = (1.0 / 200032.4)
+
+        # Create a dictionary to hold each sub-vertex's profiling data
+        vertex_profiling_data = {}
+        subvertices = graph_mapper.get_subvertices_from_vertex(self)
+        for subvertex in subvertices:
+            placement = placements.get_placement_of_subvertex(subvertex)
+            (x, y, p) = placement.x, placement.y, placement.p
+            subvertex_slice = graph_mapper.get_subvertex_slice(subvertex)
+            lo_atom = subvertex_slice.lo_atom
+            logger.debug("Reading spikes from chip {}, {}, core {}, "
+                         "lo_atom {}".format(x, y, p, lo_atom))
+
+            # Get the App Data for the core
+            app_data_base_address = \
+                txrx.get_cpu_information_from_core(x, y, p).user[0]
+            # Get the position of the value buffer
+            profiling_region_base_address_offset = \
+                dsg_utility_calls.get_region_base_address_offset(app_data_base_address,
+                                               constants.POPULATION_BASED_REGIONS.PROFILING.value)
+            profiling_region_base_address_buf = buffer(txrx.read_memory(
+                x, y, profiling_region_base_address_offset, 4))
+            profiling_region_base_address = \
+                struct.unpack_from("<I", profiling_region_base_address_buf)[0]
+            profiling_region_base_address += app_data_base_address
+
+            # Read the profiling data size
+            words_written_data =\
+                buffer(txrx.read_memory(
+                    x, y, profiling_region_base_address + 4, 4))
+            words_written = \
+                struct.unpack_from("<I", words_written_data)[0]
+
+            # Read the profiling data
+            profiling_data = txrx.read_memory(
+                x, y, profiling_region_base_address + 8, words_written * 4)
+
+            # Finally read into numpyi
+            profiling_samples = numpy.asarray(profiling_data, dtype="uint8").view(dtype="<u4")
+
+            # If there's no data, continue to next vertex
+            if len(profiling_samples) == 0:
+                print("No samples recorded")
+                continue
+
+            # Slice data to seperate times, tags and flags
+            sample_times = profiling_samples[::2]
+            sample_tags_and_flags = profiling_samples[1::2]
+
+            # Further split the tags and flags word into seperate arrays of tags and flags
+            sample_tags = numpy.bitwise_and(sample_tags_and_flags, 0x7FFFFFFF)
+            sample_flags = numpy.right_shift(sample_tags_and_flags, 31)
+
+            # Find indices of samples relating to entries and exits
+            sample_entry_indices = numpy.where(sample_flags == 1)
+            sample_exit_indices = numpy.where(sample_flags == 0)
+
+            # Convert count-down times to count up times from 1st sample
+            sample_times = numpy.subtract(sample_times[0], sample_times)
+            sample_times_ms = numpy.multiply(sample_times, MS_SCALE, dtype=numpy.float)
+
+            # Slice tags and times into entry and exits
+            entry_tags = sample_tags[sample_entry_indices]
+            entry_times_ms = sample_times_ms[sample_entry_indices]
+            exit_tags = sample_tags[sample_exit_indices]
+            exit_times_ms = sample_times_ms[sample_exit_indices]
+
+            # Loop through unique tags
+            tag_dictionary = {}
+            unique_tags = numpy.unique(sample_tags)
+            for tag in unique_tags:
+                # Get indices where these tags occur
+                tag_entry_indices = numpy.where(entry_tags == tag)
+                tag_exit_indices = numpy.where(exit_tags == tag)
+
+                # Use these to get subset for this tag
+                tag_entry_times_ms = entry_times_ms[tag_entry_indices]
+                tag_exit_times_ms = exit_times_ms[tag_exit_indices]
+
+                # If the first exit is before the first
+                # Entry, add a dummy entry at beginning
+                if tag_exit_times_ms[0] < tag_entry_times_ms[0]:
+                    print "WARNING: profile starts mid-tag"
+                    tag_entry_times_ms = numpy.append(0.0, tag_entry_times_ms)
+
+                if len(tag_entry_times_ms) > len(tag_exit_times_ms):
+                    print "WARNING: profile finishes mid-tag"
+                    tag_entry_times_ms = tag_entry_times_ms[:len(tag_exit_times_ms)-len(tag_entry_times_ms)]
+
+                # Subtract entry times from exit times to get durations of each call
+                tag_durations_ms = numpy.subtract(tag_exit_times_ms, tag_entry_times_ms)
+
+                # Add entry times and durations to dictionary
+                tag_dictionary[tag] = (tag_entry_times_ms, tag_durations_ms)
+
+            # Stick tag dictionary in profiling data
+            vertex_profiling_data[(subvertex_slice.lo_atom, subvertex_slice.hi_atom)] = tag_dictionary
+
+        return vertex_profiling_data
 
     @abstractmethod
     def get_parameters(self):
@@ -310,6 +428,10 @@ class AbstractPopulationDataSpec(
         # Remove extension to get application name
         self._write_setup_info(spec, spike_hist_buff_sz,
                                potential_hist_buff_sz, gsyn_hist_buff_sz)
+
+        # Write profiler info
+        spec.switch_write_focus(region=constants.POPULATION_BASED_REGIONS.PROFILING.value)
+        spec.write_value(data=self.profiler_num_samples)
 
         # Every outgoing edge from this vertex should have the same key
         key = None
