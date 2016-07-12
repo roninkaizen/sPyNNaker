@@ -94,7 +94,7 @@ for projection_delta_t in projections:
     weights.append([p.getWeights()[0] for p in projection_delta_t])
 
 # End simulation on SpiNNaker
-sim.end(stop_on_board=True)
+sim.end()
 
 #-------------------------------------------------------------------
 # Plotting
