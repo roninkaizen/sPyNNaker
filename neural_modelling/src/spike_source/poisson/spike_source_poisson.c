@@ -173,7 +173,7 @@ static inline void _record_spikes(uint32_t time) {
     if ((spikes != NULL) && (spikes->n_buffers > 0)) {
         spikes->time = time;
         recording_record(
-            0, spikes, 8 + (spikes->n_buffers * spike_buffer_size));
+            time, 0, spikes, 8 + (spikes->n_buffers * spike_buffer_size));
         _reset_spikes();
     }
 }
