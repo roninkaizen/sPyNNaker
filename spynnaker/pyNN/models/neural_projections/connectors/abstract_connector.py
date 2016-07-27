@@ -89,6 +89,27 @@ class AbstractConnector(object):
         """
 
     @staticmethod
+    def _get_delay_variance(delays, connection_slices):
+        """ Get the variance of the delays
+        """
+        if isinstance(delays, RandomDistribution):
+            return utility_calls.get_variance(delays)
+        elif numpy.isscalar(delays):
+            return 0.0
+        elif hasattr(delays, "__getitem__"):
+            return numpy.var([
+                delays[connection_slice]
+                for connection_slice in connection_slices])
+        raise Exception("Unrecognised delay format")
+
+    @abstractmethod
+    def get_delay_variance(
+            self, pre_slices, pre_slice_index, post_slices,
+            post_slice_index, pre_vertex_slice, post_vertex_slice):
+        """ Get the variance of the delays for this connection
+        """
+
+    @staticmethod
     def _get_n_connections_from_pre_vertex_with_delay_maximum(
             delays, n_total_connections, n_connections, connection_slices,
             min_delay, max_delay):
@@ -144,12 +165,12 @@ class AbstractConnector(object):
         """ Get the mean of the weights
         """
         if isinstance(weights, RandomDistribution):
-            return utility_calls.get_mean(weights)
+            return abs(utility_calls.get_mean(weights))
         elif numpy.isscalar(weights):
-            return weights
+            return abs(weights)
         elif hasattr(weights, "__getitem__"):
             return numpy.mean([
-                weights[connection_slice]
+                numpy.abs(weights[connection_slice])
                 for connection_slice in connection_slices])
         raise Exception("Unrecognised weight format")
 
@@ -180,10 +201,10 @@ class AbstractConnector(object):
                 return abs(max_weight)
 
         elif numpy.isscalar(weights):
-            return weights
+            return abs(weights)
         elif hasattr(weights, "__getitem__"):
             return numpy.amax([
-                weights[connection_slice]
+                numpy.abs(weights[connection_slice])
                 for connection_slice in connection_slices])
         raise Exception("Unrecognised weight format")
 
@@ -204,7 +225,7 @@ class AbstractConnector(object):
             return 0.0
         elif hasattr(weights, "__getitem__"):
             return numpy.var([
-                weights[connection_slice]
+                numpy.abs(weights[connection_slice])
                 for connection_slice in connection_slices])
         raise Exception("Unrecognised weight format")
 
@@ -229,6 +250,8 @@ class AbstractConnector(object):
 
     def _generate_values(self, values, n_connections, connection_slices):
         if isinstance(values, RandomDistribution):
+            if n_connections == 1:
+                return numpy.array([values.next(n_connections)])
             return values.next(n_connections)
         elif numpy.isscalar(values):
             return numpy.repeat([values], n_connections)
@@ -267,7 +290,7 @@ class AbstractConnector(object):
                     " in projection {}->{}".format(
                         self._pre_population.label,
                         self._post_population.label))
-        return weights
+        return numpy.abs(weights)
 
     def _clip_delays(self, delays):
         """ Clip delay values, keeping track of how many have been clipped
@@ -281,7 +304,8 @@ class AbstractConnector(object):
             if delays < self._min_delay:
                 delays = self._min_delay
         else:
-            delays[delays < self._min_delay] = self._min_delay
+            if delays.size > 0:
+                delays[delays < self._min_delay] = self._min_delay
         return delays
 
     def _generate_delays(self, values, n_connections, connection_slices):
