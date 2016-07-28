@@ -93,6 +93,10 @@ class SynapticManager(object):
         # the edge the connection is for
         self._pre_run_connection_holders = defaultdict(list)
 
+        # Limit the DTCM used by one-to-one connections
+        self._one_to_one_connection_dtcm_max_bytes = conf.config.getint(
+            "Simulation", "one_to_one_connection_dtcm_max_bytes")
+
     @property
     def synapse_dynamics(self):
         return self._synapse_dynamics
@@ -651,7 +655,9 @@ class SynapticManager(object):
                                 partition)
 
                         if (row_length == 1 and isinstance(
-                                synapse_info.connector, OneToOneConnector)):
+                                synapse_info.connector, OneToOneConnector) and
+                                (next_single_start_position * 4) <
+                                 self._one_to_one_connection_dtcm_max_bytes):
                             single_rows = row_data.reshape(-1, 4)[:, 3]
                             single_synapses.append(single_rows)
                             self._population_table_type\
@@ -685,7 +691,9 @@ class SynapticManager(object):
                              pre_vertex_slice.hi_atom)]
 
                         if (delayed_row_length == 1 and isinstance(
-                                synapse_info.connector, OneToOneConnector)):
+                                synapse_info.connector, OneToOneConnector) and
+                                (next_single_start_position * 4) <
+                                 self._one_to_one_connection_dtcm_max_bytes):
                             single_rows = delayed_row_data.reshape(-1, 4)[:, 3]
                             single_synapses.append(single_rows)
                             self._population_table_type\
