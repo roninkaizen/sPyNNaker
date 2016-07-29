@@ -39,7 +39,7 @@ class VRecorder(object):
         return n_neurons * 4
 
     def get_v(self, label, buffer_manager, region, state_region, placements,
-              graph_mapper, partitionable_vertex, start_atoms, end_atoms):
+              graph_mapper, partitionable_vertex):
 
         subvertices = \
             graph_mapper.get_subvertices_from_vertex(partitionable_vertex)
@@ -81,20 +81,6 @@ class VRecorder(object):
                 numpy.arange(vertex_slice.lo_atom, vertex_slice.hi_atom + 1),
                 len(record_time)).reshape((-1, vertex_slice.n_atoms))
             record_membrane_potential = split_record[2] / 32767.0
-
-            # generate mask for neurons needed for the get level
-            # NOTE: seriously needs these brackets due to stupid numpy not
-            #  handling the & properly. All masks should have this bracketing
-            # stuff.
-            mask = ((record_ids >= start_atoms) & (record_ids <= end_atoms))
-
-            # filter off neurons not needed for the get level
-            record_ids = record_ids[mask]
-            record_membrane_potential = record_membrane_potential[mask]
-            record_time = record_time[mask]
-
-            # shift ids to align them with the population requested
-            record_ids = record_ids - start_atoms
 
             part_data = numpy.dstack(
                 [record_ids, record_time, record_membrane_potential])

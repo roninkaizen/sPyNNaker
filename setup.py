@@ -46,5 +46,6 @@ setup(
                       'SpiNNaker_PACMAN == 2016.001',
                       'SpiNNaker_DataSpecification == 2016.001',
                       'SpiNNFrontEndCommon == 2016.001',
-                      'pyNN >= 0.7, < 0.8', 'numpy', 'scipy', 'lxml', 'six']
+                      'pyNN >= 0.7, < 0.8', 'numpy', 'scipy', 'lxml', 'six',
+                      'ordered-set >= 2.0.1']
 )

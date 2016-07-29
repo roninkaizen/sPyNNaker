@@ -4,6 +4,7 @@ Synfirechain-like example
 """
 import spynnaker.pyNN as p
 import pylab
+from spynnaker.pyNN.models.neuron_cell import RecordingType
 
 p.setup(timestep=1.0, min_delay=1.0, max_delay=144.0)
 nNeurons = 200  # number of neurons in each population
@@ -63,10 +64,10 @@ index = 0
 atoms = atom_mapping[populations[0]._class][populations[0]]
 for atom in atoms:
     if 50 > index > 20:
-        if not atom.record_spikes:
+        if not atom.is_recording(RecordingType.SPIKES):
             raise AssertionError("Pop view didnt set the atom correctly.")
     if 120 > index > 150:
-        if not atom.record_v:
+        if not atom.is_recording(RecordingType.V):
             raise AssertionError("Pop view didnt set the atom correctly.")
     index += 1
 
@@ -82,11 +83,11 @@ populations[0].record()
 
 index = 0
 for atom in atom_mapping[populations[0]._class][populations[0]]:
-    if not atom.record_spikes:
+    if not atom.is_recording(RecordingType.SPIKES):
         raise AssertionError("Pop didnt set the atom correctly.")
-    if not atom.record_v:
+    if not atom.is_recording(RecordingType.V):
         raise AssertionError("Pop didnt set the atom correctly.")
-    if not atom.record_gsyn:
+    if not atom.is_recording(RecordingType.GSYN):
         raise AssertionError("Pop didnt set the atom correctly.")
     index += 1
 

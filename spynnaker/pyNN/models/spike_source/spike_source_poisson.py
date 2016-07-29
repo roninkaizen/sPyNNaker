@@ -15,7 +15,7 @@ from spynnaker.pyNN.models.common import recording_utils
 from spynnaker.pyNN.models.spike_source\
     .spike_source_poisson_partitioned_vertex \
     import SpikeSourcePoissonPartitionedVertex
-from spynnaker.pyNN.utilities import utility_calls
+from spynnaker.pyNN.models.neuron_cell import RecordingType
 
 from spinn_front_end_common.abstract_models.abstract_data_specable_vertex\
     import AbstractDataSpecableVertex
@@ -93,6 +93,10 @@ class SpikeSourcePoisson(
     def is_array_parameters(_):
         return {}
 
+    @staticmethod
+    def recording_types(_):
+        return [RecordingType.SPIKES]
+
     def __init__(
             self, bag_of_neurons,
             constraints=None, label="SpikeSourcePoisson"):
@@ -139,13 +143,18 @@ class SpikeSourcePoisson(
         self._using_auto_pause_and_resume = config.getboolean(
             "Buffers", "use_auto_pause_and_resume")
 
+        for atom in bag_of_neurons:
+            if atom.is_recording(RecordingType.SPIKES):
+                self._change_requires_mapping = not self._spike_recorder.record
+                self._spike_recorder.record = True
+
     @staticmethod
     def create_vertex(bag_of_neurons, population_parameters):
         params = dict(population_parameters)
         params['bag_of_neurons'] = bag_of_neurons
         vertex = SpikeSourcePoisson(**params)
         return vertex
-    
+
     def _max_spikes_per_ts(self, vertex_slice):
         max_rate = numpy.amax(
             self._rate[vertex_slice.lo_atom:vertex_slice.hi_atom + 1])
@@ -516,15 +525,14 @@ class SpikeSourcePoisson(
     def get_binary_file_name(self):
         return "spike_source_poisson.aplx"
 
-    def get_spikes(self, placements, graph_mapper, buffer_manager,
-                   start_neuron, end_neuron):
+    def get_spikes(self, placements, graph_mapper, buffer_manager):
         return self._spike_recorder.get_spikes(
             self._label, buffer_manager,
             (SpikeSourcePoissonPartitionedVertex.
                 _POISSON_SPIKE_SOURCE_REGIONS.SPIKE_HISTORY_REGION.value),
             (SpikeSourcePoissonPartitionedVertex.
                 _POISSON_SPIKE_SOURCE_REGIONS.BUFFERING_OUT_STATE.value),
-            placements, graph_mapper, self, start_neuron, end_neuron)
+            placements, graph_mapper, self)
 
     def get_outgoing_partition_constraints(self, partition, graph_mapper):
         return [KeyAllocatorContiguousRangeContraint()]

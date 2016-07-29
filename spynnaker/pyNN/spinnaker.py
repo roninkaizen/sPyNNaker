@@ -61,18 +61,20 @@ class Spinnaker(SpinnakerMainInterface):
 
         # none labelled objects special to spynnaker
         self._none_labelled_pop_view_count = 0
-        self._none_labelled_assembly_count = 0
 
-        # atom holders for pop views and assemblers
+        # A dictionary of population cell class to dictionary of population to
+        # list of cells in the population
         self._pop_atom_mappings = dict()
+
+        # A
         self._pop_view_atom_mapping = dict()
-        self._assemble_atom_mapping = dict()
+        self._assembly_atom_mapping = dict()
         self._extra_edges = list()
 
         # command sender vertex
         self._multi_cast_vertex = None
 
-        # set of LPG's used by the external device plugin module
+        # set of LPG's used by the external device plug-in module
         self._live_spike_recorder = dict()
 
         # create xml path for where to locate spynnaker related functions when
@@ -254,9 +256,7 @@ class Spinnaker(SpinnakerMainInterface):
                     vertex_to_add.edge_partition_identifier_for_dependent_edge)
 
     def get_pop_atom_mapping(self):
-        """
-        supports getting the atom mappings needed for pop views and assemblers
-        :return:
+        """ Get the atom to population mapping
         """
         return self._pop_atom_mappings
 
@@ -264,7 +264,7 @@ class Spinnaker(SpinnakerMainInterface):
         return self._pop_view_atom_mapping
 
     def get_assembly_atom_mapping(self):
-        return self._assemble_atom_mapping
+        return self._assembly_atom_mapping
 
     def create_population(self, size, cellclass, cellparams, structure, label):
         """
@@ -308,16 +308,15 @@ class Spinnaker(SpinnakerMainInterface):
 
         return population_view
 
-    def create_assembly(self, populations, label):
+    def create_assembly(self, populations):
         """
 
         :param populations: populations or pop views to be added to a assembly
-        :param label: the label for this assembly
-        :return: a assembly
+        :return: The assembly created
         """
-        # create assembler
-        assembler = Assembly(populations, label, self)
-        return assembler
+        # create assembly
+        assembly = Assembly(populations, self)
+        return assembly
 
     def _add_population(self, population):
         """ Called by each population to add itself to the list
@@ -339,17 +338,6 @@ class Spinnaker(SpinnakerMainInterface):
         """ Increment the number of new pop views which have not been labelled.
         """
         self._none_labelled_pop_view_count += 1
-
-    @property
-    def none_labelled_assembly_count(self):
-        """ The number of times assembly have not been labelled.
-        """
-        return self._none_labelled_assembly_count
-
-    def increment_none_labelled_assembly_count(self):
-        """ Increment the number of new assemblies which have not been labelled.
-        """
-        self._none_labelled_assembly_count += 1
 
     def create_projection(
             self, presynaptic_population, postsynaptic_population, connector,
@@ -432,7 +420,7 @@ class Spinnaker(SpinnakerMainInterface):
         inputs = dict()
         inputs['PopulationAtomMapping'] = self._pop_atom_mappings
         inputs['PopulationViewAtomMapping'] = self._pop_view_atom_mapping
-        inputs['AssemblyAtomMapping'] = self._assemble_atom_mapping
+        inputs['AssemblyAtomMapping'] = self._assembly_atom_mapping
         inputs['Projections'] = self._projections
         inputs['MachineTimeStep'] = self._machine_time_step
         inputs['TimeScaleFactor'] = self._time_scale_factor
@@ -465,7 +453,7 @@ class Spinnaker(SpinnakerMainInterface):
             if isinstance(vertex, AbstractGroupable):
                 vertex.set_mapping(vertex_to_pop_mapping)
 
-        # add extra edges needed from external device plugin to allow none
+        # add extra edges needed from external device plug-in to allow none
         # synaptic edges to utility models or external devices.
         for edge_data in self._extra_edges:
             self._partitionable_graph.add_edge(
@@ -476,8 +464,8 @@ class Spinnaker(SpinnakerMainInterface):
                 partition_id=edge_data[2])
 
     def add_extra_edge(self, pre_population, post_population, partition_id):
-        """
-        supports adding extra edges into the graph after grouping has occured
+        """ Add an extra edge to the graph to be added after grouping
+
         :param pre_population:
         :param post_population:
         :param partition_id:

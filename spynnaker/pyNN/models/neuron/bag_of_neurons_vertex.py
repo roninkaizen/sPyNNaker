@@ -1,4 +1,3 @@
-
 # pacman imports
 from pacman.model.partitionable_graph.abstract_partitionable_vertex \
     import AbstractPartitionableVertex
@@ -46,6 +45,7 @@ from spynnaker.pyNN.utilities import constants
 from spynnaker.pyNN.utilities.conf import config
 from spynnaker.pyNN.models.neuron.bag_of_neurons_partitioned_vertex \
     import BagOfNeuronsPartitionedVertex
+from spynnaker.pyNN.models.neuron_cell import RecordingType
 
 # dsg imports
 from data_specification.data_specification_generator \
@@ -132,6 +132,9 @@ class BagOfNeuronsVertex(
                 class_object.additional_input.is_array_parameters())
         return parameters
 
+    @staticmethod
+    def recording_types(_):
+        return [RecordingType.SPIKES, RecordingType.V, RecordingType.GSYN]
 
     def __init__(
             self, bag_of_neurons, label, model_class, constraints=None):
@@ -194,13 +197,13 @@ class BagOfNeuronsVertex(
 
         # check the bag of neurons for recording states
         for atom in bag_of_neurons:
-            if atom.record_spikes:
+            if atom.is_recording(RecordingType.SPIKES):
                 self._change_requires_mapping = not self._spike_recorder.record
                 self._spike_recorder.record = True
-            if atom.record_v:
+            if atom.is_recording(RecordingType.V):
                 self._change_requires_mapping = not self._v_recorder.record_v
                 self._v_recorder.record_v = True
-            if atom.record_gsyn:
+            if atom.is_recording(RecordingType.GSYN):
                 self._change_requires_mapping = \
                     not self._gsyn_recorder.record_gsyn
                 self._gsyn_recorder.record_gsyn = True
@@ -619,66 +622,45 @@ class BagOfNeuronsVertex(
         return self._spike_recorder.record
 
     # @implements AbstractSpikeRecordable.set_recording_spikes
-    def set_recording_spikes(self, to_file_flag, neuron_filter=None):
+    def set_recording_spikes(self):
         self._change_requires_mapping = not self._spike_recorder.record
         self._spike_recorder.record = True
 
-        # update bag of atoms accordingly
-        if neuron_filter is not None:
-            for (atom, filtered) in zip(self._atoms, neuron_filter):
-                if filtered:
-                    atom.record_spikes = True
-                    atom.record_spikes_to_file_flag = to_file_flag
-
     # @implements AbstractSpikeRecordable.get_spikes
-    def get_spikes(self, placements, graph_mapper, buffer_manager,
-                   start_atoms, end_atoms):
+    def get_spikes(self, placements, graph_mapper, buffer_manager):
         return self._spike_recorder.get_spikes(
             self._label, buffer_manager,
             constants.POPULATION_BASED_REGIONS.SPIKE_HISTORY.value,
             constants.POPULATION_BASED_REGIONS.BUFFERING_OUT_STATE.value,
-            placements, graph_mapper, self, start_atoms, end_atoms)
+            placements, graph_mapper, self)
 
     # @implements AbstractVRecordable.is_recording_v
     def is_recording_v(self):
         return self._v_recorder.record_v
 
     # @implements AbstractVRecordable.set_recording_v
-    def set_recording_v(self, to_file_flag, neuron_filter=None):
+    def set_recording_v(self):
         self._change_requires_mapping = not self._v_recorder.record_v
         self._v_recorder.record_v = True
 
-        # update bag of atoms accordingly
-        if neuron_filter is not None:
-            for (atom, filtered) in zip(self._atoms, neuron_filter):
-                if filtered:
-                    atom.record_v = True
-                    atom.record_v_to_file_flag = to_file_flag
-
     # @implements AbstractVRecordable.get_v
-    def get_v(self, n_machine_time_steps, placements, graph_mapper,
-              buffer_manager, start_atoms, end_atoms):
+    def get_v(
+            self, n_machine_time_steps, placements, graph_mapper,
+            buffer_manager):
         return self._v_recorder.get_v(
             self._label, buffer_manager,
             constants.POPULATION_BASED_REGIONS.POTENTIAL_HISTORY.value,
             constants.POPULATION_BASED_REGIONS.BUFFERING_OUT_STATE.value,
-            placements, graph_mapper, self, start_atoms, end_atoms)
+            placements, graph_mapper, self)
 
     # @implements AbstractGSynRecordable.is_recording_gsyn
     def is_recording_gsyn(self):
         return self._gsyn_recorder.record_gsyn
 
     # @implements AbstractGSynRecordable.set_recording_gsyn
-    def set_recording_gsyn(self, to_file_flag, neuron_filter=None):
+    def set_recording_gsyn(self):
         self._change_requires_mapping = not self._gsyn_recorder.record_gsyn
         self._gsyn_recorder.record_gsyn = True
-
-        # update bag of atoms accordingly
-        if neuron_filter is not None:
-            for (atom, filtered) in zip(self._atoms, neuron_filter):
-                if filtered:
-                    atom.record_gsyn = True
-                    atom.record_gsyn_to_file_flag = to_file_flag
 
     # @implements AbstractGSynRecordable.get_gsyn
     def get_gsyn(self, n_machine_time_steps, placements, graph_mapper,

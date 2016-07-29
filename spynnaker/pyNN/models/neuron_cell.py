@@ -2,16 +2,49 @@ from spinn_front_end_common.abstract_models.\
     abstract_changable_after_run import \
     AbstractChangableAfterRun
 from spinn_front_end_common.utilities import exceptions
+from enum.enum import Enum
 
 
-class NeuronCell(object):
+class RecordingType(Enum):
+
+    SPIKES = 1
+    V = 2
+    GSYN = 3
+
+
+class NeuronCell(int):
+    """ Stores all data about a cell.
     """
-    NeuronCell: the object that stores all data about a cell.
-    """
 
-    def __init__(self, default_parameters, state_variables, fixed_params,
-                 population_parameters, original_class, structure):
+    _next_id = 0
 
+    def __init__(
+            self, population, original_class, default_parameters,
+            state_variables, fixed_params, population_parameters,
+            recording_types):
+        """
+
+        :param population: The population containing the cell
+        :param original_class: The class of the model
+        :param default_parameters:\
+            A list of names of parameters supported by the cell
+        :param state_variables: A list of state variables supported by the cell
+        :param fixed_params:\
+            A dictionary of pre-determined parameter names to values that\
+            cannot be changed by the user
+        :param population_parameters:\
+            A dictionary of parameter names to values which are constant\
+            across the whole population
+        :param recording_types:\
+            A list of the recording types supported for this cell
+        """
+
+        # Store the id of the cell
+        int.__init__(NeuronCell._next_id)
+        NeuronCell._next_id += 1
+
+        # Store data about the cell
+        self._population = population
         self._original_class = original_class
 
         # standard parameters
@@ -28,27 +61,26 @@ class NeuronCell(object):
         for state_variable in state_variables:
             self._state_variables[state_variable] = None
 
+        # parameters that apply to the whole population
         self._population_parameters = dict()
         for population_parameter_name in population_parameters:
             self._population_parameters[population_parameter_name] =\
                 population_parameters[population_parameter_name]
 
-        # recording data items
-        # spikes
-        self._record_spikes = False
-        self._record_spike_to_file_flag = None
+        # A dict of RecordingType to boolean indicating if the recording is
+        # to be done for this cell
+        self._is_recording = dict()
+        for recording_type in recording_types:
+            self._is_recording[recording_type] = False
 
-        # gsyn
-        self._record_gsyn = False
-        self._record_gsyn_to_file_flag = None
+        # A dict of RecordingType to boolean indicating if the recording is
+        # to be done to a file
+        self._recording_to_file = dict()
+        for recording_type in recording_types:
+            self._recording_to_file[recording_type] = False
 
-        # v
-        self._record_v = False
-        self._record_v_to_file_flag = None
-
-        # space related structures
-        self._structure = structure
-        self._positions = None
+        # the position of the neuron
+        self._position = None
 
         # synaptic link
         self._synapse_dynamics = None
@@ -59,21 +91,74 @@ class NeuronCell(object):
         else:
             self._has_change_that_requires_mapping = None
 
+    def __getattr__(self, name):
+        return self.get(name)
 
+    def __setattr__(self, name, value):
+        self.set_param(name, value)
+
+    def set_parameters(self, **parameters):
+        """ Set cell parameters given as name=value parameters
+        """
+        for name, value in parameters.iteritems():
+            self.set_param(name, value)
+
+    def get_parameters(self):
+        """ Get cell parameters as a dict of names to values
+        """
+        return dict(self._params)
+
+    @property
+    def cell_type(self):
+        return self._original_class
+
+    @property
+    def position(self):
+        """ The position of this cell within its container
+
+        :return: x, y, z coordinates
+        """
+        return self._position
+
+    @position.setter
+    def position(self, position):
+        """ Set the position of this cell
+
+        :param new_value: a tuple of x, y, z
+        """
+        self._position = position
+
+    @property
+    def local(self):
+        return True
+
+    def inject(self, current_source):
+        # TODO: Implement this
+        raise NotImplementedError
+
+    def get_initial_value(self, variable):
+        return self.get_state_variable(variable)
+
+    def set_initial_value(self, variable, value):
+        self.initialize(variable, value)
+
+    def as_view(self):
+        # TODO: Implement this
+        raise NotImplementedError
 
     @property
     def state_variables(self):
-        """
-        returns the state variables of the cell.
-        :return: the state variable dictionary
+        """ The state variables of the cell as a dict of name to initial value
+
+        :rtype: dict
         """
         return self._state_variables
 
     def get_state_variable(self, param):
-        """
-        helper method for getting one parameter from the state variables
-        :param param:
-        :return:
+        """ Get the initial value of a state variable
+
+        :param param: The name of the state variable to get
+        :return: The initial value
         """
         if param not in self._state_variables:
             raise exceptions.ConfigurationException(
@@ -82,10 +167,10 @@ class NeuronCell(object):
             return self._state_variables[param]
 
     def initialize(self, key, new_value):
-        """
-        sets state variables as needed
-        :param key: the state variable name needed to be set
-        :param new_value: the value to set the state value to
+        """ Set the initial value of a state variable
+
+        :param key: the name of the state variable
+        :param new_value: the new initial value
         :return:None
         """
         if key in self._state_variables:
@@ -97,205 +182,92 @@ class NeuronCell(object):
 
     @property
     def population_parameters(self):
+        """ The parameters of the cell that can be changed as a dict of\
+            name to value
+
+        :rtype: dict
+        """
         return self._population_parameters
 
     def get_population_parameter(self, name):
+        """ Get the value of a parameter with a given name
+
+        :param name: The name of the parameter to get
+        """
         if name in self._population_parameters:
             return self._population_parameters[name]
-        return None
+        raise exceptions.ConfigurationException(
+            "Parameter {} does not exist".format(name))
 
     def set_population_parameter(self, name, new_value):
+        """ Set the value of a parameter
+
+        :param name: The name of the parameter
+        :param new_value: The value to give to the parameter
+        """
         if name not in self._population_parameters:
             raise exceptions.ConfigurationException(
                 "Trying to set a population scoped parameter not "
                 "originally given to this atom. This param was {}"
-                " and its value was {} for class {}"
-                    .format(name, new_value, self._original_class.model_name))
+                " and its value was {} for class {}".format(
+                    name, new_value, self._original_class.model_name))
         else:
             self._population_parameters[name] = new_value
 
     def get_population_parameter_names(self):
+        """ Get the names of the parameters of this cell
+
+        :rtype: list of str
+        """
         return self._population_parameters.keys()
 
     @property
-    def structure(self):
-        """
-        returns the structure object used by pynn pops
-        :return: structure object
-        """
-        return self._structure
-
-    @structure.setter
-    def structure(self, new_structure):
-        """
-        setter for the structure object
-        :param new_structure: the new structure object
-        :return: None
-        """
-        self._structure = new_structure
-
-    @property
-    def position(self):
-        """
-        returns the positions object
-        :return: the positions object
-        """
-        return self._positions
-
-    @position.setter
-    def position(self, new_value):
-        """
-        setter for the position object
-        :param new_value: the new position object
-        :return: None
-        """
-        self._positions = new_value
-
-    @property
     def requires_mapping(self):
-        """
-        get changed require mapping flag
-        :return:
+        """ True if a change has been made that requires mapping
         """
         return self._has_change_that_requires_mapping
 
     def mark_no_changes(self):
-        """
-        reset change flag
-        :return:
+        """ Reset so that requires_mapping is False
         """
         self._has_change_that_requires_mapping = False
 
-    @property
-    def record_spikes(self):
-        """
-        bool flag for record spikes
-        :return:
-        """
-        return self._record_spikes
+    def can_record(self, recording_type):
+        """ Determine if the cell supports the recording type
 
-    @record_spikes.setter
-    def record_spikes(self, new_value):
+        :param recording_type: A RecordingType object
         """
-        setter for record flag
-        :param new_value: new value for record flag
-        :return:
-        """
-        if new_value != self._record_spikes:
-            self._record_spikes = new_value
-            self._has_change_that_requires_mapping = True
+        return recording_type in self._is_recording
 
-    @property
-    def record_spikes_to_file_flag(self):
+    def is_recording(self, recording_type):
+        """ Determine if the cell is set to record a certain type
         """
-        getter for record spikes to file flag
-        :return: bool flag
-        """
-        return self._record_spike_to_file_flag
-
-    @record_spikes_to_file_flag.setter
-    def record_spikes_to_file_flag(self, to_file_flag):
-        """
-        record spikes to file flag setter.
-        :param to_file_flag: bool flag
-        :return: None
-        """
-        if to_file_flag is None or isinstance(to_file_flag, bool):
-            self._record_spike_to_file_flag = to_file_flag
-        else:
+        if recording_type not in self._is_recording:
             raise exceptions.ConfigurationException(
-                "Only booleans are allowed to the spikes to_file flag. "
-                "If you want to use a file_path, we recommend you use "
-                "print spikes from a population object")
+                "This cell cannot record {}".format(recording_type))
+        return self._is_recording(recording_type)
 
-    @property
-    def record_v(self):
+    def is_recording_to_file(self, recording_type):
+        """ Determine if the cell is set to record to a file
         """
-        getter for the record v flag
-        :return: boolean flag
-        """
-        return self._record_v
-
-    @record_v.setter
-    def record_v(self, new_value):
-        """
-        setter for the record v bool flag
-        :param new_value: new value for the flag
-        :return: None
-        """
-        if new_value != self._record_v:
-            self._record_v = new_value
-            self._has_change_that_requires_mapping = True
-
-    @property
-    def record_v_to_file_flag(self):
-        """
-        getter for record v to_file_flag
-        :return: file path
-        """
-        return self._record_v_to_file_flag
-
-    @record_v_to_file_flag.setter
-    def record_v_to_file_flag(self, to_file_flag):
-        """
-        record v file path setter.
-        :param to_file_flag: the new file path for the record v
-        :return: None
-        """
-        if to_file_flag is None or isinstance(to_file_flag, bool):
-            self._record_v_to_file_flag = to_file_flag
-        else:
+        if recording_type not in self._is_recording:
             raise exceptions.ConfigurationException(
-                "Only booleans are allowed to the to_file flag. "
-                "If you want to use a file_path, we recommend you use the "
-                "Population print v function")
+                "This cell cannot record {}".format(recording_type))
+        return self._recording_to_file[recording_type]
 
-    @property
-    def record_gsyn(self):
+    def set_recording(self, recording_type, is_recording, to_file):
+        """ Set the recording status of a cell
         """
-        property for record gsyn bool flag
-        :return: the boolean flag for recording gsyn
-        """
-        return self._record_gsyn
-
-    @record_gsyn.setter
-    def record_gsyn(self, new_value):
-        """
-        setter for record gsyn bool flag
-        :param new_value: the new value for recording gsyn boolean flag
-        :return: None
-        """
-        if new_value != self._record_gsyn:
-            self._record_gsyn = new_value
-            self._has_change_that_requires_mapping = True
-
-    @property
-    def record_gsyn_to_file_flag(self):
-        """
-        getter for record gsyn to file flag
-        :return: file path
-        """
-        return self._record_gsyn_to_file_flag
-
-    @record_gsyn_to_file_flag.setter
-    def record_gsyn_to_file_flag(self, to_file_flag):
-        """
-        record gsyn  to file flag setter.
-        :param to_file_flag: the new flag for the record gsyn to file
-        :return: None
-        """
-        if to_file_flag is None or isinstance(to_file_flag, bool):
-            self._record_gsyn_to_file_flag = to_file_flag
-        else:
+        if recording_type not in self._is_recording:
             raise exceptions.ConfigurationException(
-                "Only booleans are allowed to the to_file flag. "
-                "If you want to use a file_path, we recommend you use the "
-                "population print gsyn function")
+                "This cell cannot record {}".format(recording_type))
+        self._is_recording[recording_type] = is_recording
+        self._recording_to_file[recording_type] = to_file
 
     def get(self, key):
-        """
-        getter for any neuron parameter
-        :param key: the name of the param to get
+        """ Get the value of a neuron parameter
+
+        :param key: the name of the parameter to get
         :return: the parameter value for this neuron cell
         """
         if key in self._params:
@@ -304,15 +276,13 @@ class NeuronCell(object):
             return self._fixed_params[key]
         else:
             raise exceptions.ConfigurationException(
-                "Trying to get a parameter that does not exist."
-                " Please fix and try again")
+                "Parameter {} does not exist".format(key))
 
     def set_param(self, key, new_value):
-        """
-        setter for neuron cell params.
-        :param key: the name of the param
-        :param new_value: the new value of the param
-        :return: None
+        """ Set the value of a parameter
+
+        :param key: the name of the parameter
+        :param new_value: the new value of the parameter
         """
         if key in self._params:
             self._has_change_that_requires_mapping = True
@@ -322,30 +292,25 @@ class NeuronCell(object):
                 "Trying to set a parameter which does not exist")
 
     def remove_param(self, key):
-        """
-        removes a parameter (mainly done to convert from model to state
-        for v_init to v for past support
-        :param key: the key to delete.
-        :return: None
+        """ Removes a parameter (mainly done to convert from model to state\
+            for v_init to v for past support)
+        :param key: the name of the parameter to remove
         """
         if key in self._params:
             del self._params[key]
 
     @property
     def synapse_dynamics(self):
-        """
-        synapse dynamics getter
-        :return:the synapse dynamics for this cell
+        """ The synapse dynamics of this cell
         """
         return self._synapse_dynamics
 
     @synapse_dynamics.setter
     def synapse_dynamics(self, new_value):
-        """
-        setter for the synapse dynamics, checks that the new dynamics
-        matches currently added ones if one such exists.
+        """ Set the synapse dynamics of this cell.
+            Checks that the new dynamics is compatible with the current one\
+            if one exists
         :param new_value: new synapse_dynamics
-        :return: None
         """
         if self._synapse_dynamics is None:
             self._synapse_dynamics = new_value
@@ -353,31 +318,3 @@ class NeuronCell(object):
             raise exceptions.ConfigurationException(
                 "Currently only one type of STDP can be supported per cell.")
         self._has_change_that_requires_mapping = True
-
-    def __repr__(self):
-        output = ""
-        output += "parameters:["
-        for key in self._params:
-            output += "{}:{},".format(key, self._params[key])
-        output += "]"
-        output += "fixed parameters:["
-        for key in self._fixed_params:
-            output += "{}:{},".format(key, self._fixed_params[key])
-        output += "]"
-        output += "state variables:["
-        for key in self._state_variables:
-            output += "{}:{},".format(key, self._state_variables[key])
-        output += "]"
-        output += "population variables:["
-        for key in self._population_parameters:
-            output += "{}:{},".format(key, self._population_parameters[key])
-        output += "record_spikes:{}".format(self._record_spikes)
-        output += "record_v:{}".format(self._record_v)
-        output += "record_gsyn:{}".format(self._record_gsyn)
-        output += "synapse_dynamics:{}".format(self._synapse_dynamics)
-        output += "requires_remapping:{}".format(
-            self._has_change_that_requires_mapping)
-        output += "structure:{}".format(self._structure)
-        output += "positions:{}".format(self._positions)
-
-        return output

@@ -79,8 +79,8 @@ def translate_filter(neuron_filter, size, boolean_format):
                 new_filter = list()
                 for _ in range(0, size):
                     new_filter.append(False)
-                for id in neuron_filter:
-                    new_filter[id] = True
+                for cell_id in neuron_filter:
+                    new_filter[cell_id] = True
             else:
                 new_filter = neuron_filter
     # not a bool, int, or a slice. blow up
@@ -125,10 +125,10 @@ def _convert_slice_into_index_boolean_list(slice_object, size):
             # handle false's
             left_over = size - position
             if left_over != 0 and left_over > slice_object.step:
-                for index in range(0, slice_object.step):
+                for _ in range(0, slice_object.step):
                     new_filter.append(False)
             if left_over != 0 and left_over < slice_object.step:
-                for index in range(0, left_over):
+                for _ in range(0, left_over):
                     new_filter.append(False)
     return new_filter
 

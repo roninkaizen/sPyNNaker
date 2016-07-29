@@ -2,6 +2,7 @@
 from spynnaker.pyNN.models.abstract_models.abstract_groupable import \
     AbstractGroupable
 from spynnaker.pyNN.utilities import constants
+from spynnaker.pyNN.models.neuron_cell import RecordingType
 from spinn_front_end_common.abstract_models.abstract_changable_after_run \
     import AbstractChangableAfterRun
 from spynnaker.pyNN.models.common.eieio_spike_recorder \
@@ -47,7 +48,7 @@ class SpikeSourceArray(
 
     population_parameters = {
         'machine_time_step', 'time_scale_factor', 'ip_address', 'port',
-        'space_before_notification','spike_recorder_buffer_size',
+        'space_before_notification', 'spike_recorder_buffer_size',
         'max_on_chip_memory_usage_for_spikes_in_bytes',
         'buffer_size_before_receive', 'board_address', 'tag'
     }
@@ -69,6 +70,10 @@ class SpikeSourceArray(
     @staticmethod
     def is_array_parameters(_):
         return {'spike_times'}
+
+    @staticmethod
+    def recording_types(_):
+        return [RecordingType.SPIKES]
 
     def __init__(self, bag_of_neurons, label="SpikeSourceArray",
                  constraints=None):
@@ -219,15 +224,11 @@ class SpikeSourceArray(
 
         # check for recording requirements
         is_recording_spikes = False
-        is_writing_to_file = False
         for atom in bag_of_neurons:
-            if atom.record_spikes:
+            if atom.is_recording(RecordingType.SPIKES):
                 is_recording_spikes = True
-                if atom.record_spikes_to_file_flag is not None:
-                    is_writing_to_file = atom.record_spikes_to_file_flag
         if is_recording_spikes:
-            self.set_recording_spikes(is_writing_to_file)
-
+            self.set_recording_spikes()
 
     @staticmethod
     def create_vertex(bag_of_neurons, population_parameters):
@@ -239,7 +240,7 @@ class SpikeSourceArray(
     def set_mapping(self, mapping):
         total_spikes_times = list()
         mapping = mapping[self]
-        for (pop, start, end) in mapping:
+        for (_, start, end) in mapping:
             for atom_id in range(start, end):
                 total_spikes_times.append(
                     self._atoms[atom_id].get("spike_times"))
@@ -284,7 +285,7 @@ class SpikeSourceArray(
         return self._spike_recorder.record
 
     # @implements AbstractSpikeRecordable.set_recording_spikes
-    def set_recording_spikes(self, to_file_flag, neuron_filter=None):
+    def set_recording_spikes(self):
         self.enable_recording(
             self._ip_address, self._port, self._board_address,
             self._send_buffer_notification_tag,
@@ -293,18 +294,10 @@ class SpikeSourceArray(
             self._minimum_sdram_for_buffering,
             self._using_auto_pause_and_resume)
 
-        # update bag of atoms accordingly
-        if neuron_filter is not None:
-            for (atom, filtered) in zip(self._atoms, neuron_filter):
-                if filtered:
-                    atom.record_spikes = True
-                    atom.record_spikes_to_file_flag = to_file_flag
-
         self._requires_mapping = not self._spike_recorder.record
         self._spike_recorder.record = True
 
-    def get_spikes(self, placements, graph_mapper, buffer_manager,
-                   start_neuron, end_neuron):
+    def get_spikes(self, placements, graph_mapper, buffer_manager):
         return self._spike_recorder.get_spikes(
             self.label, buffer_manager,
             (ReverseIPTagMulticastSourcePartitionedVertex.
@@ -314,8 +307,7 @@ class SpikeSourceArray(
             placements, graph_mapper, self,
             lambda subvertex:
                 subvertex.virtual_key if subvertex.virtual_key is not None
-                else 0, 
-            start_neuron, end_neuron)
+                else 0)
 
     @staticmethod
     def set_model_max_atoms_per_core(new_value):

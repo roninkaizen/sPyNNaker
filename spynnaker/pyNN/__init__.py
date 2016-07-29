@@ -314,15 +314,11 @@ def PopulationView(parent, selector, label=None):
 
 
 # noinspection PyPep8Naming
-def Assembly(populations, label):
-    """
-    builds a assembly object
-    :param populations: a iterable of populations or population views
-    :param label: label for this assembly
-    :return:
+def Assembly(*populations):
+    """ Create an Assembly of populations
     """
     global _spinnaker
-    return _spinnaker.create_assembly(populations, label)
+    return _spinnaker.create_assembly(populations)
 
 
 def NativeRNG(seed_value):

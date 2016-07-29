@@ -42,8 +42,7 @@ class SpikeRecorder(object):
         return n_neurons * 4
 
     def get_spikes(self, label, buffer_manager, region, state_region,
-                   placements, graph_mapper, partitionable_vertex,
-                   start_atoms, end_atoms):
+                   placements, graph_mapper, partitionable_vertex):
 
         spike_times = list()
         spike_ids = list()
@@ -101,18 +100,6 @@ class SpikeRecorder(object):
 
         spike_ids = numpy.hstack(spike_ids)
         spike_times = numpy.hstack(spike_times)
-
-        # generate mask for neurons needed for the get level
-        # NOTE: seriously needs these brackets due to stupid numpy not handling
-        # the & properly. All masks should have this bracketing stuff.
-        mask = ((spike_ids >= start_atoms) & (spike_ids <= end_atoms))
-
-        # filter off neurons not needed for the get level
-        spike_ids = spike_ids[mask]
-        spike_times = spike_times[mask]
-
-        # shift ids to align them with the population requested
-        spike_ids = spike_ids - start_atoms
 
         # merged the 2 columns into 1 array with 2 columns.
         result = numpy.dstack((spike_ids, spike_times))[0]

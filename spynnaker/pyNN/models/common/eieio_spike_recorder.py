@@ -37,7 +37,7 @@ class EIEIOSpikeRecorder(object):
 
     def get_spikes(self, label, buffer_manager, region, state_region,
                    placements, graph_mapper, partitionable_vertex,
-                   base_key_function, start_atom, end_atom):
+                   base_key_function):
 
         results = list()
         missing_str = ""
