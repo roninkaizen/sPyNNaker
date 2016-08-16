@@ -62,13 +62,6 @@ class Spinnaker(SpinnakerMainInterface):
         # none labelled objects special to spynnaker
         self._none_labelled_pop_view_count = 0
 
-        # A dictionary of population cell class to dictionary of population to
-        # list of cells in the population
-        self._pop_atom_mappings = dict()
-
-        # A
-        self._pop_view_atom_mapping = dict()
-        self._assembly_atom_mapping = dict()
         self._extra_edges = list()
 
         # command sender vertex
@@ -255,17 +248,6 @@ class Spinnaker(SpinnakerMainInterface):
                     dependant_edge,
                     vertex_to_add.edge_partition_identifier_for_dependent_edge)
 
-    def get_pop_atom_mapping(self):
-        """ Get the atom to population mapping
-        """
-        return self._pop_atom_mappings
-
-    def get_pop_view_atom_mapping(self):
-        return self._pop_view_atom_mapping
-
-    def get_assembly_atom_mapping(self):
-        return self._assembly_atom_mapping
-
     def create_population(self, size, cellclass, cellparams, structure, label):
         """
 
@@ -280,7 +262,7 @@ class Spinnaker(SpinnakerMainInterface):
         population = Population(
             size=size, cellclass=cellclass, cellparams=cellparams,
             structure=structure, label=label, spinnaker=self)
-        self._add_population(population)
+        self._populations.append(population)
         return population
 
     def create_population_vew(
@@ -301,12 +283,8 @@ class Spinnaker(SpinnakerMainInterface):
         :param label: the label of this pop view
         :return: a population view object
         """
-
-        # build pop view
-        population_view = PopulationView(
-            population_to_view, neuron_selector, label, self)
-
-        return population_view
+        return PopulationView(
+            population_to_view, neuron_selector, self, label)
 
     def create_assembly(self, populations):
         """
@@ -315,13 +293,7 @@ class Spinnaker(SpinnakerMainInterface):
         :return: The assembly created
         """
         # create assembly
-        assembly = Assembly(populations, self)
-        return assembly
-
-    def _add_population(self, population):
-        """ Called by each population to add itself to the list
-        """
-        self._populations.append(population)
+        return Assembly(populations, self)
 
     def _add_projection(self, projection):
         """ Called by each projection to add itself to the list

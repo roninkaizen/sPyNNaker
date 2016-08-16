@@ -42,8 +42,9 @@ class Projection(object):
 
         if source is not None:
             logger.warn(
-                "source currently means nothing to the SpiNNaker implementation"
-                " of the PyNN projection, therefore it will be ignored")
+                "source currently means nothing to the SpiNNaker"
+                " implementation of the PyNN projection, therefore it will be"
+                " ignored")
 
         self._projection_edge = None
         self._host_based_synapse_list = None

@@ -20,21 +20,17 @@ class NeuronCell(int):
 
     def __init__(
             self, population, original_class, default_parameters,
-            state_variables, fixed_params, population_parameters,
-            recording_types):
+            state_variables, fixed_params, recording_types):
         """
 
         :param population: The population containing the cell
         :param original_class: The class of the model
         :param default_parameters:\
-            A list of names of parameters supported by the cell
+            A dict of default parameters to assign
         :param state_variables: A list of state variables supported by the cell
         :param fixed_params:\
             A dictionary of pre-determined parameter names to values that\
             cannot be changed by the user
-        :param population_parameters:\
-            A dictionary of parameter names to values which are constant\
-            across the whole population
         :param recording_types:\
             A list of the recording types supported for this cell
         """
@@ -50,7 +46,7 @@ class NeuronCell(int):
         # standard parameters
         self._params = dict()
         for key in default_parameters:
-            self._params[key] = None
+            self._params[key] = default_parameters[key]
 
         self._fixed_params = dict()
         for key in fixed_params:
@@ -60,12 +56,6 @@ class NeuronCell(int):
         self._state_variables = dict()
         for state_variable in state_variables:
             self._state_variables[state_variable] = None
-
-        # parameters that apply to the whole population
-        self._population_parameters = dict()
-        for population_parameter_name in population_parameters:
-            self._population_parameters[population_parameter_name] =\
-                population_parameters[population_parameter_name]
 
         # A dict of RecordingType to boolean indicating if the recording is
         # to be done for this cell
@@ -181,47 +171,6 @@ class NeuronCell(int):
                 "Trying to set a parameter which does not exist")
 
     @property
-    def population_parameters(self):
-        """ The parameters of the cell that can be changed as a dict of\
-            name to value
-
-        :rtype: dict
-        """
-        return self._population_parameters
-
-    def get_population_parameter(self, name):
-        """ Get the value of a parameter with a given name
-
-        :param name: The name of the parameter to get
-        """
-        if name in self._population_parameters:
-            return self._population_parameters[name]
-        raise exceptions.ConfigurationException(
-            "Parameter {} does not exist".format(name))
-
-    def set_population_parameter(self, name, new_value):
-        """ Set the value of a parameter
-
-        :param name: The name of the parameter
-        :param new_value: The value to give to the parameter
-        """
-        if name not in self._population_parameters:
-            raise exceptions.ConfigurationException(
-                "Trying to set a population scoped parameter not "
-                "originally given to this atom. This param was {}"
-                " and its value was {} for class {}".format(
-                    name, new_value, self._original_class.model_name))
-        else:
-            self._population_parameters[name] = new_value
-
-    def get_population_parameter_names(self):
-        """ Get the names of the parameters of this cell
-
-        :rtype: list of str
-        """
-        return self._population_parameters.keys()
-
-    @property
     def requires_mapping(self):
         """ True if a change has been made that requires mapping
         """
@@ -316,5 +265,6 @@ class NeuronCell(int):
             self._synapse_dynamics = new_value
         elif not self._synapse_dynamics.is_same_as(new_value):
             raise exceptions.ConfigurationException(
-                "Currently only one type of STDP can be supported per cell.")
+                "Currently only one type of STDP can be supported per"
+                " target cell.")
         self._has_change_that_requires_mapping = True

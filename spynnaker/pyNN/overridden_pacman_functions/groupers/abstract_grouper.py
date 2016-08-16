@@ -21,19 +21,13 @@ logger = logging.getLogger(__name__)
 
 
 class AbstractGrouper(object):
+    """ Provides basic functionality for grouping algorithms
     """
-    abstract grouper that deals with the projections for groupers.
-    """
-
-    def __init__(self):
-        pass
 
     def handle_projections(
             self, projections, population_atom_mapping, pop_to_vertex_mapping,
             user_max_delay, partitionable_graph, using_virtual_board):
-        """
-        function to handle the addition of projections (seems common to all
-        groupers, so kept here)
+        """ Handle the addition of projections
 
         :param projections: the list of projections from the pynn level
         :param population_atom_mapping: the mapping from pops and model types
@@ -49,9 +43,9 @@ class AbstractGrouper(object):
         delay_to_vertex_mapping = dict()
 
         progress_bar = ProgressBar(
-            len(projections), "Updating graph with projection edges")
+            len(projections), "Creating Edges")
 
-        # iterate through projections seeing what needs to be done to service it
+        # iterate through projections and create edges
         for projection in projections:
 
             # get populations from the projection
@@ -59,10 +53,8 @@ class AbstractGrouper(object):
             postsynaptic_population = projection._postsynaptic_population
 
             # get mapped vertex's and their sections for the pops.
-            (post_pop_vertex, post_vertex_lo_atom, post_vertex_hi_atom) = \
-                pop_to_vertex_mapping[postsynaptic_population]
-            (pre_pop_vertex, pre_vertex_lo_atom, pre_vertex_hi_atom) = \
-                pop_to_vertex_mapping[presynaptic_population]
+            post_pop_vertex = pop_to_vertex_mapping[postsynaptic_population]
+            pre_pop_vertex = pop_to_vertex_mapping[presynaptic_population]
 
             # get the synapse type
             synapse_type = self._get_synapse_type(
@@ -74,7 +66,7 @@ class AbstractGrouper(object):
                 postsynaptic_population, presynaptic_population,
                 projection._rng)
 
-            # imform the projection of its synapse into
+            # inform the projection of its synapse into
             projection._synapse_information = synapse_information
 
             # add delay extensions and edges as required

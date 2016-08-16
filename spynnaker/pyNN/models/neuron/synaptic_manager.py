@@ -177,8 +177,10 @@ class SynapticManager(AbstractGroupable):
                 (4 * self._synapse_type.get_n_synapse_types()))
 
     def _get_static_synaptic_matrix_sdram_requirements(self):
-        return 8 # 4 for address of direct addresses, and
+
+        # 4 for address of direct addresses, and
         # 4 for the size of the direct addresses matrix in bytes
+        return 8
 
     def _get_exact_synaptic_blocks_size(
             self, post_slices, post_slice_index, post_vertex_slice,
@@ -771,7 +773,6 @@ class SynapticManager(AbstractGroupable):
         # Write the position of the single synapses
         spec.set_write_pointer(0)
         spec.write_value(next_block_start_address)
-
 
     def write_data_spec(
             self, spec, vertex, post_vertex_slice, subvertex, placement,

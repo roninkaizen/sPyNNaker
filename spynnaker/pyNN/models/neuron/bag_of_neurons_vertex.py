@@ -81,8 +81,8 @@ class BagOfNeuronsVertex(
     fixed_parameters = {}
     population_parameters = {
         'spikes_per_second', 'ring_buffer_sigma',
-        'incoming_spike_buffer_size', 'machine_time_step',
-        'time_scale_factor'}
+        '', 'machine_time_step',
+        'time_scale_factor', 'model_class', 'label', 'constraints'}
 
     @staticmethod
     def default_parameters(class_object):
@@ -137,22 +137,13 @@ class BagOfNeuronsVertex(
         return [RecordingType.SPIKES, RecordingType.V, RecordingType.GSYN]
 
     def __init__(
-            self, bag_of_neurons, label, model_class, constraints=None):
+            self, bag_of_neurons, label, model_class, machine_time_step,
+            time_scale_factor, spikes_per_second=None, ring_buffer_sigma=None,
+            incoming_spike_buffer_size=None, constraints=None):
 
         AbstractPartitionableVertex.__init__(
             self, len(bag_of_neurons), label,
             model_class.model_based_max_atoms_per_core, constraints)
-
-        machine_time_step = bag_of_neurons[0].population_parameters[
-            'machine_time_step']
-        time_scale_factor = bag_of_neurons[0].population_parameters[
-            'time_scale_factor']
-        spikes_per_second = bag_of_neurons[0].population_parameters[
-            'spikes_per_second']
-        ring_buffer_sigma = bag_of_neurons[0].population_parameters[
-            'ring_buffer_sigma']
-        incoming_spike_buffer_size = bag_of_neurons[0].population_parameters[
-            'incoming_spike_buffer_size']
 
         AbstractDataSpecableVertex.__init__(
             self, machine_time_step, time_scale_factor)

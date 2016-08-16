@@ -137,6 +137,13 @@ class BasePyNNContainer(object):
     def all(self):
         return iter(self._cells)
 
+    def can_record(self, variable):
+        """ Determine whether `variable` can be recorded from this population.
+
+        :param variable: the parameter name to check recording for
+        """
+        return any([cell.can_record(variable) for cell in self._cells])
+
     @property
     def conductance_based(self):
         return all([
@@ -144,6 +151,11 @@ class BasePyNNContainer(object):
             issubclass(pop.celltype.input_type, InputTypeConductance)
             for pop in self._populations
         ])
+
+    def get(self, parameter_name, gather=False):
+        """ Get the value of a parameter for every cell
+        """
+        return [cell[parameter_name] for cell in self._cells]
 
     def _get_recorded_values(
             self, name, n_elements, vertex_type, recording_type, get_data):
@@ -314,6 +326,11 @@ class BasePyNNContainer(object):
 
         return [self._cells[item_id] for item_id in id]
 
+    def is_local(self, id):  # @ReservedAssignment
+        """ All cells are local on SpiNNaker
+        """
+        return True
+
     def initialize(self, variable, value):
         """ Initialise the given variable for all cells in this container
 
@@ -348,6 +365,10 @@ class BasePyNNContainer(object):
     def local_cells(self):
         return self._cells
 
+    @property
+    def local_size(self):
+        return self.size
+
     def meanSpikeCount(self, gather=True):
         """ The mean spike count for the cells in the container
 
@@ -360,6 +381,11 @@ class BasePyNNContainer(object):
     @property
     def positions(self):
         return numpy.vstack([cell.position for cell in self._cells])
+
+    @positions.setter
+    def positions(self, positions):
+        for position, cell in zip(positions, self._cells):
+            cell.position = position
 
     @property
     def position_generator(self):
@@ -440,6 +466,17 @@ class BasePyNNContainer(object):
         for (neuronId, time, value) in v:
             file_handle.write("{}\t{}\t{}\n".format(time, neuronId, value))
         file_handle.close()
+
+    # noinspection PyPep8Naming
+    def randomInit(self, distribution):
+        """ Set initial membrane potentials for all the cells in the\
+            population to random values.
+
+        :param `pyNN.random.RandomDistribution` distribution:
+            the distribution used to draw random values.
+
+        """
+        self.initialize('v', distribution)
 
     def record(self, to_file=None):
         """ Record the spikes for the cells in this collection
