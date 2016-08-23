@@ -99,19 +99,23 @@ static inline post_trace_t timing_add_post_spike(
 
 //---------------------------------------
 static inline pre_trace_t timing_add_pre_spike(
-        uint32_t time, uint32_t last_time, pre_trace_t last_trace) {
+        uint32_t time, uint32_t last_time, pre_trace_t last_trace, bool flush) {
 
     // Get time since last spike
     uint32_t delta_time = time - last_time;
 
     // Decay previous r1 trace and add energy caused by new spike
-    int32_t decayed_r1 = STDP_FIXED_MUL_16X16(last_trace.r1,
+    int32_t new_r1 = STDP_FIXED_MUL_16X16(last_trace.r1,
             DECAY_LOOKUP_TAU_PLUS(delta_time));
-    int32_t new_r1 = decayed_r1 + STDP_FIXED_POINT_ONE;
+    if(!flush)
+    {
+      new_r1 += STDP_FIXED_POINT_ONE;
+    }
 
     // If this is the 1st pre-synaptic event, r2 trace is zero
     // (as it's sampled BEFORE the spike),
     // otherwise, add on energy caused by last spike  and decay that
+    // **TODO** implement flush
     int32_t new_r2 = (last_time == 0)? 0:
                     STDP_FIXED_MUL_16X16(
                         last_trace.r2 + STDP_FIXED_POINT_ONE,
