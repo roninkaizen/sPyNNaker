@@ -24,19 +24,19 @@ address_t weight_initialise(address_t address,
         plasticity_weight_region_data[s].min_weight = *plasticity_word++;
         plasticity_weight_region_data[s].max_weight = *plasticity_word++;
         plasticity_weight_region_data[s].a2_plus = *plasticity_word++;
-        plasticity_weight_region_data[s].a2_minus = *plasticity_word++;
+        plasticity_weight_region_data[s].minus_a2_minus = -*plasticity_word++;
         plasticity_weight_region_data[s].a3_plus = *plasticity_word++;
-        plasticity_weight_region_data[s].a3_minus = *plasticity_word++;
+        plasticity_weight_region_data[s].minus_a3_minus = -*plasticity_word++;
 
         log_info(
-            "\tSynapse type %u: Min weight:%d, Max weight:%d, A2+:%d, A2-:%d,"
-            " A3+:%d, A3-:%d",
+            "\tSynapse type %u: Min weight:%d, Max weight:%d, A2+:%d, -A2-:%d,"
+            " A3+:%d, -A3-:%d",
             s, plasticity_weight_region_data[s].min_weight,
             plasticity_weight_region_data[s].max_weight,
             plasticity_weight_region_data[s].a2_plus,
-            plasticity_weight_region_data[s].a2_minus,
+            plasticity_weight_region_data[s].minus_a2_minus,
             plasticity_weight_region_data[s].a3_plus,
-            plasticity_weight_region_data[s].a3_minus);
+            plasticity_weight_region_data[s].minus_a3_minus);
     }
     log_info("weight_initialise: completed successfully");
 

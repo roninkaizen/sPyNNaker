@@ -16,9 +16,9 @@ typedef struct {
     int32_t max_weight;
 
     int32_t a2_plus;
-    int32_t a2_minus;
+    int32_t minus_a2_minus;
     int32_t a3_plus;
-    int32_t a3_minus;
+    int32_t minus_a3_minus;
 } plasticity_weight_region_data_t;
 
 typedef struct weight_state_t {
@@ -76,18 +76,14 @@ static inline weight_state_t weight_two_term_apply_potentiation(
 static inline weight_t weight_get_final(weight_state_t new_state) {
     // Scale potentiation and depression
     // **NOTE** A2+, A2-, A3+ and A3- are pre-scaled into weight format
-    int32_t scaled_a2_plus = STDP_FIXED_MUL_16X16(
-        new_state.a2_plus, new_state.weight_region->a2_plus);
-    int32_t scaled_a2_minus = STDP_FIXED_MUL_16X16(
-        new_state.a2_minus, new_state.weight_region->a2_minus);
-    int32_t scaled_a3_plus = STDP_FIXED_MUL_16X16(
-        new_state.a3_plus, new_state.weight_region->a3_plus);
-    int32_t scaled_a3_minus = STDP_FIXED_MUL_16X16(
-        new_state.a3_minus, new_state.weight_region->a3_minus);
+    int32_t weight_change = __smulbb(new_state.a2_plus, new_state.weight_region->a2_plus);
+    weight_change = __smlabb(new_state.a2_minus, new_state.weight_region->minus_a2_minus, weight_change);
+    weight_change = __smlabb(new_state.a3_plus, new_state.weight_region->a3_plus, weight_change);
+    weight_change = __smlabb(new_state.a3_minus, new_state.weight_region->minus_a3_minus, weight_change);
+    weight_change >>= STDP_FIXED_POINT;
 
     // Apply all terms to initial weight
-    int32_t new_weight = new_state.initial_weight + scaled_a2_plus
-                         + scaled_a3_plus - scaled_a2_minus - scaled_a3_minus;
+    int32_t new_weight = new_state.initial_weight + weight_change;
 
     // Clamp new weight
     new_weight = MIN(new_state.weight_region->max_weight,
@@ -98,10 +94,8 @@ static inline weight_t weight_get_final(weight_state_t new_state) {
         new_state.initial_weight, new_state.a2_plus,
         new_state.a2_minus, new_state.a3_plus, new_state.a3_minus);
     log_debug(
-        "\tscaled a2+:%d, scaled a2-:%d, scaled a3+:%d, scaled a3-:%d,"
-        " new_weight:%d",
-        scaled_a2_plus, scaled_a2_minus, scaled_a3_plus,
-        scaled_a3_minus, new_weight);
+        "\tweight_change:%d, new_weight:%d",
+        weight_change, new_weight);
 
     return (weight_t) new_weight;
 }
