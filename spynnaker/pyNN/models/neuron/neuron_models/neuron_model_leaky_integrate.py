@@ -1,3 +1,4 @@
+from pacman.executor.injection_decorator import inject_items
 from spynnaker.pyNN.models.neural_properties.neural_parameter \
     import NeuronParameter
 from spynnaker.pyNN.models.neuron.neuron_models.abstract_neuron_model \
@@ -68,18 +69,20 @@ class NeuronModelLeakyIntegrate(AbstractNeuronModel):
         return self._get_param('i_offset', self._atoms)
 
     def _r_membrane(self, atom_id):
-        return self._atoms[atom_id].get("tau_m") / \
-            self._atoms[atom_id].get('cm')
+        return (
+            self._atoms[atom_id].get("tau_m") /
+            self._atoms[atom_id].get('cm'))
 
-    def _exp_tc(self, atom_id):
-        return numpy.exp(float(
-            -self._atoms[atom_id].population_parameters["machine_time_step"]) /
+    def _exp_tc(self, atom_id, machine_time_step):
+        return numpy.exp(
+            float(-machine_time_step) /
             (1000.0 * self._atoms[atom_id].get("tau_m")))
 
     def get_n_neural_parameters(self):
         return 5
 
-    def get_neural_parameters(self, atom_id):
+    @inject_items({"machine_time_step": "MachineTimeStep"})
+    def get_neural_parameters(self, atom_id, machine_time_step):
         return [
 
             # membrane voltage [mV]
@@ -100,7 +103,8 @@ class NeuronModelLeakyIntegrate(AbstractNeuronModel):
             # closed-form solution
             # exp( -(machine time step in ms)/(R * C) ) [.]
             # REAL     exp_TC;
-            NeuronParameter(self._exp_tc(atom_id), DataType.S1615),
+            NeuronParameter(
+                self._exp_tc(atom_id, machine_time_step), DataType.S1615),
 
             # offset current [nA]
             # REAL     I_offset;

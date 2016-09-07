@@ -2,6 +2,7 @@
 from spinn_front_end_common.utilities import exceptions
 from spynnaker.pyNN.models.base_pynn_container import BasePyNNContainer
 from spynnaker.pyNN.models.neuron_cell import RecordingType
+from pacman.model.constraints.abstract_constraint import AbstractConstraint
 from spinn_front_end_common.abstract_models.abstract_changable_after_run \
     import AbstractChangableAfterRun
 
@@ -14,8 +15,6 @@ from spynnaker.pyNN.models.neuron_cell import \
     NeuronCell
 
 # pacman imports
-from pacman.model.constraints.abstract_constraints.abstract_constraint\
-    import AbstractConstraint
 from pacman.model.constraints.placer_constraints\
     .placer_chip_and_core_constraint import PlacerChipAndCoreConstraint
 
@@ -353,12 +352,6 @@ class Population(BasePyNNContainer):
     def create_vertex(self):
 
         # Update population parameters with other values
-        if 'machine_time_step' in self._population_parameters:
-            self._population_parameters['machine_time_step'] = \
-                self._spinnaker.machine_time_step,
-        if 'time_scale_factor' in self._population_parameters:
-            self._population_parameters['time_scale_factor'] = \
-                self._spinnaker.timescale_factor
         if 'label' in self._population_parameters:
             self._population_parameters['label'] = self.label
         if 'model_class' in self._population_parameters:

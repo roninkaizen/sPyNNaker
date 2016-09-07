@@ -252,7 +252,8 @@ class BasePyNNContainer(object):
             lambda vertex: vertex.get_gsyn(
                 self._spinnaker.no_machine_time_steps,
                 self._spinnaker.placements, self._spinnaker.graph_mapper,
-                self._spinnaker.buffer_manager))
+                self._spinnaker.buffer_manager,
+                self._spinnaker.machine_time_step))
 
     def getSpikes(self, gather=True, compatible_output=True):
         """ Get the spikes for all cells in the container
@@ -269,7 +270,8 @@ class BasePyNNContainer(object):
             "spikes", 2, AbstractSpikeRecordable, RecordingType.SPIKES,
             lambda vertex: vertex.get_spikes(
                 self._spinnaker.placements, self._spinnaker.graph_mapper,
-                self._spinnaker.buffer_manager))
+                self._spinnaker.buffer_manager,
+                self._spinnaker.machine_time_step))
 
     def get_spike_counts(self, gather=True):
         """ Get the spike counts of all the cells in this container
@@ -304,7 +306,8 @@ class BasePyNNContainer(object):
             lambda vertex: vertex.get_v(
                 self._spinnaker.no_machine_time_steps,
                 self._spinnaker.placements, self._spinnaker.graph_mapper,
-                self._spinnaker.buffer_manager))
+                self._spinnaker.buffer_manager,
+                self._spinnaker.machine_time_step))
 
     @property
     def first_id(self):

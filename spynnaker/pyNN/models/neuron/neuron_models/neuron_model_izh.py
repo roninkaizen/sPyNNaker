@@ -1,3 +1,4 @@
+from pacman.executor.injection_decorator import inject_items
 from spynnaker.pyNN.models.neural_properties.neural_parameter \
     import NeuronParameter
 from spynnaker.pyNN.models.neuron.neuron_models.abstract_neuron_model \
@@ -84,7 +85,8 @@ class NeuronModelIzh(AbstractNeuronModel):
     def get_n_neural_parameters(self):
         return 8
 
-    def get_neural_parameters(self, atom_id):
+    @inject_items({"machine_time_step": "MachineTimeStep"})
+    def get_neural_parameters(self, atom_id, machine_time_step):
         return [
 
             # REAL A
@@ -114,23 +116,19 @@ class NeuronModelIzh(AbstractNeuronModel):
 
             # current timestep - simple correction for threshold
             # REAL this_h;
-            NeuronParameter(
-                self._atoms[atom_id].population_parameters[
-                    'machine_time_step'] / 1000.0,
-                DataType.S1615)
+            NeuronParameter(machine_time_step / 1000.0, DataType.S1615)
         ]
 
     def get_n_global_parameters(self):
         return 1
 
-    def get_global_parameters(self):
+    @inject_items({"machine_time_step": "MachineTimeStep"})
+    def get_global_parameters(self, machine_time_step):
         return [
-            NeuronParameter(
-                self._atoms[0].population_parameters[
-                    'machine_time_step'] / 1000.0,
-                DataType.S1615)
+            NeuronParameter(machine_time_step / 1000.0, DataType.S1615)
         ]
 
     def get_n_cpu_cycles_per_neuron(self):
+
         # A bit of a guess
         return 150

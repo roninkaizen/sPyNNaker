@@ -5,11 +5,13 @@ from pacman.model.constraints.partitioner_constraints.\
 from spinn_front_end_common.utilities import exceptions
 from spinn_machine.utilities.progress_bar import ProgressBar
 
-from spynnaker.pyNN import ProjectionPartitionableEdge
 from spynnaker.pyNN import DelayExtensionVertex
-from spynnaker.pyNN import DelayAfferentPartitionableEdge
-from spynnaker.pyNN.models.neural_projections.delayed_partitionable_edge \
-    import DelayedPartitionableEdge
+from spynnaker.pyNN.models.neural_projections.projection_application_edge \
+    import ProjectionApplicationEdge
+from spynnaker.pyNN.models.neural_projections.delay_afferent_application_edge \
+    import DelayAfferentApplicationEdge
+from spynnaker.pyNN.models.neural_projections.delayed_application_edge \
+    import DelayedApplicationEdge
 from spynnaker.pyNN.models.neural_projections.synapse_information \
     import SynapseInformation
 from spynnaker.pyNN.models.neuron.connection_holder import ConnectionHolder
@@ -187,7 +189,7 @@ class AbstractGrouper(object):
         else:
 
             # If there isn't an existing edge, create a new one
-            projection_edge = ProjectionPartitionableEdge(
+            projection_edge = ProjectionApplicationEdge(
                 pre_pop_vertex, post_pop_vertex, synapse_information,
                 projection, label=projection.label)
 
@@ -268,7 +270,7 @@ class AbstractGrouper(object):
             partitionable_graph.add_vertex(delay_vertex)
 
             # Add the edge
-            delay_afferent_edge = DelayAfferentPartitionableEdge(
+            delay_afferent_edge = DelayAfferentApplicationEdge(
                 pre_pop_vertex, delay_vertex,
                 label="{}_to_DelayExtension".format(pre_pop_vertex.label))
             partitionable_graph.add_edge(delay_afferent_edge,
@@ -285,7 +287,7 @@ class AbstractGrouper(object):
         delay_edge = self._find_existing_edge(
             delay_vertex, post_pop_vertex, partitionable_graph)
         if delay_edge is None:
-            delay_edge = DelayedPartitionableEdge(
+            delay_edge = DelayedApplicationEdge(
                 delay_vertex, post_pop_vertex, synapse_information,
                 label="{}_delayed_to_{}".format(
                     pre_pop_vertex.label, post_pop_vertex.label))

@@ -5,6 +5,8 @@ from spynnaker.pyNN.utilities.random_stats.random_stats_scipy_impl \
     import RandomStatsScipyImpl
 from spynnaker.pyNN.utilities.random_stats.random_stats_uniform_impl \
     import RandomStatsUniformImpl
+from spynnaker.pyNN.models.neural_properties.randomDistributions \
+    import RandomDistribution
 from spinn_front_end_common.utilities import exceptions
 import numpy
 import os
@@ -22,10 +24,9 @@ logger = logging.getLogger(__name__)
 
 
 def check_directory_exists_and_create_if_not(filename):
-    """
-    helper method for checking if a directory exists, and if not, create it
-    :param filename:
-    :return:
+    """ Create a parent directory for a file if it doesn't exist
+
+    :param filename: The file whose parent directory is to be created
     """
     directory = os.path.dirname(filename)
     if directory != "" and not os.path.exists(directory):
@@ -33,8 +34,8 @@ def check_directory_exists_and_create_if_not(filename):
 
 
 def convert_param_to_numpy(param, no_atoms, is_array=False):
-    """
-    converts parameters into numpy arrays as needed
+    """ Convert parameters into numpy arrays
+
     :param param: the param to convert
     :param no_atoms: the number of atoms available for conversion of param
     :return the converted param in whatever format it was given
@@ -87,17 +88,15 @@ def write_parameters_per_neuron(spec, vertex_slice, parameter_call):
 
 def read_in_data_from_file(
         file_path, min_atom, max_atom, min_time, max_time):
-    """method for helping code read in files of data values where the values are
-    in a format of <Time><tab><atom_id><tab><data_value>
+    """ Read in a file of data values where the values are in a format of:
+        <time>\t<atom id>\t<data value>
 
-    :param file_path: absolute filepath to a file where gsyn values have been
-    written
+    :param file_path: absolute path to a file containing the data
     :param min_atom: min neuron id to which neurons to read in
     :param max_atom: max neuron id to which neurons to read in
     :param min_time: min time slot to read neurons values of.
     :param max_time:max time slot to read neurons values of.
-    :return: a numpi destacked array containing time stamps, neuron id and the
-    data value.
+    :return: a numpy array of (time stamp, atom id, data value)
     """
     times = list()
     atom_ids = list()
@@ -128,17 +127,18 @@ def read_in_data_from_file(
 
 def read_spikes_from_file(file_path, min_atom, max_atom, min_time, max_time,
                           split_value="\t"):
-    """
-    helper method for reading spikes from a file
-    :param file_path: absolute filepath to a file where spike values have been
-    written
+    """ Read spikes from a file formatted as:
+        <time>\t<neuron id>
+
+    :param file_path: absolute path to a file containing spike values
     :param min_atom: min neuron id to which neurons to read in
     :param max_atom: max neuron id to which neurons to read in
     :param min_time: min time slot to read neurons values of.
     :param max_time:max time slot to read neurons values of.
     :param split_value: the pattern to split by
-    :return: a numpi destacked array containing time stamps, neuron id and the
-    spike times.
+    :return:\
+        a numpy array with max_atom elements each of which is a list of\
+        spike times.
     """
     with open(file_path, 'r') as fsource:
             read_data = fsource.readlines()
@@ -199,7 +199,7 @@ def get_probable_maximum_selected(
 
 def get_probability_within_range(dist, lower, upper):
     """ Get the probability that a value will fall within the given range for\
-        a given RandomDistribution dist
+        a given RandomDistribution
     """
     stats = _distribution_to_stats[dist.name]
     return (stats.cdf(dist, upper) - stats.cdf(dist, lower))
@@ -242,3 +242,15 @@ def get_variance(dist):
     """
     stats = _distribution_to_stats[dist.name]
     return stats.var(dist)
+
+
+def validate_mars_kiss_64_seed(seed):
+    """ Update the seed to make it compatible with the rng algorithm
+    """
+    if seed[1] == 0:
+
+        # y (<- seed[1]) can't be zero so set to arbitrary non-zero if so
+        seed[1] = 13031301
+
+    # avoid z=c=0 and make < 698769069
+    seed[3] = seed[3] % 698769068 + 1
