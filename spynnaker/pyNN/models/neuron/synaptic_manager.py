@@ -17,14 +17,11 @@ from data_specification.enums.data_type import DataType
 from pacman.model.graphs.application.abstract_application_vertex\
     import AbstractApplicationVertex
 from pacman.model.graphs.common.slice import Slice
-from spynnaker.pyNN import exceptions
 from spynnaker.pyNN.models.neural_projections.connectors.one_to_one_connector \
     import OneToOneConnector
 from spynnaker.pyNN.models.neural_projections.projection_application_edge \
     import ProjectionApplicationEdge
 from spynnaker.pyNN.models.neuron import master_pop_table_generators
-from spynnaker.pyNN.models.neuron.synapse_dynamics.synapse_dynamics_static \
-    import SynapseDynamicsStatic
 from spynnaker.pyNN.models.neuron.synapse_io.synapse_io_row_based \
     import SynapseIORowBased
 from spynnaker.pyNN.models.spike_source.spike_source_poisson \
@@ -47,9 +44,9 @@ class SynapticManager(AbstractGroupable):
     """ Deals with synapses
     """
 
-    def __init__(self, synapse_type, ring_buffer_sigma,
-                 spikes_per_second, population_table_type=None,
-                 synapse_io=None):
+    def __init__(
+            self, synapse_type, ring_buffer_sigma, spikes_per_second,
+            synapse_dynamics, population_table_type=None, synapse_io=None):
 
         AbstractGroupable.__init__(self)
         self._vertex_to_pop_mapping = None
@@ -80,9 +77,7 @@ class SynapticManager(AbstractGroupable):
             self._spikes_per_second = conf.config.getfloat(
                 "Simulation", "spikes_per_second")
 
-        # Prepare for dealing with STDP - there can only be one (non-static)
-        # synapse dynamics per vertex at present
-        self._synapse_dynamics = SynapseDynamicsStatic()
+        self._synapse_dynamics = synapse_dynamics
 
         # Keep the details once computed to allow reading back
         self._weight_scales = dict()
@@ -93,33 +88,12 @@ class SynapticManager(AbstractGroupable):
         # the edge the connection is for
         self._pre_run_connection_holders = defaultdict(list)
 
-    @property
-    def synapse_dynamics(self):
-        return self._synapse_dynamics
-
     def set_mapping(self, vertex_mapping):
         self._vertex_to_pop_mapping = vertex_mapping
 
     @property
     def vertex_to_pop_mapping(self):
         return self._vertex_to_pop_mapping
-
-    @synapse_dynamics.setter
-    def synapse_dynamics(self, synapse_dynamics):
-
-        # We can always override static dynamics or None
-        if isinstance(self._synapse_dynamics, SynapseDynamicsStatic):
-            self._synapse_dynamics = synapse_dynamics
-
-        # We can ignore a static dynamics trying to overwrite a plastic one
-        elif isinstance(synapse_dynamics, SynapseDynamicsStatic):
-            pass
-
-        # Otherwise, the dynamics must be equal
-        elif not synapse_dynamics.is_same_as(self._synapse_dynamics):
-            raise exceptions.SynapticConfigurationException(
-                "Synapse dynamics must match exactly when using multiple edges"
-                "to the same population")
 
     @property
     def synapse_type(self):

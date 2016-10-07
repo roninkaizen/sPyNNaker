@@ -1,4 +1,5 @@
 from pacman.executor.injection_decorator import inject_items
+from spynnaker.pyNN.models.pyNN_model import staticproperty
 from spynnaker.pyNN.models.neural_properties.neural_parameter \
     import NeuronParameter
 from spynnaker.pyNN.models.neuron.neuron_models.neuron_model_leaky_integrate \
@@ -11,52 +12,24 @@ import numpy
 
 class NeuronModelLeakyIntegrateAndFire(NeuronModelLeakyIntegrate):
 
-    @staticmethod
-    def default_parameters():
+    @staticproperty
+    def default_parameters():  # @NoSelf
         parameters = {'v_reset': -65.0, 'tau_refrac': 0.1}
-        parameters.update(NeuronModelLeakyIntegrate.default_parameters())
+        parameters.update(NeuronModelLeakyIntegrate.default_parameters)
         return parameters
 
-    @staticmethod
-    def fixed_parameters():
-        parameters = dict()
-        parameters.update(NeuronModelLeakyIntegrate.fixed_parameters())
-        return parameters
-
-    @staticmethod
-    def state_variables():
-        parameters = list()
-        parameters.extend(NeuronModelLeakyIntegrate.state_variables())
-        return parameters
-
-    @staticmethod
-    def is_array_parameters():
-        parameters = dict()
-        parameters.update(NeuronModelLeakyIntegrate.is_array_parameters())
-        return parameters
-
-    def __init__(self, bag_of_neurons):
-        NeuronModelLeakyIntegrate.__init__(self, bag_of_neurons)
-
-    @property
-    def v_reset(self):
-        return self._get_param('v_reset', self._atoms)
-
-    @property
-    def tau_refrac(self):
-        return self._get_param('tau_refrac', self._atoms)
+    state_variables = NeuronModelLeakyIntegrate.state_variables
 
     def get_n_neural_parameters(self):
         return NeuronModelLeakyIntegrate.get_n_neural_parameters(self) + 3
 
-    def _tau_refrac_timesteps(self, atom_id, machine_time_step):
-        return numpy.ceil(
-            self._atoms[atom_id].get("tau_refrac") /
-            (machine_time_step / 1000.0))
+    def _tau_refrac_timesteps(self, tau_refrac, machine_time_step):
+        return numpy.ceil(tau_refrac / (machine_time_step / 1000.0))
 
     @inject_items({"machine_time_step": "MachineTimeStep"})
-    def get_neural_parameters(self, atom_id, machine_time_step):
-        params = NeuronModelLeakyIntegrate.get_neural_parameters(self, atom_id)
+    def get_neural_parameters(self, neuron_cell, machine_time_step):
+        params = NeuronModelLeakyIntegrate.get_neural_parameters(
+            self, neuron_cell)
         params.extend([
 
             # count down to end of next refractory period [timesteps]
@@ -65,13 +38,13 @@ class NeuronModelLeakyIntegrateAndFire(NeuronModelLeakyIntegrate):
 
             # post-spike reset membrane voltage [mV]
             # REAL     V_reset;
-            NeuronParameter(self._atoms[atom_id].get("v_reset"),
-                            DataType.S1615),
+            NeuronParameter(neuron_cell.get("v_reset"), DataType.S1615),
 
             # refractory time of neuron [timesteps]
             # int32_t  T_refract;
             NeuronParameter(
-                self._tau_refrac_timesteps(atom_id, machine_time_step),
+                self._tau_refrac_timesteps(
+                    neuron_cell.get("tau_refrac"), machine_time_step),
                 DataType.INT32)
         ])
         return params

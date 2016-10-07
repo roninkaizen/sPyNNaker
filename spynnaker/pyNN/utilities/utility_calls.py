@@ -5,8 +5,6 @@ from spynnaker.pyNN.utilities.random_stats.random_stats_scipy_impl \
     import RandomStatsScipyImpl
 from spynnaker.pyNN.utilities.random_stats.random_stats_uniform_impl \
     import RandomStatsUniformImpl
-from spynnaker.pyNN.models.neural_properties.randomDistributions \
-    import RandomDistribution
 from spinn_front_end_common.utilities import exceptions
 import numpy
 import os

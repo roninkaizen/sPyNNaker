@@ -1,5 +1,6 @@
-from spynnaker.pyNN.models.neuron.bag_of_neurons_vertex import \
-    BagOfNeuronsVertex
+from spynnaker.pyNN.models.pyNN_model import pyNN_model
+from spynnaker.pyNN.models.neuron.builds.abstract_neuron_build \
+    import AbstractNeuronBuild
 from spynnaker.pyNN.models.neuron.neuron_models.neuron_model_izh \
     import NeuronModelIzh
 from spynnaker.pyNN.models.neuron.synapse_types.synapse_type_exponential \
@@ -10,9 +11,10 @@ from spynnaker.pyNN.models.neuron.threshold_types.threshold_type_static \
     import ThresholdTypeStatic
 
 
-class IzkCurrExp(BagOfNeuronsVertex):
+@pyNN_model
+class IzkCurrExp(AbstractNeuronBuild):
 
-    model_based_max_atoms_per_core = 255
+    max_atoms_per_core = 255
 
     neuron_model = NeuronModelIzh
     synapse_type = SynapseTypeExponential
@@ -20,8 +22,3 @@ class IzkCurrExp(BagOfNeuronsVertex):
     threshold_type = ThresholdTypeStatic
 
     binary_name = "IZK_curr_exp.aplx"
-    model_name = "IZK_curr_exp"
-
-    @staticmethod
-    def set_model_max_atoms_per_core(new_value):
-        IzkCurrExp.model_based_max_atoms_per_core = new_value

@@ -1,8 +1,5 @@
-from spinn_front_end_common.abstract_models.\
-    abstract_changable_after_run import \
-    AbstractChangableAfterRun
 from spinn_front_end_common.utilities import exceptions
-from enum.enum import Enum
+from enum import Enum
 
 
 class RecordingType(Enum):
@@ -12,80 +9,75 @@ class RecordingType(Enum):
     GSYN = 3
 
 
-class NeuronCell(int):
+class NeuronCell(object):
     """ Stores all data about a cell.
     """
 
-    _next_id = 0
+    next_id = 0
 
-    def __init__(
-            self, population, original_class, default_parameters,
-            state_variables, fixed_params, recording_types):
-        """
+    def __init__(self, cellclass):
 
-        :param population: The population containing the cell
-        :param original_class: The class of the model
-        :param default_parameters:\
-            A dict of default parameters to assign
-        :param state_variables: A list of state variables supported by the cell
-        :param fixed_params:\
-            A dictionary of pre-determined parameter names to values that\
-            cannot be changed by the user
-        :param recording_types:\
-            A list of the recording types supported for this cell
-        """
-
-        # Store the id of the cell
-        int.__init__(NeuronCell._next_id)
-        NeuronCell._next_id += 1
+        self._id = NeuronCell.next_id
+        NeuronCell.next_id += 1
 
         # Store data about the cell
-        self._population = population
-        self._original_class = original_class
+        self._cellclass = cellclass
 
         # standard parameters
-        self._params = dict()
-        for key in default_parameters:
-            self._params[key] = default_parameters[key]
-
-        self._fixed_params = dict()
-        for key in fixed_params:
-            self._fixed_params[key] = fixed_params[key]
+        if hasattr(cellclass, "default_parameters"):
+            self._params = dict(cellclass.default_parameters)
+        else:
+            self._params = dict()
 
         # state variables
-        self._state_variables = dict()
-        for state_variable in state_variables:
-            self._state_variables[state_variable] = None
+        if hasattr(cellclass, "state_variables"):
+            self._state_variables = {
+                key: None for key in cellclass.state_variables
+            }
+        else:
+            self._state_variables = dict()
 
-        # A dict of RecordingType to boolean indicating if the recording is
-        # to be done for this cell
-        self._is_recording = dict()
-        for recording_type in recording_types:
-            self._is_recording[recording_type] = False
+        if hasattr(cellclass, "recording_types"):
 
-        # A dict of RecordingType to boolean indicating if the recording is
-        # to be done to a file
-        self._recording_to_file = dict()
-        for recording_type in recording_types:
-            self._recording_to_file[recording_type] = False
+            # A dict of RecordingType to boolean indicating if the recording is
+            # to be done for this cell
+            self._is_recording = {
+                key: False for key in cellclass.recording_types
+            }
+
+            # A dict of RecordingType to boolean indicating if the recording is
+            # to be done to a file
+            self._recording_to_file = {
+                key: False for key in cellclass.recording_types
+            }
+        else:
+            self._is_recording = dict()
+            self._recording_to_file = dict()
+
+        # Store any "fixed" parameters for later use (cannot get or set these)
+        if hasattr(cellclass, "fixed_parameters"):
+            self._fixed_parameters = dict(cellclass.fixed_parameters)
 
         # the position of the neuron
         self._position = None
 
-        # synaptic link
-        self._synapse_dynamics = None
+        # change marker
+        self._has_change_that_requires_mapping = True
 
-        # change marker (only set to a value if the vertex supports it)
-        if issubclass(self._original_class, AbstractChangableAfterRun):
-            self._has_change_that_requires_mapping = True
-        else:
-            self._has_change_that_requires_mapping = None
+        self.__dict__['_initialised'] = True
+
+    def __cmp__(self, other):
+        return self._id - other._id
 
     def __getattr__(self, name):
         return self.get(name)
 
     def __setattr__(self, name, value):
-        self.set_param(name, value)
+        if ("_initialised" not in self.__dict__ or name in self.__dict__ or
+                getattr(self.__class__, name, None) is not None):
+            object.__setattr__(self, name, value)
+        else:
+            self.set_param(name, value)
 
     def set_parameters(self, **parameters):
         """ Set cell parameters given as name=value parameters
@@ -100,7 +92,7 @@ class NeuronCell(int):
 
     @property
     def cell_type(self):
-        return self._original_class
+        return self._cellclass
 
     @property
     def position(self):
@@ -152,7 +144,7 @@ class NeuronCell(int):
         """
         if param not in self._state_variables:
             raise exceptions.ConfigurationException(
-                "Parameter {} does not exist.".format(param))
+                "State variable {} does not exist.".format(param))
         else:
             return self._state_variables[param]
 
@@ -168,7 +160,8 @@ class NeuronCell(int):
             self._state_variables[key] = new_value
         else:
             raise exceptions.ConfigurationException(
-                "Trying to set a parameter which does not exist")
+                "Trying to initialise a state variable {} which does not exist"
+                .format(key))
 
     @property
     def requires_mapping(self):
@@ -221,8 +214,8 @@ class NeuronCell(int):
         """
         if key in self._params:
             return self._params[key]
-        elif key in self._fixed_params:
-            return self._fixed_params[key]
+        elif key in self._fixed_parameters:
+            return self._fixed_parameters[key]
         else:
             raise exceptions.ConfigurationException(
                 "Parameter {} does not exist".format(key))
@@ -238,7 +231,8 @@ class NeuronCell(int):
             self._params[key] = new_value
         else:
             raise exceptions.ConfigurationException(
-                "Trying to set a parameter which does not exist")
+                "Trying to set a parameter {} which does not exist".format(
+                    key))
 
     def remove_param(self, key):
         """ Removes a parameter (mainly done to convert from model to state\
@@ -247,24 +241,3 @@ class NeuronCell(int):
         """
         if key in self._params:
             del self._params[key]
-
-    @property
-    def synapse_dynamics(self):
-        """ The synapse dynamics of this cell
-        """
-        return self._synapse_dynamics
-
-    @synapse_dynamics.setter
-    def synapse_dynamics(self, new_value):
-        """ Set the synapse dynamics of this cell.
-            Checks that the new dynamics is compatible with the current one\
-            if one exists
-        :param new_value: new synapse_dynamics
-        """
-        if self._synapse_dynamics is None:
-            self._synapse_dynamics = new_value
-        elif not self._synapse_dynamics.is_same_as(new_value):
-            raise exceptions.ConfigurationException(
-                "Currently only one type of STDP can be supported per"
-                " target cell.")
-        self._has_change_that_requires_mapping = True

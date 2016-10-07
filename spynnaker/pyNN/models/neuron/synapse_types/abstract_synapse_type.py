@@ -2,17 +2,12 @@ from six import add_metaclass
 from abc import ABCMeta
 from abc import abstractmethod
 import math
-from spynnaker.pyNN.models.common.bag_of_neuron_settable import \
-    BagOfNeuronSettable
 
 
 @add_metaclass(ABCMeta)
-class AbstractSynapseType(BagOfNeuronSettable):
+class AbstractSynapseType(object):
     """ Represents the synapse types supported
     """
-
-    def __init__(self):
-        BagOfNeuronSettable.__init__(self)
 
     @abstractmethod
     def get_n_synapse_types(self):
@@ -23,7 +18,8 @@ class AbstractSynapseType(BagOfNeuronSettable):
         """
 
     @abstractmethod
-    def get_synapse_id_by_target(self, target):
+    @classmethod
+    def get_synapse_id_by_target(cls, target):
         """ Get the id of a synapse given the name
 
         :param name: The name of the synapse

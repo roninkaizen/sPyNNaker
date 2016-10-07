@@ -1,8 +1,5 @@
 # front end common imports
 from spinn_front_end_common.utilities import exceptions
-from spynnaker.pyNN.models.base_pynn_container import BasePyNNContainer
-from spynnaker.pyNN.models.neuron_cell import RecordingType
-from pacman.model.constraints.abstract_constraint import AbstractConstraint
 from spinn_front_end_common.abstract_models.abstract_changable_after_run \
     import AbstractChangableAfterRun
 
@@ -13,10 +10,21 @@ from pyNN import space
 # spynnaker imports
 from spynnaker.pyNN.models.neuron_cell import \
     NeuronCell
+from spynnaker.pyNN.models.base_pynn_container import BasePyNNContainer
+from spynnaker.pyNN.models.neuron_cell import RecordingType
+from spynnaker.pyNN.models.neuron.synapse_dynamics.synapse_dynamics_static \
+    import SynapseDynamicsStatic
+from spynnaker.pyNN.models.neuron.builds.abstract_unsupported_neuron_build \
+    import AbstractUnsupportedNeuronBuild
 
 # pacman imports
 from pacman.model.constraints.placer_constraints\
     .placer_chip_and_core_constraint import PlacerChipAndCoreConstraint
+from pacman.model.constraints.partitioner_constraints\
+    .partitioner_maximum_size_constraint \
+    import PartitionerMaximumSizeConstraint
+from pacman.model.constraints.abstract_constraint import AbstractConstraint
+from pacman.model.decorators.overrides import overrides
 
 # general imports
 import logging
@@ -274,7 +282,7 @@ class Population(BasePyNNContainer):
 
     def __init__(
             self, size, cellclass, cellparams, spinnaker, label=None,
-            structure=None):
+            structure=None, max_neurons_per_core=None):
         """
 
         :param int size:\
@@ -295,6 +303,21 @@ class Population(BasePyNNContainer):
 
         BasePyNNContainer.__init__(self, spinnaker, label=label)
 
+        # Check for unimplemented models
+        if isinstance(cellclass, AbstractUnsupportedNeuronBuild):
+            raise exceptions.ConfigurationException(
+                "The cell class {} is currently unimplemented in sPyNNaker"
+                .format(cellclass))
+
+        # Check for unchecked PyNN models
+        # (those without the @pyNN_model decorator - this decorator checks that
+        # the model is compatible with the following code)
+        if not hasattr(cellclass, "__is_pyNN_model__"):
+            raise exceptions.ConfigurationException(
+                "The cell class {} does not appear to be a PyNN model."
+                " Please decorate it with the"
+                " spynnaker.pyNN.models.pyNN_model.pyNNModel decorator.")
+
         # Set the label
         if label is None:
             self._label = "Population {}".format(Population.nPop)
@@ -309,60 +332,62 @@ class Population(BasePyNNContainer):
         self._requires_remapping = True
 
         # Keep track of vertices containing cells of the population
+        # This is a list of:
+        #  (vertex, vertex_start, vertex_end, population_start, population_end)
+        # where:
+        #  vertex - the vertex containing some cells from this population
+        #  vertex_start - the first atom of the vertex which is a cell from
+        #                 this population
+        #  vertex_end - the last atom of the vertex which is a cell from this
+        #               population
+        #  population_start - the index of the cell at vertex_start in the
+        #                     population
+        #  population_end - the index of the cell at vertex_end in the
+        #                   population
         self._vertices = list()
 
         # Keep track of constraints on the populations to be added to the
         # vertices
         self._constraints = list()
+        if max_neurons_per_core is not None:
+            self._constraints.append(PartitionerMaximumSizeConstraint(
+                max_neurons_per_core))
 
-        # Add the cells
-        self._population_parameters = {
-            param: None for param in cellclass.population_parameters
+        # Store "population parameter" settings
+        if hasattr(cellclass, "population_parameters"):
+            self._population_parameters = {
+                param: cellparams.get(param)
+                for param in cellclass.population_parameters
+            }
+        else:
+            self._population_parameters = dict()
+
+        # Create the cells, minus the population parameters
+        final_cellparams = {
+            key: value for key, value in cellparams.iteritems()
+            if key not in self._population_parameters
         }
-        self._cells = [cellclass(cellparams) for _ in size]
+        self._cells = [NeuronCell(cellclass) for _ in range(size)]
+        self.set(final_cellparams)
 
         # Generate the positions an set them
-        self.positions = self._structure.generate_positions(self._size)
+        self.positions = self._structure.generate_positions(size)
+
+        # Keep the synapse dynamics required to be processed by the
+        # population later
+        self._synapse_dynamics = SynapseDynamicsStatic()
 
     @property
     def celltype(self):
         return self._class
 
-    def _create_cells(self, cellclass, cellparams, size):
-
-        # Keep a dict of final cell parameters
-        final_cellparams = dict(cellparams)
-
-        # Extract population parameters from cell parameters
-        for key in self._population_parameters:
-            if key in final_cellparams:
-                self._population_parameters[key] = final_cellparams[key]
-                del final_cellparams[key]
-
-        # Create the cells
-        self._cells = [NeuronCell(
-            self, cellclass, cellclass.default_parameters,
-            cellclass.state_variables, cellclass.fixed_parameters,
-            cellclass.recording_types)]
-
-        # Update the parameters of the cells
-        for cell in self._cells:
-            cell.set_parameters(**final_cellparams)
-
-    def create_vertex(self):
-
-        # Update population parameters with other values
-        if 'label' in self._population_parameters:
-            self._population_parameters['label'] = self.label
-        if 'model_class' in self._population_parameters:
-            self._population_parameters['model_class'] = self._class
-        if 'constraints' in self._population_parameters:
-            self._population_parameters['constraints'] = self._constraints
-
-        vertex = self._class.create_vertex(
-            self._cells, self._population_parameters)
-        self._vertices.append(vertex)
-        return vertex
+    def add_vertex(
+            self, vertex, vertex_start, vertex_end,
+            population_start, population_end):
+        self._vertices.append(
+            (vertex, vertex_start, vertex_end, population_start,
+             population_end)
+        )
 
     @property
     def constraints(self):
@@ -378,7 +403,7 @@ class Population(BasePyNNContainer):
             return True
 
         is_changable_after_run = False
-        for vertex in self._vertices:
+        for (vertex, _, _, _, _) in self._vertices:
             if isinstance(vertex, AbstractChangableAfterRun):
                 is_changable_after_run = True
                 if vertex.requires_mapping:
@@ -392,7 +417,7 @@ class Population(BasePyNNContainer):
         """
         self._requires_remapping = False
         is_changable_after_run = False
-        for vertex in self._vertices:
+        for (vertex, _, _, _, _) in self._vertices:
             if isinstance(vertex, AbstractChangableAfterRun):
                 vertex.mark_no_changes()
                 is_changable_after_run = True
@@ -412,9 +437,9 @@ class Population(BasePyNNContainer):
             "label": self._pop_label,
             "celltype": self._class.model_name(),
             "structure": None,
-            "size": self._size,
+            "size": self.size,
             "first_id": 0,
-            "last_id": self._size - 1,
+            "last_id": self.size - 1,
         }
 
         if self.structure:
@@ -521,18 +546,13 @@ class Population(BasePyNNContainer):
         self._requires_remapping = True
 
     # NONE PYNN API CALL
-    def set_model_based_max_atoms_per_core(self, new_value):
-        """ Supports the setting of each models max atoms per core parameter
+    def set_number_of_neurons_per_core(self, new_value):
+        """ Supports the setting of the population maximum neurons per core
 
         :param new_value: the new value for the max atoms per core.
         """
-        if hasattr(self._class, "set_model_max_atoms_per_core"):
-            self._class.set_model_max_atoms_per_core(new_value)
-            self._requires_remapping = True
-        else:
-            raise exceptions.ConfigurationException(
-                "This population does not support its max_atoms_per_core "
-                "variable being adjusted by the end user")
+        self._constraints.add(PartitionerMaximumSizeConstraint(new_value))
+        self._requires_remapping = True
 
     def _end(self):
         """ Do final steps at the end of the simulation
@@ -546,3 +566,44 @@ class Population(BasePyNNContainer):
         if any([cell.is_recording_to_file(RecordingType.GSYN)
                 for cell in self._cells]):
             self.print_gsyn("gsyn")
+
+    @overrides(BasePyNNContainer.set)
+    def set(self, param, val=None):
+        if isinstance(param, dict):
+            for name, value in param.iteritems():
+                if name in self._population_parameters:
+                    self._population_parameters[name] = value
+                else:
+                    BasePyNNContainer.set(self, name, value)
+        else:
+            if param in self._population_parameters:
+                self._population_parameters[param] = val
+            else:
+                BasePyNNContainer.set(self, param, val)
+
+    @overrides(BasePyNNContainer.get)
+    def get(self, parameter_name, gather=False):
+        if parameter_name in self._population_parameters:
+            return self._population_parameters[parameter_name]
+        return BasePyNNContainer.get(parameter_name, gather)
+
+    def set_synapse_dynamics(self, synapse_dynamics):
+        """ Set the synapse dynamics of this population
+            Checks that the new dynamics is compatible with the current one\
+            if one exists
+        :param synapse_dynamics: new synapse_dynamics
+        """
+
+        # We can always override static dynamics or None
+        if isinstance(self._synapse_dynamics, SynapseDynamicsStatic):
+            self._synapse_dynamics = synapse_dynamics
+
+        # We can ignore a static dynamics trying to overwrite a plastic one
+        elif isinstance(synapse_dynamics, SynapseDynamicsStatic):
+            pass
+
+        # Otherwise, the dynamics must be equal
+        elif not synapse_dynamics.is_same_as(self._synapse_dynamics):
+            raise exceptions.ConfigurationException(
+                "Synapse dynamics must match exactly when using multiple edges"
+                "to the same population")

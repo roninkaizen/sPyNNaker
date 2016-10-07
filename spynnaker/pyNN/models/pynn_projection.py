@@ -1,8 +1,6 @@
-from spynnaker.pyNN.models.neuron.bag_of_neurons_vertex import \
-    BagOfNeuronsVertex
+from spynnaker.pyNN.models.neuron.connection_holder import ConnectionHolder
 from spynnaker.pyNN.models.neuron.synapse_dynamics.synapse_dynamics_static \
     import SynapseDynamicsStatic
-from spynnaker.pyNN.models.neuron.connection_holder import ConnectionHolder
 from spinn_front_end_common.abstract_models.abstract_changable_after_run \
     import AbstractChangableAfterRun
 
@@ -38,7 +36,7 @@ class Projection(object):
         self._target = target
         self._rng = rng
         self._virtual_connection_list = None
-        self._synapse_information = None
+        self._synapse_information = dict()
 
         if source is not None:
             logger.warn(
@@ -47,30 +45,34 @@ class Projection(object):
                 " ignored")
 
         self._projection_edge = None
-        self._host_based_synapse_list = None
-        self._has_retrieved_synaptic_list_from_machine = False
 
-        # check projection is to a vertex which can handle spikes reception
-        if not issubclass(postsynaptic_population._class,
-                          BagOfNeuronsVertex):
+        # Check projection is to a vertex which can handle spikes reception
+        if not postsynaptic_population.celltype.supports_connector:
             raise exceptions.ConfigurationException(
                 "postsynaptic population is not designed to receive"
                 " synaptic projections")
 
-        # update atom's synapse dynamics.
-        synapse_dynamics_stdp = None
+        # Check projection synapse target is supported by the postsynaptic
+        # population
+        synapse_type = postsynaptic_population.celltype.synapse_type
+        self._synapse_id = synapse_type.get_synapse_id_by_target(target)
+        if self._synapse_type is None:
+            raise exceptions.ConfigurationException(
+                "The synapse type {} of the post synaptic cell type {} does"
+                " not support the target {}".format(
+                    synapse_type.__name__,
+                    postsynaptic_population.cell_type.__name__, target))
+
+        # Set the synapse dynamics in the post-population
+        self._synapse_dynamics = synapse_dynamics
         if synapse_dynamics is None:
-            synapse_dynamics_stdp = SynapseDynamicsStatic()
-        else:
-            synapse_dynamics_stdp = synapse_dynamics.slow
-        atoms_for_population = postsynaptic_population._get_atoms_for_pop()
-        for atom in atoms_for_population:
-            atom.synapse_dynamics = synapse_dynamics_stdp
+            self._synapse_dynamics = SynapseDynamicsStatic()
+        postsynaptic_population.set_synapse_dynamics(self._synapse_dynamics)
 
         # check that the projection edges label is not none, and give an
         # auto generated label if set to None
         if label is None:
-            self._label = "projection edge {}".format(
+            self._label = "Projection {}".format(
                 spinnaker_control.none_labelled_edge_count)
             spinnaker_control.increment_none_labelled_edge_count()
         else:
@@ -258,7 +260,7 @@ class Projection(object):
         raise NotImplementedError
 
     def __repr__(self):
-        return "projection {}".format(self._projection_edge.label)
+        return "Projection(pre".format(self._projection_edge.label)
 
     # noinspection PyPep8Naming
     def saveConnections(self, file_name, gather=True, compatible_output=True):

@@ -20,7 +20,7 @@ from spynnaker.pyNN.utilities import constants
 from enum import Enum
 
 
-class BagOfNeuronsMachineVertex(
+class PopulationMachineVertex(
         MachineVertex, ReceiveBuffersToHostBasicImpl,
         ProvidesProvenanceDataFromMachineImpl, AbstractRecordable):
 

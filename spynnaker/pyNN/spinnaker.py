@@ -2,10 +2,10 @@
 # pacman imports
 from pacman.model.graphs.application.impl.application_edge import \
     ApplicationEdge
+from pacman.model.graphs.machine.impl.machine_graph import MachineGraph
+from pacman.executor.pacman_algorithm_executor import PACMANAlgorithmExecutor
 
 # common front end imports
-from pacman.model.partitioned_graph.partitioned_graph import PartitionedGraph
-from pacman.operations.pacman_algorithm_executor import PACMANAlgorithmExecutor
 from spinn_front_end_common.interface.spinnaker_main_interface import \
     SpinnakerMainInterface
 from spinn_front_end_common.utilities import exceptions as common_exceptions
@@ -13,12 +13,9 @@ from spinn_front_end_common.utility_models.command_sender import CommandSender
 from spinn_front_end_common.utilities.utility_objs.executable_finder \
     import ExecutableFinder
 
-# add pops pop view and assembly from the bloody same class.
-from spynnaker.pyNN.models.abstract_models.abstract_groupable import \
-    AbstractGroupable
-from spynnaker.pyNN.models.population_based_objects import \
-    Assembly, PopulationView, Population
-
+from spynnaker.pyNN.models.population_based_objects import Assembly
+from spynnaker.pyNN.models.population_based_objects import PopulationView
+from spynnaker.pyNN.models.population_based_objects import Population
 from spynnaker.pyNN.models.pynn_projection import Projection
 from spynnaker.pyNN import overridden_pacman_functions
 from spynnaker.pyNN.utilities.conf import config
@@ -35,6 +32,7 @@ from spynnaker.pyNN.utilities import constants
 import logging
 import math
 import os
+import inspect
 
 # global objects
 logger = logging.getLogger(__name__)
@@ -110,6 +108,9 @@ class Spinnaker(SpinnakerMainInterface):
         # get the machine time step
         logger.info("Setting machine time step to {} micro-seconds."
                     .format(self._machine_time_step))
+
+        # Set up for settings of max_neurons_per_core
+        self._max_neurons_per_core = {}
 
     def _set_up_timings(self, timestep, min_delay, max_delay):
         self._machine_time_step = config.getint("Machine", "machineTimeStep")
@@ -273,7 +274,9 @@ class Spinnaker(SpinnakerMainInterface):
         # build a population object
         population = Population(
             size=size, cellclass=cellclass, cellparams=cellparams,
-            structure=structure, label=label, spinnaker=self)
+            structure=structure, label=label, spinnaker=self,
+            max_neurons_per_core=self._max_neurons_per_core.get(
+                cellclass.__name__, None))
         self._populations.append(population)
         return population
 
@@ -387,7 +390,7 @@ class Spinnaker(SpinnakerMainInterface):
         # run grouper again if changes requires mapping
         if self._detect_if_graph_has_changed(reset_flags=False):
             self._execute_grouper_algorithm()
-            self._partitioned_graph = PartitionedGraph(
+            self._machine_graph = MachineGraph(
                 label=self._partitioned_graph.label)
             self._graph_mapper = None
 
@@ -402,16 +405,14 @@ class Spinnaker(SpinnakerMainInterface):
 
         # build executor
         inputs = dict()
-        inputs['PopulationAtomMapping'] = self._pop_atom_mappings
-        inputs['PopulationViewAtomMapping'] = self._pop_view_atom_mapping
-        inputs['AssemblyAtomMapping'] = self._assembly_atom_mapping
+        inputs['Populations'] = self._populations
         inputs['Projections'] = self._projections
         inputs['MachineTimeStep'] = self._machine_time_step
         inputs['TimeScaleFactor'] = self._time_scale_factor
         inputs['UserMaxDelay'] = self.max_supported_delay
         inputs['VirtualBoardFlag'] = self._use_virtual_board
 
-        outputs = ["MemoryPartitionableGraph", "PopToVertexMapping"]
+        outputs = ["MemoryApplicationGraph"]
         algorithms = list()
         algorithms.append(config.get("Mapping", "grouper"))
         xml_paths = list()
@@ -424,28 +425,19 @@ class Spinnaker(SpinnakerMainInterface):
         pacman_executor.execute_mapping()
 
         # get partitionable graph
-        self._partitionable_graph = \
-            pacman_executor.get_item("MemoryPartitionableGraph")
-        pop_to_vertex_mapping = pacman_executor.get_item("PopToVertexMapping")
-        vertex_to_pop_mapping = pacman_executor.get_item("VertexToPopMapping")
-
-        # update each population with their own mapping
-        for pop in self._populations:
-            pop.set_mapping(pop_to_vertex_mapping[pop])
-
-        for vertex in vertex_to_pop_mapping:
-            if isinstance(vertex, AbstractGroupable):
-                vertex.set_mapping(vertex_to_pop_mapping)
+        self._application_graph = pacman_executor.get_item(
+            "MemoryApplicationGraph")
 
         # add extra edges needed from external device plug-in to allow none
         # synaptic edges to utility models or external devices.
-        for edge_data in self._extra_edges:
-            self._partitionable_graph.add_edge(
-                MultiCastPartitionableEdge(
-                    pre_vertex=pop_to_vertex_mapping[edge_data[0]][0],
-                    post_vertex=pop_to_vertex_mapping[edge_data[1]][0],
-                    label="recorder_edge"),
-                partition_id=edge_data[2])
+        # TODO: Fix this
+#         for edge_data in self._extra_edges:
+#             self._application_graph.add_edge(
+#                 MultiCastPartitionableEdge(
+#                     pre_vertex=pop_to_vertex_mapping[edge_data[0]][0],
+#                     post_vertex=pop_to_vertex_mapping[edge_data[1]][0],
+#                     label="recorder_edge"),
+#                 partition_id=edge_data[2])
 
     def add_extra_edge(self, pre_population, post_population, partition_id):
         """ Add an extra edge to the graph to be added after grouping
@@ -457,3 +449,9 @@ class Spinnaker(SpinnakerMainInterface):
         """
         self._extra_edges.append(
             [pre_population, post_population, partition_id])
+
+    def set_max_neurons_per_core(self, model, max_neurons_per_core):
+        class_name = model
+        if inspect.isclass(model):
+            class_name = model.__name__
+        self._max_neurons_per_core[class_name] = max_neurons_per_core

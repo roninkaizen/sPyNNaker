@@ -116,6 +116,13 @@ _spinnaker = None
 _binary_search_paths = []
 
 
+def _check_spinnaker():
+    global _spinnaker
+    if _spinnaker is None:
+        raise exceptions.SpynnakerException(
+            "setup() must be called before calling this functions")
+
+
 def register_binary_search_path(search_path):
     """
     :param search_path:
@@ -134,6 +141,7 @@ def end():
     Unregistered the controller,
     prints any data recorded using the low-level API
     """
+    _check_spinnaker()
     global _spinnaker
     _spinnaker.stop()
     _spinnaker = None
@@ -144,6 +152,7 @@ def get_spynnaker():
 
     :return:
     """
+    _check_spinnaker()
     global _spinnaker
     return _spinnaker
 
@@ -166,6 +175,7 @@ def rank():
 def reset():
     """ Reset the time to zero, and start the clock.
     """
+    _check_spinnaker()
     global _spinnaker
     _spinnaker.reset()
 
@@ -175,6 +185,7 @@ def run(run_time=None):
 
     :param run_time: simulation length (in ms)
     """
+    _check_spinnaker()
     global _spinnaker
     _spinnaker.run(run_time)
     return None
@@ -227,17 +238,8 @@ def set_number_of_neurons_per_core(neuron_type, max_permitted):
     :param neuron_type:
     :param max_permitted:
     """
-    if not inspect.isclass(neuron_type):
-        if neuron_type in globals():
-            neuron_type = globals()[neuron_type]
-        else:
-            raise Exception("Unknown Vertex Type {}"
-                            .format(neuron_type))
-
-    if hasattr(neuron_type, "set_model_max_atoms_per_core"):
-        neuron_type.set_model_max_atoms_per_core(max_permitted)
-    else:
-        raise Exception("{} is not a Vertex type".format(neuron_type))
+    _check_spinnaker()
+    _spinnaker.set_max_neurons_per_core(neuron_type, max_permitted)
 
 
 def register_database_notification_request(hostname, notify_port, ack_port):
@@ -248,6 +250,7 @@ def register_database_notification_request(hostname, notify_port, ack_port):
     :param ack_report:
     :return:
     """
+    _check_spinnaker()
     _spinnaker._add_socket_address(
         SocketAddress(hostname, notify_port, ack_port))
 
@@ -263,6 +266,7 @@ def Population(size, cellclass, cellparams, structure=None, label=None):
     :param label:
     :return:
     """
+    _check_spinnaker()
     global _spinnaker
     return _spinnaker.create_population(size, cellclass, cellparams,
                                         structure, label)
@@ -284,6 +288,7 @@ def Projection(presynaptic_population, postsynaptic_population,
     :param rng:
     :return:
     """
+    _check_spinnaker()
     global _spinnaker
 
     return _spinnaker.create_projection(
@@ -309,6 +314,7 @@ def PopulationView(parent, selector, label=None):
     :param label: label of this pop view
     :return: a populationView object
     """
+    _check_spinnaker()
     global _spinnaker
     return _spinnaker.create_population_vew(parent, selector, label)
 
@@ -317,6 +323,7 @@ def PopulationView(parent, selector, label=None):
 def Assembly(*populations):
     """ Create an Assembly of populations
     """
+    _check_spinnaker()
     global _spinnaker
     return _spinnaker.create_assembly(populations)
 
@@ -334,6 +341,7 @@ def get_current_time():
     returns the machine time step defined in setup
     :return:
     """
+    _check_spinnaker()
     global _spinnaker
     if _spinnaker is None:
         raise front_end_common_exceptions.ConfigurationException(
@@ -376,6 +384,7 @@ def get_time_step():
     """ The timestep requested
     :return:
     """
+    _check_spinnaker()
     global _spinnaker
     if _spinnaker is None:
         raise front_end_common_exceptions.ConfigurationException(
@@ -389,6 +398,7 @@ def get_min_delay():
     """ The minimum allowed synaptic delay.
     :return:
     """
+    _check_spinnaker()
     global _spinnaker
     if _spinnaker is None:
         raise front_end_common_exceptions.ConfigurationException(
@@ -402,6 +412,7 @@ def get_max_delay():
     """ The maximum allowed synaptic delay.
     :return:
     """
+    _check_spinnaker()
     global _spinnaker
     if _spinnaker is None:
         raise front_end_common_exceptions.ConfigurationException(
@@ -446,4 +457,5 @@ def record_gsyn(source, filename):
 def get_machine():
     """ Get the spinnaker machine in use
     """
+    _check_spinnaker()
     return _spinnaker.machine

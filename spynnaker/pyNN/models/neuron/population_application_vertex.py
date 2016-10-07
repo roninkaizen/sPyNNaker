@@ -1,7 +1,5 @@
 
 # pacman imports
-from pacman.model.abstract_classes.abstract_has_global_max_atoms import \
-    AbstractHasGlobalMaxAtoms
 from pacman.model.constraints.key_allocator_constraints\
     .key_allocator_contiguous_range_constraint \
     import KeyAllocatorContiguousRangeContraint
@@ -60,8 +58,8 @@ from spynnaker.pyNN.models.common.v_recorder import VRecorder
 from spynnaker.pyNN.models.common.gsyn_recorder import GsynRecorder
 from spynnaker.pyNN.utilities import constants
 from spynnaker.pyNN.utilities.conf import config
-from spynnaker.pyNN.models.neuron.bag_of_neurons_machine_vertex \
-    import BagOfNeuronsMachineVertex
+from spynnaker.pyNN.models.neuron.population_machine_vertex \
+    import PopulationMachineVertex
 from spynnaker.pyNN.models.neuron_cell import RecordingType
 
 import logging
@@ -81,84 +79,24 @@ _C_MAIN_BASE_SDRAM_USAGE_IN_BYTES = 72
 _C_MAIN_BASE_N_CPU_CYCLES = 0
 
 
-class BagOfNeuronsVertex(
+class PopulationApplicationVertex(
         ApplicationVertex, AbstractGeneratesDataSpecification,
         AbstractHasAssociatedBinary, AbstractBinaryUsesSimulationRun,
         AbstractSpikeRecordable, AbstractVRecordable, AbstractGSynRecordable,
         AbstractProvidesOutgoingPartitionConstraints,
         AbstractProvidesIncomingPartitionConstraints,
-        AbstractChangableAfterRun, AbstractGroupable,
-        AbstractHasGlobalMaxAtoms):
+        AbstractChangableAfterRun, AbstractGroupable):
     """ Underlying vertex model for Neural Populations.
     """
 
-    is_array_parameters = {}
-    fixed_parameters = {}
-    population_parameters = {
-        'spikes_per_second', 'ring_buffer_sigma',
-        '', 'machine_time_step',
-        'time_scale_factor', 'model_class', 'label', 'constraints'}
-
-    @staticmethod
-    def default_parameters(class_object):
-        parameters = dict()
-        parameters.update(class_object.neuron_model.default_parameters())
-        parameters.update(class_object.synapse_type.default_parameters())
-        parameters.update(class_object.input_type.default_parameters())
-        parameters.update(class_object.threshold_type.default_parameters())
-        if hasattr(class_object, "additional_input"):
-            parameters.update(
-                class_object.additional_input.default_parameters())
-        return parameters
-
-    @staticmethod
-    def fixed_parameters(class_object):
-        parameters = dict()
-        parameters.update(class_object.neuron_model.fixed_parameters())
-        parameters.update(class_object.synapse_type.fixed_parameters())
-        parameters.update(class_object.input_type.fixed_parameters())
-        parameters.update(class_object.threshold_type.fixed_parameters())
-        if hasattr(class_object, "additional_input"):
-            parameters.update(
-                class_object.additional_input.fixed_parameters())
-        return parameters
-
-    @staticmethod
-    def state_variables(class_object):
-        parameters = list()
-        parameters.extend(class_object.neuron_model.state_variables())
-        parameters.extend(class_object.synapse_type.state_variables())
-        parameters.extend(class_object.input_type.state_variables())
-        parameters.extend(class_object.threshold_type.state_variables())
-        if hasattr(class_object, "additional_input"):
-            parameters.extend(
-                class_object.additional_input.state_variables())
-        return parameters
-
-    @staticmethod
-    def is_array_parameters(class_object):
-        parameters = dict()
-        parameters.update(class_object.neuron_model.is_array_parameters())
-        parameters.update(class_object.synapse_type.is_array_parameters())
-        parameters.update(class_object.input_type.is_array_parameters())
-        parameters.update(class_object.threshold_type.is_array_parameters())
-        if hasattr(class_object, "additional_input"):
-            parameters.update(
-                class_object.additional_input.is_array_parameters())
-        return parameters
-
-    @staticmethod
-    def recording_types(_):
-        return [RecordingType.SPIKES, RecordingType.V, RecordingType.GSYN]
-
     def __init__(
-            self, bag_of_neurons, label, model_class,
+            self, neuron_cells, label, model_class, synapse_dynamics,
             spikes_per_second=None, ring_buffer_sigma=None,
             incoming_spike_buffer_size=None, constraints=None):
 
         ApplicationVertex.__init__(
             self, label, constraints,
-            model_class.model_based_max_atoms_per_core)
+            model_class.max_atoms_per_core)
         AbstractSpikeRecordable.__init__(self)
         AbstractVRecordable.__init__(self)
         AbstractGSynRecordable.__init__(self)
@@ -176,19 +114,19 @@ class BagOfNeuronsVertex(
             self._incoming_spike_buffer_size = config.getint(
                 "Simulation", "incoming_spike_buffer_size")
 
-        self._model_name = model_class.model_name
-        self._neuron_model = model_class.neuron_model(bag_of_neurons)
-        self._input_type = model_class.input_type(bag_of_neurons)
-        self._threshold_type = model_class.threshold_type(bag_of_neurons)
-        synapse_type = model_class.synapse_type(bag_of_neurons)
+        self._model_name = model_class.__class__.__name__
+        self._neuron_model = model_class.neuron_model(neuron_cells)
+        self._input_type = model_class.input_type(neuron_cells)
+        self._threshold_type = model_class.threshold_type(neuron_cells)
+        synapse_type = model_class.synapse_type(neuron_cells)
 
         self._additional_input = None
         if hasattr(model_class, "additional_input"):
             self._additional_input = \
-                model_class.additional_input(bag_of_neurons)
+                model_class.additional_input(neuron_cells)
 
         # storage of atoms for usage during sets and records
-        self._atoms = bag_of_neurons
+        self._neuron_cells = neuron_cells
         self._vertex_to_pop_mapping = None
 
         # Set up for recording
@@ -197,7 +135,7 @@ class BagOfNeuronsVertex(
         self._gsyn_recorder = GsynRecorder()
 
         # check the bag of neurons for recording states
-        for atom in bag_of_neurons:
+        for atom in neuron_cells:
             if atom.is_recording(RecordingType.SPIKES):
                 self._change_requires_mapping = not self._spike_recorder.record
                 self._spike_recorder.record = True
@@ -233,7 +171,7 @@ class BagOfNeuronsVertex(
         # Set up synapse handling
         self._synapse_manager = SynapticManager(
             synapse_type, ring_buffer_sigma,
-            spikes_per_second)
+            spikes_per_second, synapse_dynamics)
 
         # bool for if state has changed.
         self._change_requires_mapping = True
@@ -241,7 +179,7 @@ class BagOfNeuronsVertex(
     @property
     @overrides(ApplicationVertex.n_atoms)
     def n_atoms(self):
-        return self._n_atoms
+        return len(self._neuron_cells)
 
     @inject_items({
         "graph": "MemoryApplicationGraph",
@@ -298,19 +236,6 @@ class BagOfNeuronsVertex(
     def requires_remapping_for_change(self, parameter, old_value, new_value):
         return True
 
-    @staticmethod
-    def create_vertex(bag_of_neurons, population_parameters):
-        """
-
-        :param bag_of_neurons:
-        :param population_parameters:
-        :return:
-        """
-        params = dict(population_parameters)
-        params['bag_of_neurons'] = bag_of_neurons
-        vertex = BagOfNeuronsVertex(**params)
-        return vertex
-
     def _check_for_auto_pause_and_resume_functionality(
             self, vertex_slice, object_to_set, n_machine_time_steps):
         if not self._using_auto_pause_and_resume:
@@ -363,7 +288,7 @@ class BagOfNeuronsVertex(
         resources_required.extend(self.get_extra_resources(
             self._receive_buffer_host, self._receive_buffer_port))
 
-        vertex = BagOfNeuronsMachineVertex(
+        vertex = PopulationMachineVertex(
             resources_required, is_recording, label, constraints)
 
         # check for auto pause and resume setting
@@ -429,8 +354,8 @@ class BagOfNeuronsVertex(
         sdram_requirement = (
             self._get_sdram_usage_for_neuron_params(vertex_slice) +
             ReceiveBuffersToHostBasicImpl.get_buffer_state_region_size(3) +
-            BagOfNeuronsMachineVertex.get_provenance_data_size(
-                BagOfNeuronsMachineVertex.N_ADDITIONAL_PROVENANCE_DATA_ITEMS) +
+            PopulationMachineVertex.get_provenance_data_size(
+                PopulationMachineVertex.N_ADDITIONAL_PROVENANCE_DATA_ITEMS) +
             self._synapse_manager.get_sdram_usage_in_bytes(
                 vertex_slice, graph.get_edges_ending_at_vertex(self),
                 machine_time_step) +

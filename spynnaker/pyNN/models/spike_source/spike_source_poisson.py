@@ -111,16 +111,16 @@ class SpikeSourcePoisson(
         return [RecordingType.SPIKES]
 
     def __init__(
-            self, bag_of_neurons,
+            self, neuron_cells,
             constraints=None, label="SpikeSourcePoisson"):
 
         # Store the parameters
         self._rng = numpy.random.RandomState(
-            bag_of_neurons[0].get_population_parameter('seed'))
-        self._atoms = bag_of_neurons
+            neuron_cells[0].get_population_parameter('seed'))
+        self._neuron_cells = neuron_cells
 
         ApplicationVertex.__init__(
-            self, len(bag_of_neurons), label,
+            self, len(neuron_cells), label,
             self.model_based_max_atoms_per_core, constraints)
         AbstractSpikeRecordable.__init__(self)
         BagOfNeuronSettable.__init__(self)
@@ -128,7 +128,7 @@ class SpikeSourcePoisson(
         ReceiveBuffersToHostBasicImpl.__init__(self)
 
         # atoms params
-        self._n_atoms = len(bag_of_neurons)
+        self._n_atoms = len(neuron_cells)
         self._seed = None
 
         # Prepare for recording, and to get spikes
@@ -150,7 +150,7 @@ class SpikeSourcePoisson(
         self._using_auto_pause_and_resume = config.getboolean(
             "Buffers", "use_auto_pause_and_resume")
 
-        for atom in bag_of_neurons:
+        for atom in neuron_cells:
             if atom.is_recording(RecordingType.SPIKES):
                 self._change_requires_mapping = not self._spike_recorder.record
                 self._spike_recorder.record = True
@@ -255,36 +255,36 @@ class SpikeSourcePoisson(
 
     @property
     def rate(self):
-        return self._get_param('rate', self._atoms)
+        return self._get_param('rate', self._neuron_cells)
 
     @rate.setter
     def rate(self, rate):
-        self._set_param('rate', rate, self._atoms)
+        self._set_param('rate', rate, self._neuron_cells)
 
     @property
     def start(self):
-        return self._get_param('start', self._atoms)
+        return self._get_param('start', self._neuron_cells)
 
     @start.setter
     def start(self, start):
-        self._set_param('start', start, self._atoms)
+        self._set_param('start', start, self._neuron_cells)
 
     @property
     def duration(self):
-        return self._get_param('duration', self._atoms)
+        return self._get_param('duration', self._neuron_cells)
 
     @duration.setter
     def duration(self, duration):
-        self._set_param('duration', duration, self._atoms)
+        self._set_param('duration', duration, self._neuron_cells)
         self._duration = duration
 
     @property
     def seed(self):
-        return self._get_state_variable('seed', self._atoms)
+        return self._get_state_variable('seed', self._neuron_cells)
 
     @seed.setter
     def seed(self, seed):
-        self._set_state_variable('seed', seed, self._atoms)
+        self._set_state_variable('seed', seed, self._neuron_cells)
 
     @staticmethod
     def set_model_max_atoms_per_core(new_value):
@@ -422,11 +422,11 @@ class SpikeSourcePoisson(
             atom_id = vertex_slice.lo_atom + i
 
             # Get the parameter values for source i:
-            rate_val = self._atoms[atom_id].get('rate')
-            start_val = self._atoms[atom_id].get('start')
+            rate_val = self._neuron_cells[atom_id].get('rate')
+            start_val = self._neuron_cells[atom_id].get('start')
             end_val = None
-            if self._atoms[atom_id].get("duration") is not None:
-                end_val = self._atoms[atom_id].get("duration") + start_val
+            if self._neuron_cells[atom_id].get("duration") is not None:
+                end_val = self._neuron_cells[atom_id].get("duration") + start_val
 
             # Decide if it is a fast or slow source and
             spikes_per_tick = \

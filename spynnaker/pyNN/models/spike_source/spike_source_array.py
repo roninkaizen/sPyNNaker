@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 class SpikeSourceArray(
         ReverseIpTagMultiCastSource,
         AbstractSpikeRecordable, AbstractGroupable,
-        AbstractChangableAfterRun, AbstractChangableAfterRun):
+        AbstractChangableAfterRun):
     """ Model for play back of spikes
     """
 
@@ -73,80 +73,80 @@ class SpikeSourceArray(
     def recording_types(_):
         return [RecordingType.SPIKES]
 
-    def __init__(self, bag_of_neurons, label="SpikeSourceArray",
+    def __init__(self, neuron_cells, label="SpikeSourceArray",
                  constraints=None):
 
         AbstractGroupable.__init__(self)
 
         # assume all atoms have the same parameters, so can look at first
         # determine ip address
-        ip_address = bag_of_neurons[0].get_population_parameter('ip_address')
+        ip_address = neuron_cells[0].get_population_parameter('ip_address')
         self._ip_address = ip_address
         if ip_address is None:
             self._ip_address = config.get("Buffers", "receive_buffer_host")
-            for atom in bag_of_neurons:
+            for atom in neuron_cells:
                 atom.set_population_parameter('ip_address', self._ip_address)
 
         # determine port
-        self._port = bag_of_neurons[0].get_population_parameter('port')
+        self._port = neuron_cells[0].get_population_parameter('port')
         if self._port is None:
             self._port = config.getint("Buffers", "receive_buffer_port")
-            for atom in bag_of_neurons:
+            for atom in neuron_cells:
                 atom.set_population_parameter('port', self._port)
 
         # determine space_before_notification
-        space_before_notification = bag_of_neurons[0].get_population_parameter(
+        space_before_notification = neuron_cells[0].get_population_parameter(
             'space_before_notification')
         if space_before_notification is None:
             space_before_notification = self.SPACE_BEFORE_NOTIFICATION
-            for atom in bag_of_neurons:
+            for atom in neuron_cells:
                 atom.set_population_parameter(
                     'space_before_notification', space_before_notification)
 
         # determine spike_recorder_buffer_size
-        spike_recorder_buffer_size = bag_of_neurons[0].\
+        spike_recorder_buffer_size = neuron_cells[0].\
             get_population_parameter('spike_recorder_buffer_size')
         if spike_recorder_buffer_size is None:
             spike_recorder_buffer_size = \
                 (constants.EIEIO_SPIKE_BUFFER_SIZE_BUFFERING_OUT)
-            for atom in bag_of_neurons:
+            for atom in neuron_cells:
                 atom.set_population_parameter(
                     'spike_recorder_buffer_size', spike_recorder_buffer_size)
 
         # determine max_on_chip_memory_usage_for_spikes_in_bytes
-        max_on_chip_memory_usage_for_spikes_in_bytes = bag_of_neurons[0].\
+        max_on_chip_memory_usage_for_spikes_in_bytes = neuron_cells[0].\
             get_population_parameter(
             'max_on_chip_memory_usage_for_spikes_in_bytes')
         if max_on_chip_memory_usage_for_spikes_in_bytes is None:
             max_on_chip_memory_usage_for_spikes_in_bytes = \
                 (constants.SPIKE_BUFFER_SIZE_BUFFERING_IN)
-            for atom in bag_of_neurons:
+            for atom in neuron_cells:
                 atom.set_population_parameter(
                     'max_on_chip_memory_usage_for_spikes_in_bytes',
                     max_on_chip_memory_usage_for_spikes_in_bytes)
 
         # determine buffer_size_before_receive
-        buffer_size_before_receive = bag_of_neurons[0].\
+        buffer_size_before_receive = neuron_cells[0].\
             get_population_parameter('buffer_size_before_receive')
         if buffer_size_before_receive is None:
             buffer_size_before_receive = \
                 (constants.EIEIO_BUFFER_SIZE_BEFORE_RECEIVE)
-            for atom in bag_of_neurons:
+            for atom in neuron_cells:
                 atom.set_population_parameter(
                     'buffer_size_before_receive', buffer_size_before_receive)
 
         # determine board address
         board_address = \
-            bag_of_neurons[0].get_population_parameter('board_address')
+            neuron_cells[0].get_population_parameter('board_address')
 
         # determine tag
-        tag = bag_of_neurons[0].get_population_parameter('tag')
+        tag = neuron_cells[0].get_population_parameter('tag')
 
         # hard code this for the time being
         spike_times = []
 
         # store the atoms for future processing
-        self._atoms = bag_of_neurons
+        self._neuron_cells = neuron_cells
         self._mapping = None
 
         # get hard coded values
@@ -156,7 +156,7 @@ class SpikeSourceArray(
             "Buffers", "use_auto_pause_and_resume")
 
         ReverseIpTagMultiCastSource.__init__(
-            self, n_keys=len(bag_of_neurons), label=label,
+            self, n_keys=len(neuron_cells), label=label,
             constraints=constraints,
             max_atoms_per_core=(SpikeSourceArray.
                                 _model_based_max_atoms_per_core),
@@ -211,7 +211,7 @@ class SpikeSourceArray(
 
         # check for recording requirements
         is_recording_spikes = False
-        for atom in bag_of_neurons:
+        for atom in neuron_cells:
             if atom.is_recording(RecordingType.SPIKES):
                 is_recording_spikes = True
         if is_recording_spikes:
@@ -230,7 +230,7 @@ class SpikeSourceArray(
         for (_, start, end) in mapping:
             for atom_id in range(start, end):
                 total_spikes_times.append(
-                    self._atoms[atom_id].get("spike_times"))
+                    self._neuron_cells[atom_id].get("spike_times"))
         self.spike_times = total_spikes_times
         self._mapping = mapping
 

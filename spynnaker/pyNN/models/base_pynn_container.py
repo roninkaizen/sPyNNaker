@@ -76,35 +76,6 @@ class BasePyNNContainer(object):
         return len(self._cells)
 
     @staticmethod
-    def _filter_values_by_bool_array(n_cells, vertex_filter, start, values):
-
-        # Filter the values to only contain the relevant cells
-        # If the slice is all of the indices, avoid this filter
-        values_slice = values
-        if not all(vertex_filter):
-
-            # Get the indices of the cells in the slice of the vertex
-            vertex_indices = numpy.arange(n_cells)[vertex_filter]
-
-            # numpy.in1d returns an array which is True if the cell index
-            # is in vertex_indices, or False if not
-            values_slice = values[numpy.in1d(values[:, 0], vertex_indices)]
-
-            # Process the neuron ids to the appropriate positions based on
-            # the slice
-            # numpy.digitize returns the index of the cell index within
-            # vertex_indices; thus the first cell id goes to 0, the second
-            # id to 1 etc.
-            values_slice[:, 0] = numpy.digitize(
-                values_slice[:, 0], vertex_indices, right=True)
-
-        # Add the start index to the cell index if required
-        if start != 0:
-            values_slice[:, 0] += start
-
-        return values_slice
-
-    @staticmethod
     def _filter_values_by_indices(n_atoms, vertex_indices, start, values):
 
         # Filter the values to only contain the relevant cells
@@ -490,7 +461,7 @@ class BasePyNNContainer(object):
 
         # set all the atoms directly
         recording_enabled = False
-        for atom in self._atoms:
+        for atom in self._cells:
             if atom.can_record(RecordingType.SPIKES):
                 atom.set_recording(RecordingType.SPIKES, True, to_file)
                 recording_enabled = True
@@ -515,7 +486,7 @@ class BasePyNNContainer(object):
 
         # set all the atoms directly
         recording_enabled = False
-        for atom in self._atoms:
+        for atom in self._cells:
             if atom.can_record(RecordingType.GSYN):
                 atom.set_recording(RecordingType.GSYN, True, to_file)
                 recording_enabled = True
@@ -540,7 +511,7 @@ class BasePyNNContainer(object):
 
         # set all the atoms directly
         recording_enabled = False
-        for atom in self._atoms:
+        for atom in self._cells:
             if atom.can_record(RecordingType.V):
                 atom.set_recording(RecordingType.V, True, to_file)
                 recording_enabled = True
@@ -609,7 +580,7 @@ class BasePyNNContainer(object):
         values_for_atoms = utility_calls.convert_param_to_numpy(
             value_array, len(self._cells))
         for cell, value in zip(self._cells, values_for_atoms):
-            cell[parametername] = value
+            cell.set_param(parametername, value)
 
     def set(self, param, val=None):
         """ Set one or more parameters for every cell in the population view.
@@ -625,9 +596,8 @@ class BasePyNNContainer(object):
         :param val: the value of the parameter to set.
         """
         if isinstance(param, dict):
-            for name, value in param.iteritems():
-                for cell in self._cells:
-                    cell[name] = value
+            for cell in self._cells:
+                cell.set_parameters(param)
         else:
             for cell in self._cells:
-                cell[param] = val
+                cell.set_param(param, val)
