@@ -1,0 +1,5 @@
+APP=test_pde_utils
+BUILD_DIR=.
+OBJECTS=$(BUILD_DIR)/test_pde_utils.o $(BUILD_DIR)/pde_utils.o
+
+include $(SPINN_DIRS)/make/app.make
