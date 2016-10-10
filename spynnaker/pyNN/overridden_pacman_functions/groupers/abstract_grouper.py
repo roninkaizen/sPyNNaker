@@ -27,8 +27,8 @@ class AbstractGrouper(object):
     """
 
     def handle_projections(
-            self, projections, population_atom_mapping, pop_to_vertex_mapping,
-            user_max_delay, partitionable_graph, using_virtual_board):
+            self, projections, population_to_vertices,
+            user_max_delay, graph, using_virtual_board):
         """ Handle the addition of projections
 
         :param projections: the list of projections from the pynn level
@@ -40,15 +40,42 @@ class AbstractGrouper(object):
         :return: None
         """
 
-        # hold a delay to vertex map for tracking what vertices
+        # hold a vertex to delay vertex map for tracking which vertices
         # have delays already
-        delay_to_vertex_mapping = dict()
+        vertex_to_delay_vertex = dict()
 
         progress_bar = ProgressBar(
             len(projections), "Creating Edges")
 
         # iterate through projections and create edges
         for projection in projections:
+
+            # Get the presynaptic and postsynaptic vertices
+            pre_vertices = population_to_vertices[
+                projection._presynaptic_population]
+            post_vertices = population_to_vertices[
+                projection._postsynaptic_population]
+
+            # For each pair of vertices, add edges
+            for pre_vertex in pre_vertices:
+                for post_vertex in post_vertices:
+
+                    # get the synapse type
+                    synapse_type = self._get_synapse_type(
+                        post_vertex, projection._postsynaptic_population,
+                        projection.target)
+
+                    # Set and store information for future processing
+                    synapse_information = SynapseInformation(
+                        projection._connector,
+                        projection._post_synaptic_population._synapse_dynamics,
+                        synapse_type)
+
+                    # get synapse information
+                    synapse_information = self._get_synapse_info(
+                        projection._connector, synapse_type, population_atom_mapping,
+                        postsynaptic_population, presynaptic_population,
+                        projection._rng)
 
             # get populations from the projection
             presynaptic_population = projection._presynaptic_population
@@ -57,16 +84,6 @@ class AbstractGrouper(object):
             # get mapped vertex's and their sections for the pops.
             post_pop_vertex = pop_to_vertex_mapping[postsynaptic_population]
             pre_pop_vertex = pop_to_vertex_mapping[presynaptic_population]
-
-            # get the synapse type
-            synapse_type = self._get_synapse_type(
-                post_pop_vertex, postsynaptic_population, projection.target)
-
-            # get synapse information
-            synapse_information = self._get_synapse_info(
-                projection._connector, synapse_type, population_atom_mapping,
-                postsynaptic_population, presynaptic_population,
-                projection._rng)
 
             # inform the projection of its synapse into
             projection._synapse_information = synapse_information
@@ -297,7 +314,7 @@ class AbstractGrouper(object):
 
     @staticmethod
     def _get_synapse_info(
-            projection_connector, synapse_type, population_atom_mapping,
+            projection_connector, synapse_type, synapse_dynamics,
             postsynaptic_population, presynaptic_population, projection_rng):
         """
         returns a synapse info object from the projection's connector and
