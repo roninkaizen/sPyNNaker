@@ -252,3 +252,13 @@ def validate_mars_kiss_64_seed(seed):
 
     # avoid z=c=0 and make < 698769069
     seed[3] = seed[3] % 698769068 + 1
+
+
+def filter_slices(slices, min_atom, max_atom):
+    """ Filter the given slices returning only those who cover some part of\
+        the range of atoms between min_atom and max_atom
+    """
+    return [
+        sl for sl in slices
+        if (sl.lo_atom <= max_atom and sl.hi_atom >= min_atom)
+    ]

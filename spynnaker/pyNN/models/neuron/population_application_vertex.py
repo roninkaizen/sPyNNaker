@@ -692,17 +692,18 @@ class PopulationApplicationVertex(
     def synapse_dynamics(self, synapse_dynamics):
         self._synapse_manager.synapse_dynamics = synapse_dynamics
 
-    def add_pre_run_connection_holder(
-            self, connection_holder, edge, synapse_info):
+    def add_pre_run_connection_holder(self, connection_holder, synapse_info):
         self._synapse_manager.add_pre_run_connection_holder(
-            connection_holder, edge, synapse_info)
+            connection_holder, synapse_info)
 
     def get_connections_from_machine(
-            self, transceiver, placement, edge, graph_mapper,
-            routing_infos, synapse_info, machine_time_step):
+            self, transceiver, placement, machine_edge, graph_mapper,
+            routing_infos, synapse_dynamics, synapse_id, synapse_info,
+            index, delay_index, machine_time_step):
         return self._synapse_manager.get_connections_from_machine(
-            transceiver, placement, edge, graph_mapper,
-            routing_infos, synapse_info, machine_time_step)
+            transceiver, placement, machine_edge, graph_mapper,
+            routing_infos, synapse_dynamics, synapse_id, synapse_info,
+            index, delay_index, machine_time_step)
 
     @overrides(AbstractProvidesIncomingPartitionConstraints.
                get_incoming_partition_constraints)

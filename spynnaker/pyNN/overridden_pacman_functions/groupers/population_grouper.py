@@ -23,11 +23,11 @@ class Grouper(AbstractGrouper):
 
         # build a partitionable graph
         graph = ApplicationGraph("grouped_application_graph")
-        pop_to_vertex_mapping = dict()
 
         progress_bar = ProgressBar(len(populations), "Creating Vertices")
 
-        # Track which vertices contain which populations
+        # Track which bits of which vertices contain which bits of which
+        # populations
         population_to_vertices = defaultdict(list)
 
         # Build a vertex for each population
@@ -38,7 +38,8 @@ class Grouper(AbstractGrouper):
                 population._synapse_dynamics)
             population.add_vertex(
                 vertex, 0, population.size, 0, population.size)
-            population_to_vertices[population].append(vertex)
+            population_to_vertices[population].append(
+                (vertex, 0, population.size, 0, population.size))
             progress_bar.update()
         progress_bar.end()
 

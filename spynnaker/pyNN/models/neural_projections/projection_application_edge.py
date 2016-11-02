@@ -15,35 +15,23 @@ class ProjectionApplicationEdge(ApplicationEdge):
     """
 
     def __init__(
-            self, pre_vertex, post_vertex, synapse_information,
-            projection, label=None):
+            self, pre_vertex, post_vertex, projection, label=None):
         ApplicationEdge.__init__(
             self, pre_vertex, post_vertex, label=label)
-
-        # A list of all synapse information for all the projections that are
-        # represented by this edge
-        self._synapse_information = [synapse_information]
 
         # The edge from the delay extension of the pre_vertex to the
         # post_vertex - this might be None if no long delays are present
         self._delay_edge = None
 
         # the projection that this edge is associated with
-        self._associated_projection = projection
+        self._projections = [projection]
 
-        self._stored_synaptic_data_from_machine = None
-
-    def add_synapse_information(self, synapse_information):
-        synapse_information.index = len(self._synapse_information)
-        self._synapse_information.append(synapse_information)
+    def add_projection(self, projection):
+        self._projections.append(projection)
 
     @property
-    def synapse_information(self):
-        return self._synapse_information
-
-    @property
-    def associated_projection(self):
-        return self._associated_projection
+    def projections(self):
+        return self._projections
 
     @property
     def delay_edge(self):
@@ -61,6 +49,11 @@ class ProjectionApplicationEdge(ApplicationEdge):
 
     @overrides(ApplicationEdge.create_machine_edge)
     def create_machine_edge(
-            self, pre_vertex, post_vertex, label):
-        return ProjectionMachineEdge(
-            self._synapse_information, pre_vertex, post_vertex, label)
+            self, pre_vertex, pre_vertex_slice,
+            post_vertex, post_vertex_slice, label):
+        machine_edge = ProjectionMachineEdge(
+            self._projections, pre_vertex, post_vertex, label)
+        for projection in self._projections:
+            projection.add_synaptic_machine_edge(
+                self, machine_edge, pre_vertex_slice, post_vertex_slice)
+        return machine_edge

@@ -57,9 +57,9 @@ class DelayExtensionVertex(
 
     _n_vertices = 0
 
-    def __init__(self, n_neurons, delay_per_stage, source_vertex,
-                 machine_time_step, timescale_factor, constraints=None,
-                 label="DelayExtension"):
+    def __init__(
+            self, n_neurons, delay_per_stage, source_vertex, constraints=None,
+            label="DelayExtension"):
         """
         Creates a new DelayExtension Object.
         """

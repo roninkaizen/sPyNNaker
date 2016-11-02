@@ -267,7 +267,8 @@ class SynapseIORowBased(AbstractSynapseIO):
         )
 
     def read_synapses(
-            self, synapse_info, pre_vertex_slice, post_vertex_slice,
+            self, synapse_dynamics, synapse_id, synapse_info,
+            pre_vertex_slice, post_vertex_slice,
             max_row_length, delayed_max_row_length, n_synapse_types,
             weight_scales, data, delayed_data, n_delay_stages,
             machine_time_step):
@@ -286,7 +287,7 @@ class SynapseIORowBased(AbstractSynapseIO):
                 delayed_data, dtype="<u4").reshape(
                     -1, (delayed_max_row_length + _N_HEADER_WORDS))
 
-        dynamics = synapse_info.synapse_dynamics
+        dynamics = synapse_dynamics
         connections = list()
         if isinstance(dynamics, AbstractStaticSynapseDynamics):
 
@@ -370,8 +371,7 @@ class SynapseIORowBased(AbstractSynapseIO):
 
             # Undo the weight scaling
             connections["weight"] = (
-                connections["weight"] /
-                weight_scales[synapse_info.synapse_type])
+                connections["weight"] / weight_scales[synapse_id])
         else:
             connections = numpy.zeros(
                 0, dtype=AbstractSynapseDynamics.NUMPY_CONNECTORS_DTYPE)

@@ -36,9 +36,11 @@ class AbstractSynapseIO(object):
 
     @abstractmethod
     def read_synapses(
-            self, edge, synapse_info, pre_vertex_slice, post_vertex_slice,
+            self, synapse_dynamics, synapse_id, synapse_info,
+            pre_vertex_slice, post_vertex_slice,
             max_row_length, delayed_max_row_length, n_synapse_types,
-            weight_scales, data, delayed_data, machine_time_step):
+            weight_scales, data, delayed_data, n_delay_stages,
+            machine_time_step):
         """ Read the synapses for a given projection synapse information\
             object out of the given data
         """

@@ -1,14 +1,19 @@
 from spynnaker.pyNN.models.neuron.connection_holder import ConnectionHolder
+from spynnaker.pyNN.models.neural_projections.synapse_retreval_information \
+    import SynapseRetrevalInformation
+from spynnaker.pyNN.models.neural_projections.synapse_information \
+    import SynapseInformation
 from spynnaker.pyNN.models.neuron.synapse_dynamics.synapse_dynamics_static \
     import SynapseDynamicsStatic
+
 from spinn_front_end_common.abstract_models.abstract_changable_after_run \
     import AbstractChangableAfterRun
-
 from spinn_front_end_common.utilities import exceptions
 
 from spinn_machine.utilities.progress_bar import ProgressBar
 
 import logging
+from collections import OrderedDict
 
 logger = logging.getLogger(__name__)
 
@@ -36,15 +41,22 @@ class Projection(object):
         self._target = target
         self._rng = rng
         self._virtual_connection_list = None
-        self._synapse_information = dict()
+        self._synapse_information = list()
+        self._synapse_retrieval_information = list()
+        self._synapse_information_by_edge = dict()
+
+        self._n_pre_vertex_slices = 0
+        self._n_post_vertex_slices = 0
+        self._pre_vertex_slices = OrderedDict()
+        self._post_vertex_slices = OrderedDict()
+        self._pre_slice_indices = dict()
+        self._post_slice_indices = dict()
 
         if source is not None:
             logger.warn(
                 "source currently means nothing to the SpiNNaker"
                 " implementation of the PyNN projection, therefore it will be"
                 " ignored")
-
-        self._projection_edge = None
 
         # Check projection is to a vertex which can handle spikes reception
         if not postsynaptic_population.celltype.supports_connector:
@@ -56,7 +68,7 @@ class Projection(object):
         # population
         synapse_type = postsynaptic_population.celltype.synapse_type
         self._synapse_id = synapse_type.get_synapse_id_by_target(target)
-        if self._synapse_type is None:
+        if self._synapse_id is None:
             raise exceptions.ConfigurationException(
                 "The synapse type {} of the post synaptic cell type {} does"
                 " not support the target {}".format(
@@ -81,6 +93,114 @@ class Projection(object):
         spinnaker_control._add_projection(self)
 
     @property
+    def synapse_information(self):
+        return self._synapse_information
+
+    @property
+    def connector(self):
+        return self._connector
+
+    @property
+    def synapse_id(self):
+        return self._synapse_id
+
+    def add_synaptic_edge(
+            self, application_edge, pre_vertex_start, pre_vertex_end,
+            pre_population_start, pre_population_end,
+            post_vertex_start, post_vertex_end,
+            post_population_start, post_population_end):
+        """ Add an application edge that goes between a pre-vertex of the\
+            pre-population and post-vertex of the post-population of this\
+            projection
+        """
+
+        synapse_info = SynapseInformation(
+            application_edge, pre_vertex_start, pre_vertex_end,
+            pre_population_start, pre_population_end,
+            post_vertex_start, post_vertex_end,
+            post_population_start, post_population_end)
+        self._synapse_information.append(synapse_info)
+        self._synapse_information_by_edge[application_edge] = synapse_info
+
+    def add_synaptic_machine_edge(
+            self, application_edge, machine_edge,
+            pre_vertex_slice, post_vertex_slice):
+        """ Add a machine edge that goes between a machine vertex of an\
+            application vertex of the pre-population and a machine vertex of\
+            an application vertex of the post-population of this vertex.\
+            Note that this might not be relevant to this projection, and so\
+            it might not actually get added.
+        """
+        synapse_information = self._synapse_information_by_edge.get(
+            application_edge)
+        if (synapse_information is not None and
+                pre_vertex_slice.lo_atom <=
+                synapse_information.pre_vertex_end and
+                pre_vertex_slice.hi_atom >=
+                synapse_information.pre_vertex_start):
+            pre_slice_index = self._n_pre_vertex_slices
+            self._n_pre_vertex_slices += 1
+            self._pre_slice_indices[
+                machine_edge.pre_vertex] = pre_slice_index
+            self._pre_vertex_slices[
+                machine_edge.pre_vertex] = pre_vertex_slice
+            post_slice_index = self._n_post_vertex_slices
+            self._n_post_vertex_slices += 1
+            self._post_slice_indices[
+                machine_edge.post_vertex] = post_slice_index
+            self._post_vertex_slices[
+                machine_edge.post_vertex] = post_vertex_slice
+
+    @property
+    def pre_vertex_slices(self):
+        """ Pre-machine vertices and slices of the pre-vertex that are\
+            relevant to this projection
+
+        :return: list of slice
+        """
+        return self._pre_vertex_slices.values()
+
+    def get_pre_vertex_slice(self, pre_vertex):
+        """ Get the pre-vertex slice of the given pre-vertex
+        """
+        return self._pre_vertex_slices[pre_vertex]
+
+    def get_pre_vertex_slice_index(self, pre_vertex):
+        """ Get the index of the pre-vertex in the list of slices
+        """
+        return self._pre_slice_indices[pre_vertex]
+
+    @property
+    def post_vertex_slices(self):
+        """ Post-machine vertices and slices of the post-vertex that are\
+            relevant to this projection
+
+        :return: list of slice
+        """
+        return self._post_vertex_slices.values()
+
+    def get_post_vertex_slice(self, post_vertex):
+        """ Get the post-vertex slice of the given post-vertex
+        """
+        return self._post_vertex_slices[post_vertex]
+
+    def get_post_vertex_slice_index(self, post_vertex):
+        """ Get the index of the post-vertex in the list of slices
+        """
+        return self._post_slice_indices[post_vertex]
+
+    def add_synapse_retreval_information(
+            self, post_vertex, machine_edge, index, delay_index,
+            synapse_information):
+        """ Add information to enable the retrieval of the synaptic\
+            information of this projection
+        """
+        self._synapse_retrieval_information.append(
+            SynapseRetrevalInformation(
+                post_vertex, machine_edge, index, delay_index,
+                synapse_information))
+
+    @property
     def label(self):
         return self._label
 
@@ -90,14 +210,17 @@ class Projection(object):
 
     @property
     def requires_mapping(self):
-        if (isinstance(self._projection_edge, AbstractChangableAfterRun) and
-                self._projection_edge.requires_mapping):
-            return True
+        for info in self._synapse_information:
+            if (isinstance(
+                    info.application_edge, AbstractChangableAfterRun) and
+                    info.application_edge.requires_mapping):
+                return True
         return False
 
     def mark_no_changes(self):
-        if isinstance(self._projection_edge, AbstractChangableAfterRun):
-            self._projection_edge.mark_no_changes()
+        for info in self._synapse_information:
+            if isinstance(info.application_edge, AbstractChangableAfterRun):
+                info.application_edge.mark_no_changes()
 
     def describe(self, template='projection_default.txt', engine='default'):
         """ Return a human-readable description of the projection.
@@ -130,26 +253,23 @@ class Projection(object):
 
     def _get_synaptic_data(self, as_list, data_to_get):
 
-        post_vertex = self._projection_edge.post_vertex
-        pre_vertex = self._projection_edge.pre_vertex
-
         # If in virtual board mode, the connection data should be set
         if self._virtual_connection_list is not None:
-            post_vertex = self._projection_edge.post_vertex
-            pre_vertex = self._projection_edge.pre_vertex
             return ConnectionHolder(
-                data_to_get, as_list, pre_vertex.n_atoms, post_vertex.n_atoms,
+                data_to_get, as_list, self._presynaptic_population.size,
+                self._postsynaptic_population.size,
                 self._virtual_connection_list)
 
         connection_holder = ConnectionHolder(
-            data_to_get, as_list, pre_vertex.n_atoms, post_vertex.n_atoms)
+            data_to_get, as_list, self._presynaptic_population.size,
+            self._postsynaptic_population.size)
 
         # If we haven't run, add the holder to get connections, and return it
         if not self._spinnaker.has_ran:
-
-            post_vertex.add_pre_run_connection_holder(
-                connection_holder, self._projection_edge,
-                self._synapse_information)
+            for synapse_info in self._synapse_information:
+                synapse_info.application_edge.post_vertex\
+                    .add_pre_run_connection_holder(
+                        connection_holder, synapse_info)
             return connection_holder
 
         # Otherwise, get the connections now
@@ -158,18 +278,18 @@ class Projection(object):
         transceiver = self._spinnaker.transceiver
         routing_infos = self._spinnaker.routing_infos
         machine_time_step = self._spinnaker.machine_time_step
-        edges = graph_mapper.get_machine_edges(
-            self._projection_edge)
         progress = ProgressBar(
-            len(edges),
+            len(self._synapse_retrieval_information),
             "Getting {}s for projection between {} and {}".format(
-                data_to_get, pre_vertex.label, post_vertex.label))
-        for edge in edges:
-            placement = placements.get_placement_of_vertex(
-                edge.post_vertex)
-            connections = post_vertex.get_connections_from_machine(
-                transceiver, placement, edge, graph_mapper, routing_infos,
-                self._synapse_information, machine_time_step)
+                data_to_get, self._pre_synaptic_population.label,
+                self._post_synaptic_population.label))
+        for info in self._synapse_retrieval_information:
+            placement = placements.get_placement_of_vertex(info.post_vertex)
+            connections = info.post_vertex.get_connections_from_machine(
+                transceiver, placement, info.machine_edge, graph_mapper,
+                routing_infos, self._synapse_dynamics, self._synapse_id,
+                info.synapse_information, info.index, info.delay_index,
+                machine_time_step)
             if connections is not None:
                 connection_holder.add_connections(connections)
             progress.update()
@@ -260,7 +380,7 @@ class Projection(object):
         raise NotImplementedError
 
     def __repr__(self):
-        return "Projection(pre".format(self._projection_edge.label)
+        return self._label
 
     # noinspection PyPep8Naming
     def saveConnections(self, file_name, gather=True, compatible_output=True):

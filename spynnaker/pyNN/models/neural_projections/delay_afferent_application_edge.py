@@ -10,5 +10,7 @@ class DelayAfferentApplicationEdge(ApplicationEdge):
         ApplicationEdge.__init__(
             self, prevertex, delayvertex, label=label)
 
-    def create_machine_edge(self, pre_vertex, post_vertex, label):
+    def create_machine_edge(
+            self, pre_vertex, pre_vertex_slice,
+            post_vertex, post_vertex_slice, label):
         return DelayAfferentMachineEdge(pre_vertex, post_vertex, label)

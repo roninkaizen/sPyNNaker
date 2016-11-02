@@ -4,28 +4,53 @@ class SynapseInformation(object):
         and synapse dynamics
     """
 
-    def __init__(self, connector, synapse_dynamics, synapse_type):
-        self._connector = connector
-        self._synapse_dynamics = synapse_dynamics
-        self._synapse_type = synapse_type
-        self._index = 0
+    def __init__(
+            self, application_edge, pre_vertex_start, pre_vertex_end,
+            pre_population_start, pre_population_end,
+            post_vertex_start, post_vertex_end,
+            post_population_start, post_population_end):
+        self._application_edge = application_edge
+        self._pre_vertex_start = pre_vertex_start
+        self._pre_vertex_end = pre_vertex_end
+        self._pre_population_start = pre_population_start
+        self._pre_population_end = pre_population_end
+        self._post_vertex_start = post_vertex_start
+        self._post_vertex_end = post_vertex_end
+        self._post_population_start = post_population_start
+        self._post_population_end = post_population_end
 
     @property
-    def connector(self):
-        return self._connector
+    def application_edge(self):
+        return self._application_edge
 
     @property
-    def synapse_dynamics(self):
-        return self._synapse_dynamics
+    def pre_vertex_start(self):
+        return self._pre_vertex_start
 
     @property
-    def synapse_type(self):
-        return self._synapse_type
+    def pre_vertex_end(self):
+        return self._pre_vertex_end
 
     @property
-    def index(self):
-        return self._index
+    def pre_population_start(self):
+        return self._pre_population_start
 
-    @index.setter
-    def index(self, index):
-        self._index = index
+    @property
+    def pre_population_end(self):
+        return self._pre_population_end
+
+    @property
+    def post_vertex_start(self):
+        return self._post_vertex_start
+
+    @property
+    def post_vertex_end(self):
+        return self._post_vertex_end
+
+    @property
+    def post_population_start(self):
+        return self._post_population_start
+
+    @property
+    def post_population_end(self):
+        return self._post_population_end

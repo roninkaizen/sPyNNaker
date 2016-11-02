@@ -123,9 +123,8 @@ class SynapticManager(AbstractGroupable):
     def vertex_executable_suffix(self):
         return self._synapse_dynamics.get_vertex_executable_suffix()
 
-    def add_pre_run_connection_holder(
-            self, connection_holder, edge, synapse_info):
-        self._pre_run_connection_holders[(edge, synapse_info)].append(
+    def add_pre_run_connection_holder(self, connection_holder, synapse_info):
+        self._pre_run_connection_holders[synapse_info].append(
             connection_holder)
 
     def get_n_cpu_cycles(self):
@@ -635,6 +634,9 @@ class SynapticManager(AbstractGroupable):
                 pre_slice_index = graph_mapper.get_machine_vertex_index(
                     machine_edge.pre_vertex)
 
+                index = 0
+                delay_index = 0
+
                 for synapse_info in app_edge.synapse_information:
 
                     (row_data, row_length, delayed_row_data,
@@ -654,10 +656,9 @@ class SynapticManager(AbstractGroupable):
                             "Found delayed source ids but no delay "
                             "machine_edge for {}".format(app_edge.label))
 
-                    if ((app_edge, synapse_info) in
-                            self._pre_run_connection_holders):
+                    if synapse_info in self._pre_run_connection_holders:
                         holders = self._pre_run_connection_holders[
-                            app_edge, synapse_info]
+                            synapse_info]
                         for connection_holder in holders:
                             connections = self._synapse_io.read_synapses(
                                 synapse_info, pre_vertex_slice,
@@ -805,11 +806,10 @@ class SynapticManager(AbstractGroupable):
 
     def get_connections_from_machine(
             self, transceiver, placement, machine_edge, graph_mapper,
-            routing_infos, synapse_info, machine_time_step):
-
-        application_edge = graph_mapper.get_application_edge(
-            machine_edge)
-        if not isinstance(application_edge, ProjectionApplicationEdge):
+            routing_infos, synapse_dynamics, synapse_id, synapse_info,
+            index, delay_index, machine_time_step):
+        if not isinstance(
+                synapse_info.application_edge, ProjectionApplicationEdge):
             return None
 
         # Get details for extraction
@@ -824,9 +824,10 @@ class SynapticManager(AbstractGroupable):
 
         # Get the key for the delayed pre_vertex
         delayed_key = None
-        if application_edge.delay_edge is not None:
+        if synapse_info.application_edge.delay_edge is not None:
             delayed_key = self._delay_key_index[
-                (application_edge.pre_vertex, pre_vertex_slice.lo_atom,
+                (synapse_info.application_edge.pre_vertex,
+                 pre_vertex_slice.lo_atom,
                  pre_vertex_slice.hi_atom)].first_key
 
         # Get the block for the connections from the pre_vertex
@@ -849,7 +850,7 @@ class SynapticManager(AbstractGroupable):
         data, max_row_length = self._retrieve_synaptic_block(
             transceiver, placement, master_pop_table_address,
             indirect_synapses_address, direct_synapses_address,
-            key, pre_vertex_slice.n_atoms, synapse_info.index)
+            key, pre_vertex_slice.n_atoms, index)
 
         # Get the block for the connections from the delayed pre_vertex
         delayed_data = None
@@ -860,15 +861,17 @@ class SynapticManager(AbstractGroupable):
                     transceiver, placement, master_pop_table_address,
                     indirect_synapses_address, direct_synapses_address,
                     delayed_key,
-                    pre_vertex_slice.n_atoms * application_edge.n_delay_stages,
-                    synapse_info.index)
+                    pre_vertex_slice.n_atoms *
+                    synapse_info.application_edge.n_delay_stages,
+                    delay_index)
 
         # Convert the blocks into connections
         return self._synapse_io.read_synapses(
-            synapse_info, pre_vertex_slice, post_vertex_slice,
+            synapse_dynamics, synapse_id, synapse_info,
+            pre_vertex_slice, post_vertex_slice,
             max_row_length, delayed_max_row_length, n_synapse_types,
             self._weight_scales[placement], data, delayed_data,
-            application_edge.n_delay_stages, machine_time_step)
+            synapse_info.application_edge.n_delay_stages, machine_time_step)
 
     def _retrieve_synaptic_block(
             self, transceiver, placement, master_pop_table_address,
