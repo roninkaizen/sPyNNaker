@@ -42,7 +42,7 @@ from spynnaker.pyNN.utilities import constants
 
 logger = logging.getLogger(__name__)
 
-_DELAY_PARAM_HEADER_WORDS = 7
+_DELAY_PARAM_HEADER_WORDS = 8
 _DEFAULT_MALLOCS_USED = 2
 
 
@@ -116,6 +116,14 @@ class DelayExtensionVertex(
     @property
     def source_vertex(self):
         return self._source_vertex
+
+    def get_delay_block(self, vertex_slice):
+        key = (vertex_slice.lo_atom, vertex_slice.hi_atom)
+        if key not in self._delay_blocks:
+            self._delay_blocks[key] = DelayBlock(
+                self._n_delay_stages, self._delay_per_stage, vertex_slice)
+
+        return self._delay_blocks[key]
 
     def add_delays(self, vertex_slice, source_ids, stages):
         """ Add delayed connections for a given vertex slice
@@ -227,7 +235,12 @@ class DelayExtensionVertex(
 
         # Write header info to the memory region:
         # Write Key info for this core and the incoming key and mask:
-        spec.write_value(data=key)
+        if key is not None:
+            spec.write_value(data=1)
+            spec.write_value(data=key)
+        else:
+            spec.write_value(data=0)
+            spec.write_value(data=0)
         spec.write_value(data=incoming_key)
         spec.write_value(data=incoming_mask)
 
@@ -248,8 +261,7 @@ class DelayExtensionVertex(
         spec.write_value(data=int(time_between_spikes))
 
         # Write the actual delay blocks
-        spec.write_array(array_values=self._delay_blocks[(
-            vertex_slice.lo_atom, vertex_slice.hi_atom)].delay_block)
+        spec.write_array(array_values=self.get_delay_block(vertex_slice).delay_block)
 
     def get_cpu_usage_for_atoms(self, vertex_slice):
         n_atoms = (vertex_slice.hi_atom - vertex_slice.lo_atom) + 1

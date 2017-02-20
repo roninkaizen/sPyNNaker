@@ -23,7 +23,7 @@ typedef enum region_identifiers{
 } region_identifiers;
 
 enum parameter_positions {
-    KEY, INCOMING_KEY, INCOMING_MASK, N_ATOMS, N_DELAY_STAGES,
+    USES_KEY, KEY, INCOMING_KEY, INCOMING_MASK, N_ATOMS, N_DELAY_STAGES,
     RANDOM_BACKOFF, TIME_BETWEEN_SPIKES, DELAY_BLOCKS
 };
 
@@ -37,6 +37,7 @@ typedef enum extra_provenance_data_region_entries{
 } extra_provenance_data_region_entries;
 
 // Globals
+static uint32_t uses_key = 0;
 static uint32_t key = 0;
 static uint32_t incoming_key = 0;
 static uint32_t incoming_mask = 0;
@@ -86,6 +87,7 @@ static bool read_parameters(address_t address) {
 
     log_info("read_parameters: starting");
 
+    uses_key = address[USES_KEY];
     key = address[KEY];
     incoming_key = address[INCOMING_KEY];
     incoming_mask = address[INCOMING_MASK];
@@ -332,14 +334,16 @@ void timer_callback(uint unused0, uint unused1) {
                     }
 
                     // Loop through counted spikes and send
-                    for (uint32_t s = 0; s < delay_stage_spike_counters[n];
-                            s++) {
-                        while (!spin1_send_mc_packet(spike_key, 0,
-                                                     NO_PAYLOAD)) {
-                            spin1_delay_us(1);
-                        }
-                        n_spikes_sent += 1;
+                    if (uses_key) {
+                        for (uint32_t s = 0; s < delay_stage_spike_counters[n];
+                                s++) {
+                            while (!spin1_send_mc_packet(spike_key, 0,
+                                                         NO_PAYLOAD)) {
+                                spin1_delay_us(1);
+                            }
+                            n_spikes_sent += 1;
 
+                        }
                     }
                 }
 
