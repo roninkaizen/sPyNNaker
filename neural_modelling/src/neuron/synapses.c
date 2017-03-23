@@ -23,9 +23,6 @@ static weight_t ring_buffers[RING_BUFFER_SIZE];
 // Amount to left shift the ring buffer by to make it an input
 static uint32_t ring_buffer_to_input_left_shifts[SYNAPSE_TYPE_COUNT];
 
-// Input buffer to handle input and shaping of the input
-static input_t input_buffers[INPUT_BUFFER_SIZE];
-
 // The synapse shaping parameters
 static synapse_param_t *neuron_synapse_shaping_params;
 
@@ -124,8 +121,8 @@ static inline void _print_inputs() {
     bool empty = true;
     for (index_t i = 0; i < n_neurons; i++) {
         empty = empty
-                && (bitsk(synapse_types_get_excitatory_input(input_buffers, i)
-                    - synapse_types_get_inhibitory_input(input_buffers, i))
+                && (bitsk(synapse_types_get_excitatory_input(i)
+                    - synapse_types_get_inhibitory_input(i))
                         == 0);
     }
 
@@ -134,11 +131,11 @@ static inline void _print_inputs() {
 
         for (index_t i = 0; i < n_neurons; i++) {
             input_t input =
-                synapse_types_get_excitatory_input(input_buffers, i)
-                - synapse_types_get_inhibitory_input(input_buffers, i);
+                synapse_types_get_excitatory_input(i)
+                - synapse_types_get_inhibitory_input(i);
             if (bitsk(input) != 0) {
                 log_debug("%3u: %12.6k (= ", i, input);
-                synapse_types_print_input(input_buffers, i);
+                synapse_types_print_input(i);
                 log_debug(")\n");
             }
         }
@@ -213,19 +210,15 @@ static inline void _print_synapse_parameters() {
 
 bool synapses_initialise(
         address_t synapse_params_address, address_t synaptic_matrix_address,
-        uint32_t n_neurons_value, input_t **input_buffers_value,
+        uint32_t n_neurons_value,
         uint32_t **ring_buffer_to_input_buffer_left_shifts,
         address_t *indirect_synapses_address,
         address_t *direct_synapses_address) {
 
     log_info("synapses_initialise: starting");
     n_neurons = n_neurons_value;
-    *input_buffers_value = input_buffers;
 
     // Set the initial values to 0
-    for (uint32_t i = 0; i < INPUT_BUFFER_SIZE; i++) {
-        input_buffers[i] = 0;
-    }
     for (uint32_t i = 0; i < RING_BUFFER_SIZE; i++) {
         ring_buffers[i] = 0;
     }
@@ -310,8 +303,7 @@ void synapses_do_timestep_update(timer_t time) {
             neuron_index++) {
 
         // Shape the existing input according to the included rule
-        synapse_types_shape_input(input_buffers, neuron_index,
-                neuron_synapse_shaping_params);
+        synapse_types_shape_input(neuron_index, neuron_synapse_shaping_params);
 
         // Loop through all synapse types
         for (uint32_t synapse_type_index = 0;
@@ -324,7 +316,7 @@ void synapses_do_timestep_update(timer_t time) {
 
             // Convert ring-buffer entry to input and add on to correct
             // input for this synapse type and neuron
-            synapse_types_add_neuron_input(input_buffers, synapse_type_index,
+            synapse_types_add_neuron_input(synapse_type_index,
                     neuron_index, neuron_synapse_shaping_params,
                     synapses_convert_weight_to_input(
                         ring_buffers[ring_buffer_index],

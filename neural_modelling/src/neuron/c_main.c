@@ -141,19 +141,16 @@ static bool initialise(uint32_t *timer_period) {
     }
 
     // Set up the synapses
-    input_t *input_buffers;
     uint32_t *ring_buffer_to_input_buffer_left_shifts;
     address_t indirect_synapses_address;
     address_t direct_synapses_address;
     if (!synapses_initialise(
             data_specification_get_region(SYNAPSE_PARAMS_REGION, address),
             data_specification_get_region(SYNAPTIC_MATRIX_REGION, address),
-            n_neurons, &input_buffers,
-            &ring_buffer_to_input_buffer_left_shifts,
+            n_neurons, &ring_buffer_to_input_buffer_left_shifts,
             &indirect_synapses_address, &direct_synapses_address)) {
         return false;
     }
-    neuron_set_input_buffers(input_buffers);
 
     // Set up the population table
     uint32_t row_max_n_words;
