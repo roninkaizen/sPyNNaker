@@ -34,10 +34,23 @@ bool neuron_initialise(
     address_t address, uint32_t recording_flags, uint32_t *n_neurons_value,
     uint32_t *incoming_spike_buffer_size);
 
-//! \brief executes all the updates to neural parameters when a given timer period
-//!        has occurred.
+//! \brief executes all the updates to neural parameters when a given timer
+//!        period has occurred.
 //! \param[in] time the timer tick value currently being executed
 //! \return nothing
 void neuron_do_timestep_update(uint32_t time);
+
+//! \brief interface for reloading neuron parameters as needed
+//! \param[in] address: the address where the neuron parameters are stored
+//! in SDRAM
+//! \return bool which is true if the reload of the neuron parameters was
+//! successful or not
+bool neuron_reload_neuron_parameters(address_t address);
+
+//! \brief interface for rewriting the neuron parameters back into sdram
+//! \param[in] address the absolute address in SDRAM for the start of the
+//!            NEURON_PARAMS data region in SDRAM
+void neuron_store_neuron_parameters(address_t address);
+
 
 #endif // _NEURON_H_
