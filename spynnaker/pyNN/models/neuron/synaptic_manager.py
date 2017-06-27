@@ -24,6 +24,7 @@ from data_specification.enums.data_type import DataType
 
 # spynnaker
 from spynnaker.pyNN.exceptions import SynapticConfigurationException
+from pip._vendor.distlib.version import _NUMERIC_PREFIX
 from spynnaker.pyNN.models.neural_projections.connectors \
     import OneToOneConnector
 from spynnaker.pyNN.models.neural_projections import ProjectionApplicationEdge
@@ -395,6 +396,8 @@ class SynapticManager(object):
 
                 weight_variance = math.exp(log_weight_variance)
 
+        print "expected upper bound = {}".format(((average_spikes_per_timestep * weight_mean) +
+                (sigma * math.sqrt(poisson_variance + weight_variance))))
         # upper bound calculation -> mean + n * SD
         return ((average_spikes_per_timestep * weight_mean) +
                 (sigma * math.sqrt(poisson_variance + weight_variance)))
@@ -505,6 +508,7 @@ class SynapticManager(object):
                 max_weights[synapse_type] = max(
                     max_weights[synapse_type], biggest_weight[synapse_type])
 
+
         # Convert these to powers
         max_weight_powers = [0 if w <= 0
                              else int(math.ceil(max(0, math.log(w, 2))))
@@ -514,6 +518,11 @@ class SynapticManager(object):
         # power, as range is 0 - (just under 2^max_weight_power)!
         max_weight_powers = [w + 1 if (2 ** w) <= a else w
                              for w, a in zip(max_weight_powers, max_weights)]
+
+        print "total weights: {}".format(total_weights)
+        print "biggest weight: {}".format(biggest_weight)
+        print "max weights: {}".format(max_weights)
+        print "max weight powers: {}".format(max_weight_powers)
 
         # If we have synapse dynamics that uses signed weights,
         # Add another bit of shift to prevent overflows
@@ -542,6 +551,8 @@ class SynapticManager(object):
             machine_vertex, machine_graph, graph_mapper, post_slices,
             post_slice_index, post_vertex_slice, machine_time_step,
             weight_scale)
+
+        print "num ring buff left shifts: {}".format(ring_buffer_shifts)
 
         spec.switch_write_focus(
             region=constants.POPULATION_BASED_REGIONS.SYNAPSE_PARAMS.value)
@@ -604,10 +615,17 @@ class SynapticManager(object):
         spec.write_value(0)
         next_single_start_position = 0
 
+        _num_machine_edges = 0
+
         # For each machine_edge into the vertex, create a synaptic list
         for machine_edge in in_edges:
+            #print "processing machine edge: {}".format(_num_machine_edges)
+            #_num_machine_edges += 1
 
             app_edge = graph_mapper.get_application_edge(machine_edge)
+
+            print "processing data for edge with: pre = {}; post = {}".format(app_edge.pre_vertex, app_edge._post_vertex)
+
             if isinstance(app_edge, ProjectionApplicationEdge):
 
                 spec.comment("\nWriting matrix for machine_edge:{}\n".format(

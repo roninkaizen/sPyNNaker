@@ -9,6 +9,20 @@ from .abstract_synapse_io import AbstractSynapseIO
 
 _N_HEADER_WORDS = 3
 
+def print_synaptic_word_diagnostics(word):
+    "convert word to binary and print components"
+    b = bin(word)
+    b = b.split('0b')[1]
+    weight=b[0:16]
+    synapse_type = b[-9:-8]
+    delay = b[-13:-9]
+    neuron_id = b[-8:]
+    print b
+    print "{} {} {} {}\n".format(weight, delay, synapse_type, neuron_id)
+    print "weight:       {}".format(weight)
+    print "delay:        {}".format(delay)
+    print "synapse_type: {}".format(synapse_type)
+    print "neuron_id:    {}".format(neuron_id)
 
 class SynapseIORowBased(AbstractSynapseIO):
     """ A SynapseRowIO implementation that uses a row for each source neuron,
@@ -146,8 +160,12 @@ class SynapseIORowBased(AbstractSynapseIO):
         rows = [numpy.concatenate(items) for items in zip(*items_to_join)]
         row_data = numpy.concatenate(rows)
 
+        #[print_synaptic_word_diagnostics(i[3]) for i in rows]
         # Return the data
         return max_row_length, row_data
+
+
+
 
     def get_synapses(
             self, synapse_info, pre_slices, pre_slice_index,
