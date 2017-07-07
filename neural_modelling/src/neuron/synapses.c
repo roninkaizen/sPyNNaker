@@ -222,13 +222,17 @@ bool synapses_initialise(
 
     // Get the synapse shaping data
     if (sizeof(synapse_param_t) > 0) {
-        log_debug("\tCopying %u synapse type parameters of size %u",
+        //log_debug(
+        log_info(
+        		"\tCopying %u synapse type parameters of size %u",
                 n_neurons, sizeof(synapse_param_t));
 
         // Allocate block of memory for this synapse type'synapse_index
         // pre-calculated per-neuron decay
         neuron_synapse_shaping_params = (synapse_param_t *) spin1_malloc(
                 sizeof(synapse_param_t) * n_neurons);
+
+
 
         // Check for success
         if (neuron_synapse_shaping_params == NULL) {
@@ -238,6 +242,7 @@ bool synapses_initialise(
         }
 
         log_debug(
+        //log_info(
             "\tCopying %u bytes from %u", n_neurons * sizeof(synapse_param_t),
             synapse_params_address +
             ((n_neurons * sizeof(synapse_param_t)) / 4));
@@ -264,7 +269,18 @@ bool synapses_initialise(
     uint32_t direct_matrix_offset = (synaptic_matrix_address[0] >> 2) + 1;
     log_info("Indirect matrix is %u words in size", direct_matrix_offset - 1);
     uint32_t direct_matrix_size = synaptic_matrix_address[direct_matrix_offset];
-    log_info("Direct matrix malloc size is %d", direct_matrix_size);
+
+    //log_info("Direct matrix malloc size is %d", direct_matrix_size);
+
+    log_info("*********************");
+    log_info("Target DTCM usage:");
+    log_info("Ring buffer size: %u", sizeof(ring_buffers));
+    log_info("Syanpse Shaping parameters: %u", n_neurons *sizeof(synapse_param_t));
+    log_info("Direct matrix malloc size is %u", direct_matrix_size);
+    log_info("Total: %u", direct_matrix_size +n_neurons *sizeof(synapse_param_t) + sizeof(ring_buffers));
+
+    log_info("*********************");
+
 
     if (direct_matrix_size != 0) {
         *direct_synapses_address = (address_t) spin1_malloc(direct_matrix_size);
