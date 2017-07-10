@@ -386,8 +386,8 @@ class SynapticManager(object):
                              math.exp(big_ratio)))
                 weight_variance = math.exp(log_weight_variance)
 
-        print "expected upper bound = {}".format(((average_spikes_per_timestep * weight_mean) +
-                (sigma * math.sqrt(poisson_variance + weight_variance))))
+        #print "expected upper bound = {}".format(((average_spikes_per_timestep * weight_mean) +
+        #        (sigma * math.sqrt(poisson_variance + weight_variance))))
         # upper bound calculation -> mean + n * SD
         return ((average_spikes_per_timestep * weight_mean) +
                 (sigma * math.sqrt(poisson_variance + weight_variance)))
@@ -539,7 +539,7 @@ class SynapticManager(object):
             post_slice_index, post_vertex_slice, machine_time_step,
             weight_scale)
 
-        print "num ring buff left shifts: {}".format(ring_buffer_shifts)
+        #print "num ring buff left shifts: {}".format(ring_buffer_shifts)
 
         spec.switch_write_focus(POPULATION_BASED_REGIONS.SYNAPSE_PARAMS.value)
         write_parameters_per_neuron(
@@ -600,7 +600,6 @@ class SynapticManager(object):
         spec.write_value(0)
         next_single_start_position = 0
 
-<<<<<<< HEAD
         _num_machine_edges = 0
 
         # For each machine_edge into the vertex, create a synaptic list
@@ -610,13 +609,11 @@ class SynapticManager(object):
 
             app_edge = graph_mapper.get_application_edge(machine_edge)
 
-            print "processing data for edge with: pre = {}; post = {}".format(app_edge.pre_vertex, app_edge._post_vertex)
+            #print "processing data for edge with: pre = {}; post = {}".format(app_edge.pre_vertex, app_edge._post_vertex)
 
-=======
         # For each machine edge in the vertex, create a synaptic list
         for m_edge in in_edges:
             app_edge = graph_mapper.get_application_edge(m_edge)
->>>>>>> refs/remotes/origin/master
             if isinstance(app_edge, ProjectionApplicationEdge):
                 spec.comment("\nWriting matrix for m_edge:{}\n".format(
                     m_edge.label))
@@ -634,13 +631,8 @@ class SynapticManager(object):
                             synapse_info, pre_slices, pre_slice_idx,
                             post_slices, post_slice_index, pre_vertex_slice,
                             post_vertex_slice, app_edge.n_delay_stages,
-<<<<<<< HEAD
-                            self._population_table_type, n_synapse_types,
-                            weight_scales, machine_time_step, max_feasible_atoms_per_core)
-=======
                             self._poptable_type, n_synapse_types,
-                            weight_scales, machine_time_step)
->>>>>>> refs/remotes/origin/master
+                            weight_scales, machine_time_step, max_feasible_atoms_per_core)
 
                     if app_edge.delay_edge is not None:
                         app_edge.delay_edge.pre_vertex.add_delays(
@@ -707,7 +699,6 @@ class SynapticManager(object):
                         rinfo = self._delay_key_index[delay_key]
                     if len(delayed_row_data) > 0:
 
-<<<<<<< HEAD
                         #if (delayed_row_length == 1 and isinstance(
                         #        synapse_info.connector, OneToOneConnector)):
                         #    single_rows = delayed_row_data.reshape(-1, 4)[:, 3]
@@ -719,55 +710,53 @@ class SynapticManager(object):
                         #            master_pop_table_region, is_single=True)
                         #    next_single_start_position += len(single_rows) * 4
                         #else:
+#                         next_block_start_address = self._write_padding(
+#                             spec, synaptic_matrix_region,
+#                             next_block_start_address)
+#                         spec.switch_write_focus(synaptic_matrix_region)
+#                         spec.write_array(delayed_row_data)
+#                         self._population_table_type\
+#                             .update_master_population_table(
+#                                 spec, next_block_start_address,
+#                                 delayed_row_length,
+#                                 rinfo.first_key_and_mask,
+#                                 master_pop_table_region)
+#                         next_block_start_address += len(
+#                             delayed_row_data) * 4
+
+# =======
+#                         if (delayed_row_length == 1 and isinstance(
+#                                 synapse_info.connector, OneToOneConnector)):
+#                             single_rows = delayed_row_data.reshape(-1, 4)[:, 3]
+#                             single_synapses.append(single_rows)
+#                             self._poptable_type.update_master_population_table(
+#                                 spec, next_single_start_position, 1,
+#                                 rinfo.first_key_and_mask,
+#                                 master_pop_table_region, is_single=True)
+#                             next_single_start_position += len(single_rows) * 4
+#                         else:
                         next_block_start_address = self._write_padding(
                             spec, synaptic_matrix_region,
                             next_block_start_address)
                         spec.switch_write_focus(synaptic_matrix_region)
                         spec.write_array(delayed_row_data)
-                        self._population_table_type\
-                            .update_master_population_table(
-                                spec, next_block_start_address,
-                                delayed_row_length,
-                                rinfo.first_key_and_mask,
-                                master_pop_table_region)
+                        self._poptable_type.update_master_population_table(
+                            spec, next_block_start_address,
+                            delayed_row_length, rinfo.first_key_and_mask,
+                            master_pop_table_region)
                         next_block_start_address += len(
                             delayed_row_data) * 4
 
-=======
-                        if (delayed_row_length == 1 and isinstance(
-                                synapse_info.connector, OneToOneConnector)):
-                            single_rows = delayed_row_data.reshape(-1, 4)[:, 3]
-                            single_synapses.append(single_rows)
-                            self._poptable_type.update_master_population_table(
-                                spec, next_single_start_position, 1,
-                                rinfo.first_key_and_mask,
-                                master_pop_table_region, is_single=True)
-                            next_single_start_position += len(single_rows) * 4
-                        else:
-                            next_block_start_address = self._write_padding(
-                                spec, synaptic_matrix_region,
-                                next_block_start_address)
-                            spec.switch_write_focus(synaptic_matrix_region)
-                            spec.write_array(delayed_row_data)
-                            self._poptable_type.update_master_population_table(
-                                spec, next_block_start_address,
-                                delayed_row_length, rinfo.first_key_and_mask,
-                                master_pop_table_region)
-                            next_block_start_address += len(
-                                delayed_row_data) * 4
->>>>>>> refs/remotes/origin/master
                     elif rinfo is not None:
-<<<<<<< HEAD
                         self._population_table_type\
                             .update_master_population_table(
                                 spec, 0, 0, rinfo.first_key_and_mask,
                                 master_pop_table_region)
 
-=======
                         self._poptable_type.update_master_population_table(
                             spec, 0, 0, rinfo.first_key_and_mask,
                             master_pop_table_region)
->>>>>>> refs/remotes/origin/master
+
                     del delayed_row_data
 
                     if next_block_start_address > all_syn_block_sz:
@@ -827,21 +816,16 @@ class SynapticManager(object):
         self._write_synaptic_matrix_and_master_population_table(
             spec, post_slices, post_slice_idx, machine_vertex,
             post_vertex_slice, all_syn_block_sz, weight_scales,
-<<<<<<< HEAD
-            constants.POPULATION_BASED_REGIONS.POPULATION_TABLE.value,
-            constants.POPULATION_BASED_REGIONS.SYNAPTIC_MATRIX.value,
-            routing_info, graph_mapper, machine_graph, machine_time_step, max_feasible_atoms_per_core)
-=======
             POPULATION_BASED_REGIONS.POPULATION_TABLE.value,
             POPULATION_BASED_REGIONS.SYNAPTIC_MATRIX.value,
-            routing_info, graph_mapper, machine_graph, machine_time_step)
->>>>>>> refs/remotes/origin/master
+            routing_info, graph_mapper, machine_graph, machine_time_step, max_feasible_atoms_per_core)
 
         self._synapse_dynamics.write_parameters(
             spec, POPULATION_BASED_REGIONS.SYNAPSE_DYNAMICS.value,
             machine_time_step, weight_scales)
 
         self._weight_scales[placement] = weight_scales
+        print placement._vertex._get_placement_details(placement)[0], weight_scales
 
     def get_connections_from_machine(
             self, transceiver, placement, machine_edge, graph_mapper,
