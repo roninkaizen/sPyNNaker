@@ -185,6 +185,8 @@ static inline void _process_fixed_synapses(
         //          to obtain this value
         uint32_t sat_test = accumulation & 0x10000;
         if (sat_test) {
+        	// add ring buffer index
+        	log_info("saturation occurred at time: %u, value of accumulation: %u, weight: %u, prior: %u", time, accumulation, weight, accumulation-weight);
             accumulation = sat_test - 1;
             saturation_count += 1;
         }
