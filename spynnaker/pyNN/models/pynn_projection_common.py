@@ -121,6 +121,9 @@ class PyNNProjectionCommon(object):
 
         # If the delay exceeds the post vertex delay, add a delay extension
         if max_delay > post_vertex_max_supported_delay_ms:
+            logger.info(
+                "Adding delay extension for maximum delay of {}".format(
+                    max_delay))
             delay_edge = self._add_delay_extension(
                 pre_synaptic_population, post_synaptic_population, max_delay,
                 post_vertex_max_supported_delay_ms, machine_time_step,
