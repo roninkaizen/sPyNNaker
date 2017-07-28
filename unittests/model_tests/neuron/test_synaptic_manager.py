@@ -32,7 +32,8 @@ class TestSynapticManager(unittest.TestCase):
     def test_retrieve_synaptic_block(self):
         synaptic_manager = SynapticManager(
             synapse_type=None, ring_buffer_sigma=5.0, spikes_per_second=100.0,
-            config=None, population_table_type=MockMasterPopulationTable(),
+            delay_quantisation_factor=1, config=None,
+            population_table_type=MockMasterPopulationTable(),
             synapse_io=MockSynapseIO())
 
         transceiver = MockTransceiver([
