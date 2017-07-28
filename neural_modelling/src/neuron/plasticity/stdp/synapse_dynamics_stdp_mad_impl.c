@@ -210,7 +210,7 @@ bool synapse_dynamics_initialise(
 
 bool synapse_dynamics_process_plastic_synapses(
         address_t plastic_region_address, address_t fixed_region_address,
-        weight_t *ring_buffers, uint32_t time) {
+        weight_t *ring_buffers, uint32_t time, uint32_t delay_time) {
 
     // Extract separate arrays of plastic synapses (from plastic region),
     // Control words (from fixed region) and number of plastic synapses
@@ -264,7 +264,7 @@ bool synapse_dynamics_process_plastic_synapses(
 
         // Convert into ring buffer offset
         uint32_t ring_buffer_index = synapses_get_ring_buffer_index_combined(
-                delay_axonal + delay_dendritic + time, type_index);
+                delay_axonal + delay_dendritic + delay_time, type_index);
 
         // Add weight to ring-buffer entry
         // **NOTE** Dave suspects that this could be a

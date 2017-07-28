@@ -100,7 +100,7 @@ class AbstractPopulationVertex(
     RUNTIME_SDP_PORT_SIZE = 4
 
     # 6 elements before the start of global parameters
-    BYTES_TILL_START_OF_GLOBAL_PARAMETERS = 24
+    BYTES_TILL_START_OF_GLOBAL_PARAMETERS = 28
 
     _n_vertices = 0
 
@@ -113,7 +113,8 @@ class AbstractPopulationVertex(
             self, n_neurons, binary, label, max_atoms_per_core,
             spikes_per_second, ring_buffer_sigma, incoming_spike_buffer_size,
             model_name, neuron_model, input_type, synapse_type, threshold_type,
-            additional_input=None, constraints=None):
+            additional_input=None, constraints=None,
+            delay_quantisation_factor=None):
 
         ApplicationVertex.__init__(
             self, label, constraints, max_atoms_per_core)
@@ -190,7 +191,8 @@ class AbstractPopulationVertex(
 
         # Set up synapse handling
         self._synapse_manager = SynapticManager(
-            synapse_type, ring_buffer_sigma, spikes_per_second, config)
+            synapse_type, ring_buffer_sigma, spikes_per_second,
+            delay_quantisation_factor, config)
 
         # bool for if state has changed.
         self._change_requires_mapping = True
@@ -439,6 +441,9 @@ class AbstractPopulationVertex(
 
         # Write the size of the incoming spike buffer
         spec.write_value(data=self._incoming_spike_buffer_size)
+
+        # Write the delay quantisation factor
+        spec.write_value(data=self._synapse_manager.delay_quantisation_factor)
 
         # Write the global parameters
         global_params = self._neuron_model.get_global_parameters()

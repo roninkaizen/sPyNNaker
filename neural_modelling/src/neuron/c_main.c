@@ -69,6 +69,15 @@ typedef enum callback_priorities{
 //! the timer tick callback returning the same value.
 uint32_t time;
 
+//! the current delay timer tick value
+uint32_t delay_time;
+
+//! the delay quantisation factor
+static uint32_t delay_quantisation_factor;
+
+//! the delay timer count down
+static uint32_t delay_count_down;
+
 //! The number of timer ticks to run for before being expected to exit
 static uint32_t simulation_ticks = 0;
 
@@ -140,9 +149,11 @@ static bool initialise(uint32_t *timer_period) {
     uint32_t incoming_spike_buffer_size;
     if (!neuron_initialise(
             data_specification_get_region(NEURON_PARAMS_REGION, address),
-            recording_flags, &n_neurons, &incoming_spike_buffer_size)) {
+            recording_flags, &n_neurons, &incoming_spike_buffer_size,
+            &delay_quantisation_factor)) {
         return false;
     }
+    delay_count_down = delay_quantisation_factor;
 
     // Set up the synapses
     synapse_param_t *neuron_synapse_shaping_params;
@@ -252,8 +263,15 @@ void timer_callback(uint timer_count, uint unused) {
     }
 
     // otherwise do synapse and neuron time step updates
-    synapses_do_timestep_update(time);
+    synapses_do_timestep_update(delay_time);
     neuron_do_timestep_update(time);
+
+    // update the delay timer
+    delay_count_down -= 1;
+    if (delay_count_down == 0) {
+        delay_count_down += delay_quantisation_factor;
+        delay_time += 1;
+    }
 
     // trigger buffering_out_mechanism
     if (recording_flags > 0) {

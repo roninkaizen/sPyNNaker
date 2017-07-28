@@ -50,11 +50,13 @@ class SynapticManager(object):
     """
 
     def __init__(self, synapse_type, ring_buffer_sigma,
-                 spikes_per_second, config, population_table_type=None,
+                 spikes_per_second, delay_quantisation_factor,
+                 config, population_table_type=None,
                  synapse_io=None):
         self._synapse_type = synapse_type
         self._ring_buffer_sigma = ring_buffer_sigma
         self._spikes_per_second = spikes_per_second
+        self._delay_quantisation_factor = delay_quantisation_factor
 
         # Get the type of population table
         self._poptable_type = population_table_type
@@ -77,6 +79,10 @@ class SynapticManager(object):
         if self._spikes_per_second is None:
             self._spikes_per_second = config.getfloat(
                 "Simulation", "spikes_per_second")
+
+        if self._delay_quantisation_factor is None:
+            self._delay_quantisation_factor = config.getint(
+                "Simulation", "delay_quantisation_factor")
 
         # Prepare for dealing with STDP - there can only be one (non-static)
         # synapse dynamics per vertex at present
@@ -132,9 +138,17 @@ class SynapticManager(object):
     def spikes_per_second(self, spikes_per_second):
         self._spikes_per_second = spikes_per_second
 
+    @property
+    def delay_quantisation_factor(self):
+        return self._delay_quantisation_factor
+
+    @delay_quantisation_factor.setter
+    def delay_quantisation_factor(self, delay_quantisation_factor):
+        self._delay_quantisation_factor = delay_quantisation_factor
+
     def get_maximum_delay_supported_in_ms(self, machine_time_step):
         return self._synapse_io.get_maximum_delay_supported_in_ms(
-            machine_time_step)
+            machine_time_step * self._delay_quantisation_factor)
 
     @property
     def vertex_executable_suffix(self):
@@ -601,7 +615,9 @@ class SynapticManager(object):
                             post_slices, post_slice_index, pre_vertex_slice,
                             post_vertex_slice, app_edge.n_delay_stages,
                             self._poptable_type, n_synapse_types,
-                            weight_scales, machine_time_step)
+                            weight_scales,
+                            (machine_time_step *
+                             self._delay_quantisation_factor))
 
                     if app_edge.delay_edge is not None:
                         app_edge.delay_edge.pre_vertex.add_delays(
@@ -621,7 +637,9 @@ class SynapticManager(object):
                                 post_vertex_slice, row_length,
                                 delayed_row_length, n_synapse_types,
                                 weight_scales, row_data, delayed_row_data,
-                                app_edge.n_delay_stages, machine_time_step)
+                                app_edge.n_delay_stages,
+                                (machine_time_step *
+                                 self._delay_quantisation_factor))
                             connection_holder.add_connections(connections)
                             connection_holder.finish()
 
@@ -823,7 +841,8 @@ class SynapticManager(object):
             synapse_info, pre_vertex_slice, post_vertex_slice,
             max_row_length, delayed_max_row_len, n_synapse_types,
             self._weight_scales[placement], data, delayed_data,
-            app_edge.n_delay_stages, machine_time_step)
+            app_edge.n_delay_stages,
+            machine_time_step * self._delay_quantisation_factor)
 
     def _retrieve_synaptic_block(
             self, transceiver, placement, master_pop_table_address,

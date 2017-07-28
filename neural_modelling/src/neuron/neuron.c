@@ -82,7 +82,7 @@ static uint32_t n_recordings_outstanding = 0;
 typedef enum parmeters_in_neuron_parameter_data_region {
     RANDOM_BACKOFF, TIME_BETWEEN_SPIKES, HAS_KEY, TRANSMISSION_KEY,
     N_NEURONS_TO_SIMULATE, INCOMING_SPIKE_BUFFER_SIZE,
-    START_OF_GLOBAL_PARAMETERS,
+    DELAY_QUANTISATION_FACTOR, START_OF_GLOBAL_PARAMETERS,
 } parmeters_in_neuron_parameter_data_region;
 
 
@@ -173,7 +173,8 @@ bool neuron_reload_neuron_parameters(address_t address){
 //! \param[out] n_neurons_value The number of neurons this model is to emulate
 //! \return True is the initialisation was successful, otherwise False
 bool neuron_initialise(address_t address, uint32_t recording_flags_param,
-        uint32_t *n_neurons_value, uint32_t *incoming_spike_buffer_size) {
+        uint32_t *n_neurons_value, uint32_t *incoming_spike_buffer_size,
+        uint32_t *delay_quantisation_factor) {
     log_info("neuron_initialise: starting");
 
     random_backoff = address[RANDOM_BACKOFF];
@@ -202,6 +203,9 @@ bool neuron_initialise(address_t address, uint32_t recording_flags_param,
 
     // Read the size of the incoming spike buffer to use
     *incoming_spike_buffer_size = address[INCOMING_SPIKE_BUFFER_SIZE];
+
+    // Read the delay quantisation factor
+    *delay_quantisation_factor = address[DELAY_QUANTISATION_FACTOR];
 
     // log message for debug purposes
     log_info(

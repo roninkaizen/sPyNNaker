@@ -33,6 +33,8 @@ typedef struct dma_buffer {
 
 extern uint32_t time;
 
+extern uint32_t delay_time;
+
 // True if the DMA "loop" is currently running
 static bool dma_busy;
 
@@ -75,7 +77,8 @@ static inline void _do_dma_read(
 
 static inline void _do_direct_row(address_t row_address) {
     single_fixed_synapse[3] = (uint32_t) row_address[0];
-    synapses_process_synaptic_row(time, single_fixed_synapse, false, 0);
+    synapses_process_synaptic_row(
+        time, delay_time, single_fixed_synapse, false, 0);
 }
 
 static inline void _setup_synaptic_dma_read() {
@@ -217,9 +220,9 @@ void _dma_complete_callback(uint unused, uint tag) {
 
         // Process synaptic row, writing it back if it's the last time
         // it's going to be processed
-        if (!synapses_process_synaptic_row(time, current_buffer->row,
-                                      !subsequent_spikes,
-                                      current_buffer_index)) {
+        if (!synapses_process_synaptic_row(
+                time, delay_time, current_buffer->row, !subsequent_spikes,
+                current_buffer_index)) {
             log_error(
                 "Error processing spike 0x%.8x for address 0x%.8x"
                 "(local=0x%.8x)",

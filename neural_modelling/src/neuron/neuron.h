@@ -28,11 +28,13 @@
 //! \param[out] n_neurons_value The number of neurons this model is to emulate
 //! \param[out] incoming_spike_buffer_size The number of spikes to support in
 //!             the incoming spike buffer
+//! \param[out] delay_quantisation_factor The speed at which the delay timer
+//!             moves compared to the simulation time
 //! \return boolean which is True is the translation was successful
 //!         otherwise False
 bool neuron_initialise(
     address_t address, uint32_t recording_flags, uint32_t *n_neurons_value,
-    uint32_t *incoming_spike_buffer_size);
+    uint32_t *incoming_spike_buffer_size, uint32_t *delay_quantisation_factor);
 
 //! \setter for the internal synapse type parameters
 //! \param[in] synapse_shaping_params_value: the new synapse shaping params

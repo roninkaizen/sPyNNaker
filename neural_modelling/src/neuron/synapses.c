@@ -346,8 +346,9 @@ void synapses_do_timestep_update(timer_t time) {
     spin1_mode_restore(state);
 }
 
-bool synapses_process_synaptic_row(uint32_t time, synaptic_row_t row,
-                                   bool write, uint32_t process_id) {
+bool synapses_process_synaptic_row(
+        uint32_t time, uint32_t delay_time, synaptic_row_t row, bool write,
+        uint32_t process_id) {
 
     _print_synaptic_row(row);
 
@@ -367,7 +368,7 @@ bool synapses_process_synaptic_row(uint32_t time, synaptic_row_t row,
         profiler_write_entry_disable_fiq(
             PROFILER_ENTER | PROFILER_PROCESS_PLASTIC_SYNAPSES);
         if (!synapse_dynamics_process_plastic_synapses(plastic_region_address,
-                fixed_region_address, ring_buffers, time)) {
+                fixed_region_address, ring_buffers, time, delay_time)) {
             return false;
         }
         profiler_write_entry_disable_fiq(
@@ -384,7 +385,7 @@ bool synapses_process_synaptic_row(uint32_t time, synaptic_row_t row,
     // **NOTE** this is done after initiating DMA in an attempt
     // to hide cost of DMA behind this loop to improve the chance
     // that the DMA controller is ready to read next synaptic row afterwards
-    _process_fixed_synapses(fixed_region_address, time);
+    _process_fixed_synapses(fixed_region_address, delay_time);
     //}
     return true;
 }
