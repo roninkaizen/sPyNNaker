@@ -18,6 +18,18 @@ class SynapseDynamicsStatic(
         AbstractChangableAfterRun.__init__(self)
         self._change_requires_mapping = True
 
+        self._is_static  = True
+        self._is_plastic = False
+    
+
+    @property
+    def is_static(self):
+        return self._is_static
+
+    @property
+    def is_plastic(self):
+        return self._is_plastic
+
     def is_same_as(self, synapse_dynamics):
         return isinstance(synapse_dynamics, SynapseDynamicsStatic)
 

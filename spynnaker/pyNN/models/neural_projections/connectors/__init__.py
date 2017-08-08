@@ -1,3 +1,7 @@
+import numpy
+class ConvolutionKernel(numpy.ndarray):
+    pass
+
 from .abstract_connector import AbstractConnector
 from .all_to_all_connector import AllToAllConnector
 from .distance_dependent_probability_connector \
@@ -10,9 +14,10 @@ from .from_list_connector import FromListConnector
 from .multapse_connector import MultapseConnector
 from .one_to_one_connector import OneToOneConnector
 from .small_world_connector import SmallWorldConnector
+from .kernel_connector import KernelConnector
 
 __all__ = ["AbstractConnector", "AllToAllConnector",
            "DistanceDependentProbabilityConnector", "FixedNumberPostConnector",
            "FixedNumberPreConnector", "FixedProbabilityConnector",
            "FromFileConnector", "FromListConnector", "MultapseConnector",
-           "OneToOneConnector", "SmallWorldConnector", ]
+           "OneToOneConnector", "SmallWorldConnector", "KernelConnector"]

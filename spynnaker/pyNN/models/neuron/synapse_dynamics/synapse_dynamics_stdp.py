@@ -42,6 +42,18 @@ class SynapseDynamicsSTDP(
         if voltage_dependence is not None:
             raise NotImplementedError(
                 "Voltage dependence has not been implemented")
+    
+        self._is_static  = False
+        self._is_plastic = True
+    
+
+    @property
+    def is_static(self):
+        return self._is_static
+
+    @property
+    def is_plastic(self):
+        return self._is_plastic
 
     @overrides(AbstractChangableAfterRun.requires_mapping)
     def requires_mapping(self):

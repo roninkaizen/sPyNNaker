@@ -4,10 +4,16 @@ from spinn_front_end_common.utilities.utility_objs import ProvenanceDataItem
 from spinn_utilities.abstract_base import AbstractBase, abstractmethod
 from spinn_front_end_common.utilities import globals_variables
 from spynnaker.pyNN.utilities import utility_calls
+from spynnaker.pyNN.models.neural_projections.connectors \
+    import ConvolutionKernel
+
 import logging
 import numpy
 import math
 import re
+import binascii
+from pyNN.random import RandomDistribution
+from pyNN.random import NumpyRNG
 
 # global objects
 logger = logging.getLogger(__name__)
@@ -30,7 +36,8 @@ class AbstractConnector(object):
 
     __slots__ = ()
 
-    def __init__(self, safe=True, verbose=False):
+    def __init__(self, safe=True, verbose=False, signed_weights=False,
+                 generate_on_machine=False):
         self._safe = safe
         self._space = None
         self._verbose = verbose
@@ -45,7 +52,9 @@ class AbstractConnector(object):
         self._min_delay = 0
         self._weights = None
         self._delays = None
-
+        self._signed_weights = signed_weights
+        self._gen_on_spinn = generate_on_machine
+        
     def set_space(self, space):
         """ allows setting of the space object after instantiation
 
@@ -93,7 +102,7 @@ class AbstractConnector(object):
         if not allow_lists and hasattr(values, "__getitem__"):
             raise NotImplementedError(
                 "Lists of {} are not supported the implementation of"
-                " {} on this platform".format(self.__class__))
+                " {} on this platform".format(type(values[0]), self.__class__))
 
     def _check_parameters(self, weights, delays, allow_lists=False):
         """ Check the types of the weights and delays are supported; lists can\
@@ -121,8 +130,9 @@ class AbstractConnector(object):
         elif numpy.isscalar(delays):
             return delays
         elif hasattr(delays, "__getitem__"):
-            return max(delays)
-        raise Exception("Unrecognised delay format")
+            return numpy.max(delays)
+
+        raise Exception("Unrecognised delay format: {:s}".format(type(delays)))
 
     @abstractmethod
     def get_delay_maximum(self):
@@ -336,6 +346,10 @@ class AbstractConnector(object):
                     " in projection {}->{}".format(
                         self._pre_population.label,
                         self._post_population.label))
+        
+        if self._signed_weights:
+            return weights
+
         return numpy.abs(weights)
 
     def _clip_delays(self, delays):
@@ -436,3 +450,49 @@ class AbstractConnector(object):
     @verbose.setter
     def verbose(self, new_value):
         self._verbose = new_value
+
+
+    def _generate_lists_on_machine(self, values):
+        """ Checks if the connector should generate lists on MACHINE, based on\
+            the types of the weights and/or delays. Method above is WRONG
+        """
+
+        # Scalars are fine on the machine
+        if numpy.isscalar(values):
+            return True
+
+        # Only certain types of random distributions are supported for\
+        # generation on the machine
+        if isinstance(values, RandomDistribution):
+            return values.name in ("uniform", 
+                                   # "uniform_int", "poisson", 
+                                   "normal", "exponential")
+
+        if isinstance(values, ConvolutionKernel):
+            return True
+
+        return False
+
+    def name_hash(self):
+        """Transform class name into a crc32 code hash, this will be taken by
+           the C SpiNNaker code to generate the given connector on the machine
+        """
+        return numpy.uint32( binascii.crc32(self.__class__.__name__) )
+
+
+    def _param_hash(self, values):
+        """Generate a hash code for the parameter type, two special cases will 
+           be constant and kernel-based. Everything else is RandomDistribution 
+           names. We should check if the parameters are supported before.
+        """
+
+        if numpy.isscalar(values):
+            return numpy.uint32( binascii.crc32("constant") )
+
+        elif isinstance(values, RandomDistribution):
+            return numpy.uint32( binascii.crc32(values.name) )
+
+        elif isinstance(values, ConvolutionKernel):
+            return numpy.uint32( binascii.crc32("kernel") )
+
+        return 0
