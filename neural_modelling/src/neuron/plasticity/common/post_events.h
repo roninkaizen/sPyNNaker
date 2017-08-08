@@ -162,6 +162,7 @@ static inline post_event_window_t post_events_next_delayed(
 
     // Decrement remaining events
     window.num_events--;
+    log_info("Removing event");
     return window;
 }
 
