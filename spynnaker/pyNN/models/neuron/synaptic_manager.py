@@ -383,8 +383,8 @@ class SynapticManager(object):
                              math.exp(big_ratio)))
                 weight_variance = math.exp(log_weight_variance)
 
-        #print "expected upper bound = {}".format(((average_spikes_per_timestep * weight_mean) +
-        #        (sigma * math.sqrt(poisson_variance + weight_variance))))
+        print "expected upper bound = {}".format(((average_spikes_per_timestep * weight_mean) +
+                (sigma * math.sqrt(poisson_variance + weight_variance))))
         # upper bound calculation -> mean + n * SD
         return ((average_spikes_per_timestep * weight_mean) +
                 (sigma * math.sqrt(poisson_variance + weight_variance)))
@@ -535,7 +535,7 @@ class SynapticManager(object):
             post_slice_index, post_vertex_slice, machine_time_step,
             weight_scale)
 
-        #print "num ring buff left shifts: {}".format(ring_buffer_shifts)
+        print "num ring buff left shifts: {}".format(ring_buffer_shifts)
 
         spec.switch_write_focus(POPULATION_BASED_REGIONS.SYNAPSE_PARAMS.value)
         write_parameters_per_neuron(
@@ -599,17 +599,11 @@ class SynapticManager(object):
         _num_machine_edges = 0
 
         # For each machine_edge into the vertex, create a synaptic list
-        for machine_edge in in_edges:
-            #print "processing machine edge: {}".format(_num_machine_edges)
-            #_num_machine_edges += 1
-
-            app_edge = graph_mapper.get_application_edge(machine_edge)
-
-            #print "processing data for edge with: pre = {}; post = {}".format(app_edge.pre_vertex, app_edge._post_vertex)
-
-        # For each machine edge in the vertex, create a synaptic list
         for m_edge in in_edges:
+
             app_edge = graph_mapper.get_application_edge(m_edge)
+            print "processing data for edge with: pre = {}; post = {}".format(app_edge.pre_vertex, app_edge._post_vertex)
+
             if isinstance(app_edge, ProjectionApplicationEdge):
                 spec.comment("\nWriting matrix for m_edge:{}\n".format(
                     m_edge.label))
