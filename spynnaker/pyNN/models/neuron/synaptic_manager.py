@@ -45,6 +45,9 @@ _SYNAPSES_BASE_SDRAM_USAGE_IN_BYTES = 0
 _SYNAPSES_BASE_N_CPU_CYCLES_PER_NEURON = 10
 _SYNAPSES_BASE_N_CPU_CYCLES = 8
 
+_EXPECTED_SPIKES_PER_TICK =  1
+
+
 
 class SynapticManager(object):
     """ Deals with synapses
@@ -405,6 +408,8 @@ class SynapticManager(object):
         weights_signed = False
         rate_stats = [RunningStats() for _ in range(n_synapse_types)]
 
+        print "\nprocessing vertex: {}".format(machine_vertex)
+
         for m_edge in machine_graph.get_edges_ending_at_vertex(machine_vertex):
 
             pre_vertex_slice = graph_mapper.get_slice(m_edge.pre_vertex)
@@ -450,9 +455,11 @@ class SynapticManager(object):
                         biggest_weight[synapse_type], weight_max)
 
                     spikes_per_tick = max(
-                        1.0,
+                        _EXPECTED_SPIKES_PER_TICK,
                         self._spikes_per_second /
                         (1000000.0 / float(machine_timestep)))
+
+
                     spikes_per_second = self._spikes_per_second
                     if isinstance(app_edge.pre_vertex, SpikeSourcePoisson):
                         spikes_per_second = app_edge.pre_vertex.rate
@@ -470,8 +477,12 @@ class SynapticManager(object):
                             prob, spikes_per_tick)
                     rate_stats[synapse_type].add_items(
                         spikes_per_second, 0, n_connections)
+
+                    print "spikes_per_tick_in loop: {}".format( spikes_per_tick)
                     total_weights[synapse_type] += spikes_per_tick * (
+
                         weight_max * n_connections)
+
 
                     if synapse_dynamics.are_weights_signed():
                         weights_signed = True
@@ -506,7 +517,10 @@ class SynapticManager(object):
         print "biggest weight: {}".format(biggest_weight)
         print "max weights: {}".format(max_weights)
         print "max weight powers: {}".format(max_weight_powers)
-
+        print "spikes per timer tick: {}".format(max(
+                        _EXPECTED_SPIKES_PER_TICK,
+                        self._spikes_per_second /
+                        (1000000.0 / float(machine_timestep))) )
         # If we have synapse dynamics that uses signed weights,
         # Add another bit of shift to prevent overflows
         if weights_signed:
@@ -547,6 +561,7 @@ class SynapticManager(object):
         weight_scales = numpy.array([
             self._get_weight_scale(r) * weight_scale
             for r in ring_buffer_shifts])
+
         return weight_scales
 
     def _write_padding(
@@ -602,7 +617,7 @@ class SynapticManager(object):
         for m_edge in in_edges:
 
             app_edge = graph_mapper.get_application_edge(m_edge)
-            print "processing data for edge with: pre = {}; post = {}".format(app_edge.pre_vertex, app_edge._post_vertex)
+            #print "processing data for edge with: pre = {}; post = {}".format(app_edge.pre_vertex, app_edge._post_vertex)
 
             if isinstance(app_edge, ProjectionApplicationEdge):
                 spec.comment("\nWriting matrix for m_edge:{}\n".format(

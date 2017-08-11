@@ -187,12 +187,12 @@ class SynapseIORowBased(AbstractSynapseIO):
         # Convert delays to timesteps
         connections["delay"] = numpy.rint(
             connections["delay"] * (1000.0 / machine_time_step))
-        print "weight before scaling: {}".format(connections['weight'][0])
+        #print "weight before scaling: {}".format(connections['weight'][0])
         # Scale weights
         connections["weight"] = (
             connections["weight"] *
             weight_scales[synapse_info.synapse_type])
-        print "weight after scaling: {}".format(connections['weight'][0])
+        #print "weight after scaling: {}".format(connections['weight'][0])
 
         # Split the connections up based on the delays
         undelayed_connections = connections
