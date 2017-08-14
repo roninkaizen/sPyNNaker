@@ -767,6 +767,13 @@ class SynapticManager(object):
         all_syn_block_sz = self._get_exact_synaptic_blocks_size(
             post_slices, post_slice_idx, post_vertex_slice, graph_mapper,
             in_edges, machine_time_step)
+        estimate_syn_block_sz = self._get_estimate_synaptic_blocks_size(
+            post_vertex_slice, in_edges, machine_time_step)
+        if all_syn_block_sz < estimate_syn_block_sz:
+            raise Exception(
+                "Estimated synaptic block size of {} is smaller than actual"
+                " block size of {}".format(
+                    estimate_syn_block_sz, all_syn_block_sz))
         self._reserve_memory_regions(
             spec, machine_vertex, post_vertex_slice, machine_graph,
             all_syn_block_sz, graph_mapper)
