@@ -496,3 +496,9 @@ class AbstractConnector(object):
             return numpy.uint32( binascii.crc32("kernel") )
 
         return 0
+
+    @abstractmethod
+    def gen_on_machine_info(self):
+        """Does this connector require more info than general ones? if so, return a 
+        list of this data, each element should be a 32-bit int"""
+        # return []

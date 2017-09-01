@@ -157,3 +157,6 @@ class OneToOneConnector(AbstractConnector):
 
     def __repr__(self):
         return "OneToOneConnector()"
+
+    def gen_on_machine_info(self):
+        return []

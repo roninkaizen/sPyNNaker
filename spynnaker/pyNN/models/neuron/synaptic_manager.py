@@ -32,7 +32,8 @@ from spynnaker.pyNN.models.neural_projections.connectors.fixed_probability_conne
     import FixedProbabilityConnector
 from spynnaker.pyNN.models.neural_projections.connectors.kernel_connector \
     import KernelConnector, ConvolutionKernel
-
+from spynnaker.pyNN.models.neural_projections.connectors.mapping_connector \
+    import MappingConnector
 
 from spynnaker.pyNN.models.neural_projections import ProjectionApplicationEdge
 from spynnaker.pyNN.models.neuron import master_pop_table_generators
@@ -653,6 +654,9 @@ class SynapticManager(object):
                                                  (pre_slices, pre_slice_idx,
                                                   post_slices, post_slice_index,
                                                   pre_vertex_slice, post_vertex_slice)
+                        # print("MAX ROW LENGTH %d"%(max_row_length))
+                        if max_row_length == 0:
+                            continue
 
                         if not synapse_info.synapse_dynamics.is_static:
                             # print("does syn_dyn have n_header_words?")
@@ -1374,13 +1378,7 @@ class SynapticManager(object):
 
                 #TODO: add a gen_on_machine_info method per connector
                 # connector-specific data
-                if isinstance(conn, AllToAllConnector):
-                    param_block.append(numpy.uint32(conn._allow_self_connections))
-                elif isinstance(conn, FixedProbabilityConnector):
-                    param_block.append(numpy.uint32(conn._allow_self_connections))
-                    param_block.append(numpy.uint32(conn._p_connect * MAX_32))
-                elif isinstance(conn, KernelConnector):
-                    param_block += conn.gen_on_machine_info()
+                param_block += conn.gen_on_machine_info()
 
                 #weights in u1616 or s1516 fixed-point
                 if numpy.isscalar(conn._weights):

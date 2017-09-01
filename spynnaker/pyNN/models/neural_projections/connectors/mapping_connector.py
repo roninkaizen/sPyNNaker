@@ -1,0 +1,299 @@
+import numpy
+from .abstract_connector import AbstractConnector
+from pyNN.random import RandomDistribution
+
+
+class MappingConnector(AbstractConnector):
+    """
+    Where the pre- and postsynaptic populations have the same size, connect
+    cell i in the presynaptic pynn_population.py to cell i in the postsynaptic
+    pynn_population.py for all i.
+    """
+
+    def __init__(self, width, height, row_bits, channel, channel_bits=1, safe=True,
+            verbose=False, generate_on_machine=False,
+            random_number_class=RandomDistribution):
+        """
+        """
+        self._width = width
+        self._height = height
+
+        self._row_bits = row_bits
+        self._row_mask = (1 << row_bits) - 1
+        self._channel_bits = channel_bits
+        self._channel_mask = (1 << channel_bits) - 1
+        self._col_shift_bits = row_bits + channel_bits
+        self._col_mask = (1 << (32 - self._col_shift_bits)) - 1
+
+        self._channel = channel & self._channel_mask
+        self._random_number_class = random_number_class
+
+        AbstractConnector.__init__(self, safe, verbose,
+                                   generate_on_machine=generate_on_machine)
+
+    def set_weights_and_delays(self, weights, delays):
+        """ sets the weights and delays as needed
+
+        :param `float` weights:
+            may either be a float, a !RandomDistribution object, a list \
+            1D array with at least as many items as connections to be \
+            created, or a distance dependence as per a d_expression. Units nA.
+        :param `float` delays:  -- as `weights`. If `None`, all synaptic \
+            delays will be set to the global minimum delay.
+        :raises Exception: when not a standard interface of list, scaler, \
+            or random number generator
+        :raises NotImplementedError: when lists are not supported and entered
+        """
+        self._weights = weights
+        self._delays = delays
+
+        # if not numpy.isscalar(weights):
+        #     raise Exception("MappingConnector: value of weights should be scalar")
+        #
+        # if not numpy.isscalar(delays):
+        #     raise Exception("MappingConnector: value of delays should be scalar")
+
+
+        self._check_parameters(weights, delays, allow_lists=True)
+
+
+    def extreme_row(self, v_slice, op):
+        ids = numpy.arange(v_slice.lo_atom, v_slice.hi_atom + 1,
+                           dtype='uint32')
+        rows = numpy.bitwise_and(numpy.right_shift(ids, self._channel_bits),
+                                 self._row_mask)
+        if op == 'max':
+            return rows.max()
+        else:
+            return rows.min()
+
+
+    def extreme_col(self, v_slice, op):
+        ids = numpy.arange(v_slice.lo_atom, v_slice.hi_atom + 1,
+                           dtype='uint32')
+        cols = numpy.right_shift(ids, self._channel_bits + self._row_bits)
+
+        if op == 'max':
+            return cols.max()
+        else:
+            return cols.min()
+
+
+    def to_pre_id(self, row, col):
+        row = numpy.bitwise_and(numpy.uint32(row), self._row_mask)
+        col = numpy.bitwise_and(numpy.uint32(col), self._col_mask)
+        id = numpy.left_shift(col, self._col_shift_bits) + \
+             numpy.left_shift(row, self._channel_bits) + \
+             (self._channel)
+        return numpy.uint32(id)
+
+    def in_pre_range(self, min_row, max_row, pre_slice):
+        rows = numpy.repeat(numpy.arange(min_row, max_row + 1), self._width)
+        cols = numpy.tile(numpy.arange(self._width), max_row - min_row + 1)
+
+        ids = self.to_pre_id(rows, cols)
+        pre_ids = numpy.arange(pre_slice.lo_atom, pre_slice.hi_atom + 1)
+        matching = numpy.intersect1d(ids, pre_ids, assume_unique=True)
+        return matching
+
+    def to_post_ids(self, indices):
+        rows = numpy.bitwise_and(numpy.right_shift(indices, self._channel_bits),
+                                 self._row_mask)
+        cols = numpy.bitwise_and(numpy.right_shift(indices, self._col_shift_bits),
+                                 self._col_mask)
+
+        return (rows*self._width + cols)
+
+    def _nconns(self, pre_vertex_slice, post_vertex_slice):
+
+        pre_min_row = self.extreme_row(pre_vertex_slice, 'min')
+        pre_max_row = self.extreme_row(pre_vertex_slice, 'max')
+
+        post_min_row = int(post_vertex_slice.lo_atom) // self._width
+        post_max_row = int(post_vertex_slice.hi_atom) // self._width
+
+        # print("\n")
+        # print(pre_vertex_slice)
+        # print(post_vertex_slice)
+        # print("pre min %d > post max %d or pre max %d < post min %d == %s"%(
+        #       pre_min_row, post_max_row, pre_max_row, post_min_row,
+        #       pre_min_row > post_max_row or pre_max_row < post_min_row))
+
+        if pre_min_row > post_max_row or pre_max_row < post_min_row:
+            return 0
+
+        max_row = min(pre_max_row, post_max_row)
+        min_row = max(pre_min_row, post_min_row)
+        n_rows = max_row - min_row
+
+        # print("rows: min %d, max %d, n %d"%(min_row, max_row, n_rows))
+
+        nids = self.in_pre_range(min_row, max_row, pre_vertex_slice).size
+        # print("matching ids = %d"%nids)
+        return nids
+
+    def get_delay_maximum(self):
+        return self._get_delay_maximum(
+            self._delays, max((self._n_pre_neurons, self._n_post_neurons)))
+
+    def get_delay_variance(
+            self, pre_slices, pre_slice_index, post_slices,
+            post_slice_index, pre_vertex_slice, post_vertex_slice):
+
+        if self._nconns(pre_vertex_slice, post_vertex_slice) == 0:
+            return 0
+
+        max_lo_atom = max(
+            (pre_vertex_slice.lo_atom, post_vertex_slice.lo_atom))
+        min_hi_atom = min(
+            (pre_vertex_slice.hi_atom, post_vertex_slice.hi_atom))
+        connection_slice = slice(max_lo_atom, min_hi_atom + 1)
+        return self._get_delay_variance(self._delays, [connection_slice])
+
+    def get_n_connections_from_pre_vertex_maximum(
+            self, pre_slices, pre_slice_index, post_slices,
+            post_slice_index, pre_vertex_slice, post_vertex_slice,
+            min_delay=None, max_delay=None):
+
+        if self._nconns(pre_vertex_slice, post_vertex_slice) == 0:
+            return 0
+
+        max_lo_atom = max(
+            (pre_vertex_slice.lo_atom, post_vertex_slice.lo_atom))
+        min_hi_atom = min(
+            (pre_vertex_slice.hi_atom, post_vertex_slice.hi_atom))
+
+        if min_delay is None or max_delay is None:
+            return 1
+        if isinstance(self._delays, self._random_number_class):
+            return 1
+        elif numpy.isscalar(self._delays):
+            if self._delays >= min_delay and self._delays <= max_delay:
+                return 1
+            return 0
+        else:
+            connection_slice = slice(max_lo_atom, min_hi_atom + 1)
+            slice_min_delay = min(self._delays[connection_slice])
+            slice_max_delay = max(self._delays[connection_slice])
+            if slice_min_delay >= min_delay and slice_max_delay <= max_delay:
+                return 1
+            return 0
+
+    def get_n_connections_to_post_vertex_maximum(
+            self, pre_slices, pre_slice_index, post_slices,
+            post_slice_index, pre_vertex_slice, post_vertex_slice):
+
+        if self._nconns(pre_vertex_slice, post_vertex_slice) == 0:
+            return 0
+        return 1
+
+    def get_weight_mean(
+            self, pre_slices, pre_slice_index, post_slices,
+            post_slice_index, pre_vertex_slice, post_vertex_slice):
+
+        if self._nconns(pre_vertex_slice, post_vertex_slice) == 0:
+            return 0
+
+        max_lo_atom = max(
+            (pre_vertex_slice.lo_atom, post_vertex_slice.lo_atom))
+        min_hi_atom = min(
+            (pre_vertex_slice.hi_atom, post_vertex_slice.hi_atom))
+
+        connection_slice = slice(max_lo_atom, min_hi_atom + 1)
+        return self._get_weight_mean(self._weights, [connection_slice])
+
+    def get_weight_maximum(
+            self, pre_slices, pre_slice_index, post_slices,
+            post_slice_index, pre_vertex_slice, post_vertex_slice):
+        n_connections = self._nconns(pre_vertex_slice, post_vertex_slice)
+        if n_connections == 0:
+            return 0
+
+        max_lo_atom = max(
+            (pre_vertex_slice.lo_atom, post_vertex_slice.lo_atom))
+        min_hi_atom = min(
+            (pre_vertex_slice.hi_atom, post_vertex_slice.hi_atom))
+
+        connection_slice = slice(max_lo_atom, min_hi_atom + 1)
+        return self._get_weight_maximum(
+            self._weights, n_connections, [connection_slice])
+
+    def get_weight_variance(
+            self, pre_slices, pre_slice_index, post_slices,
+            post_slice_index, pre_vertex_slice, post_vertex_slice):
+
+        if self._nconns(pre_vertex_slice, post_vertex_slice) == 0:
+            return 0
+
+        max_lo_atom = max(
+            (pre_vertex_slice.lo_atom, post_vertex_slice.lo_atom))
+        min_hi_atom = min(
+            (pre_vertex_slice.hi_atom, post_vertex_slice.hi_atom))
+
+        connection_slice = slice(max_lo_atom, min_hi_atom + 1)
+        return self._get_weight_variance(self._weights, [connection_slice])
+
+    def generate_on_machine(self):
+        return (self._gen_on_spinn and \
+                self._generate_lists_on_machine(self._weights) and \
+                self._generate_lists_on_machine(self._delays))
+
+    def create_synaptic_block(
+            self, pre_slices, pre_slice_index, post_slices,
+            post_slice_index, pre_vertex_slice, post_vertex_slice,
+            synapse_type):
+
+        pre_min_row = self.extreme_row(pre_vertex_slice, 'min')
+        pre_max_row = self.extreme_row(pre_vertex_slice, 'max')
+
+        post_min_row = int(post_vertex_slice.lo_atom) // self._width
+        post_max_row = int(post_vertex_slice.hi_atom) // self._width
+
+        if pre_min_row > post_max_row or pre_max_row < post_min_row:
+            return 0
+
+        max_row = min(pre_max_row, post_max_row)
+        min_row = max(pre_min_row, post_min_row)
+
+        pre_indices = self.in_pre_range(min_row, max_row, pre_vertex_slice)
+
+        n_connections = pre_indices.size
+
+        if n_connections <= 0:
+            return numpy.zeros(0, dtype=AbstractConnector.NUMPY_SYNAPSES_DTYPE)
+
+
+        lo_atom = max(min_row*self._width, post_vertex_slice.lo_atom)
+        hi_atom = min(max_row*self._width + self._width - 1,
+                      post_vertex_slice.hi_atom)
+        connection_slice = slice(lo_atom, hi_atom + 1)
+
+        post_indices = self.to_post_ids(pre_indices)
+
+        block = numpy.zeros(
+            n_connections, dtype=AbstractConnector.NUMPY_SYNAPSES_DTYPE)
+        block["source"] = pre_indices
+        block["target"] = post_indices
+        block["weight"] = self._generate_weights(
+            self._weights, n_connections, [connection_slice])
+        block["delay"] = self._generate_delays(
+            self._delays, n_connections, [connection_slice])
+        block["synapse_type"] = synapse_type
+        return block
+
+    def __repr__(self):
+        return "MappingConnector"
+
+    def gen_on_machine_info(self):
+        def shape2word(sw, sh):
+            return ( (numpy.uint32(sw) & 0xFFFF) << 16 ) | \
+                     (numpy.uint32(sh) & 0xFFFF)
+
+        block = []
+        block.append( shape2word(self._width,
+                                 self._height) )
+
+        block.append( numpy.uint32(self._channel + (self._channel_bits << 8) +
+                                   (self._row_bits << 16)) )
+
+        return block

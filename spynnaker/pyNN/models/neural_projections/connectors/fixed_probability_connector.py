@@ -123,3 +123,7 @@ class FixedProbabilityConnector(AbstractConnector):
 
     def __repr__(self):
         return "FixedProbabilityConnector({})".format(self._p_connect)
+
+    def gen_on_machine_info(self):
+        return [self._allow_self_connections,
+                self._p_connect * numpy.uint32(0xFFFFFFFF)]

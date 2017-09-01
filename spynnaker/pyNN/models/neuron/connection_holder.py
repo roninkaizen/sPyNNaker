@@ -1,5 +1,20 @@
 import numpy
 from numpy.lib.recfunctions import merge_arrays
+import time
+import datetime
+
+#from Django project
+def slugify(value):
+    """
+    Normalizes string, converts to lowercase, removes non-alpha characters,
+    and converts spaces to hyphens.
+    """
+    import unicodedata
+    import re
+    value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore')
+    value = unicode(re.sub('[^\w\s-]', '', value).strip().lower())
+    value = unicode(re.sub('[-\s]+', '-', value))
+    return value
 
 
 class ConnectionHolder(object):
@@ -34,11 +49,14 @@ class ConnectionHolder(object):
 
         # A callback to call with the data when finished
         "_notify",
+
+        # Label - to use hard-drive-buffered weight matrices
+        "_proj_label",
     )
 
     def __init__(
             self, data_items_to_return, as_list, n_pre_atoms, n_post_atoms,
-            connections=None, fixed_values=None, notify=None):
+            projection_label, connections=None, fixed_values=None, notify=None):
         """
 
         :param data_items_to_return: A list of data fields to be returned
@@ -70,6 +88,13 @@ class ConnectionHolder(object):
         self._data_items = None
         self._notify = notify
         self._fixed_values = fixed_values
+        if projection_label is None:
+            numpy.random.seed()
+            projection_label = u"projection_{}_{:d}".\
+                                    format(str(datetime.date.today()),
+                                           numpy.random.randint(0, 10000))
+
+        self._proj_label = slugify(projection_label)
 
     def add_connections(self, connections):
         """ Add connections to the holder to be returned
@@ -167,7 +192,14 @@ class ConnectionHolder(object):
             for item in self._data_items_to_return:
 
                 # Build an empty matrix and fill it with NAN
-                matrix = numpy.empty((self._n_pre_atoms, self._n_post_atoms))
+
+                #TODO: requires unique name
+                fname = "weights_%s_pre_%d_post_%d.npy"%\
+                        (self._proj_label, self._n_pre_atoms, self._n_post_atoms)
+                matrix = numpy.memmap(fname, dtype='float16', mode='w+',
+                                      shape=(self._n_pre_atoms, self._n_post_atoms))
+                # matrix = numpy.empty((self._n_pre_atoms, self._n_post_atoms),
+                #                      dtype='float16')
                 matrix.fill(numpy.nan)
 
                 # Fill in the values that have data

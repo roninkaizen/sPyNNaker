@@ -183,3 +183,5 @@ class AllToAllConnector(AbstractConnector):
     def allow_self_connections(self, new_value):
         self._allow_self_connections = new_value
 
+    def gen_on_machine_info(self):
+        return [self.allow_self_connections]
