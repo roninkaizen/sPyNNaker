@@ -2,6 +2,7 @@ import numpy
 from numpy.lib.recfunctions import merge_arrays
 import time
 import datetime
+import os
 
 #from Django project
 def slugify(value):
@@ -52,6 +53,9 @@ class ConnectionHolder(object):
 
         # Label - to use hard-drive-buffered weight matrices
         "_proj_label",
+
+        # Where to store disk-based weight matrices
+        "_weights_dir",
     )
 
     def __init__(
@@ -88,6 +92,11 @@ class ConnectionHolder(object):
         self._data_items = None
         self._notify = notify
         self._fixed_values = fixed_values
+
+        self._weights_dir = os.path.join(os.getcwd(), 'simulation_weights')
+        if not os.path.isdir(self._weights_dir):
+            os.makedirs(self._weights_dir)
+
         if projection_label is None:
             numpy.random.seed()
             projection_label = u"projection_{}_{:d}".\
@@ -194,8 +203,9 @@ class ConnectionHolder(object):
                 # Build an empty matrix and fill it with NAN
 
                 #TODO: requires unique name
-                fname = "weights_%s_pre_%d_post_%d.npy"%\
+                name = "weights_%s_pre_%d_post_%d.npy"%\
                         (self._proj_label, self._n_pre_atoms, self._n_post_atoms)
+                fname = os.path.join(self._weights_dir, name)
                 matrix = numpy.memmap(fname, dtype='float16', mode='w+',
                                       shape=(self._n_pre_atoms, self._n_post_atoms))
                 # matrix = numpy.empty((self._n_pre_atoms, self._n_post_atoms),
