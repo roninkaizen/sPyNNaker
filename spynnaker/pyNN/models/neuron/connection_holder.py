@@ -99,9 +99,9 @@ class ConnectionHolder(object):
 
         if projection_label is None:
             numpy.random.seed()
-            projection_label = u"projection_{}_{:d}".\
+            projection_label = u"projection_{}_{:010d}".\
                                     format(str(datetime.date.today()),
-                                           numpy.random.randint(0, 10000))
+                                           numpy.random.randint(0, 10000000000))
 
         self._proj_label = slugify(projection_label)
 
