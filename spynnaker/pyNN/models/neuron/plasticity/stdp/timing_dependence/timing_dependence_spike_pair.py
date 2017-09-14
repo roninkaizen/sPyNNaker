@@ -1,10 +1,11 @@
+from data_specification.enums import DataType
+
 from spinn_utilities.overrides import overrides
 from spynnaker.pyNN.models.neuron.plasticity.stdp.common \
     import plasticity_helpers
 from .abstract_timing_dependence import AbstractTimingDependence
 from spynnaker.pyNN.models.neuron.plasticity.stdp.synapse_structure\
-    import SynapseStructureWeightOnly
-
+    import SynapseStructureWeightEligibilityTrace
 
 import logging
 logger = logging.getLogger(__name__)
@@ -13,20 +14,34 @@ LOOKUP_TAU_PLUS_SIZE = 256
 LOOKUP_TAU_PLUS_SHIFT = 0
 LOOKUP_TAU_MINUS_SIZE = 256
 LOOKUP_TAU_MINUS_SHIFT = 0
+LOOKUP_TAU_C_SIZE = 520
+LOOKUP_TAU_C_SHIFT = 4
+LOOKUP_TAU_D_SIZE = 370
+LOOKUP_TAU_D_SHIFT = 2
 
 
 class TimingDependenceSpikePair(AbstractTimingDependence):
-
-    def __init__(self, tau_plus=20.0, tau_minus=20.0):
+    def __init__(self, tau_plus=20.0, tau_minus=20.0, tau_c=None, tau_d=None):
         AbstractTimingDependence.__init__(self)
         self._tau_plus = tau_plus
         self._tau_minus = tau_minus
-
-        self._synapse_structure = SynapseStructureWeightOnly()
-
-        # provenance data
+        self._tau_c = tau_c
+        self._tau_d = tau_d
+        self._supervised = ((tau_c is not None) and (tau_d is not None))
+        self._synapse_structure = SynapseStructureWeightEligibilityTrace()
         self._tau_plus_last_entry = None
         self._tau_minus_last_entry = None
+        self._tau_c_last_entry = None
+        self._tau_d_last_entry = None
+        if self._supervised:
+            self._weight_update_component = \
+                1 / (-((1.0/self._tau_c) + (1.0/self._tau_d)))
+            self._weight_update_component = \
+                plasticity_helpers.float_to_fixed(
+                    self._weight_update_component, (1 << 11))
+        else:
+            self._weight_update_component = 0
+
 
     @property
     def tau_plus(self):
@@ -36,12 +51,30 @@ class TimingDependenceSpikePair(AbstractTimingDependence):
     def tau_minus(self):
         return self._tau_minus
 
+    @property
+    def tau_c(self):
+        return self._tau_c
+
+    @property
+    def tau_d(self):
+        return self._tau_d
+    
+    @property
+    def supervised(self):
+        return self._supervised
+
+    @property
+    def weight_update_component(self):
+        return self._weight_update_component
+
     @overrides(AbstractTimingDependence.is_same_as)
     def is_same_as(self, timing_dependence):
         if not isinstance(timing_dependence, TimingDependenceSpikePair):
             return False
         return ((self.tau_plus == timing_dependence.tau_plus) and
-                (self.tau_minus == timing_dependence.tau_minus))
+                (self.tau_minus == timing_dependence.tau_minus) and 
+                (self.tau_c == timing_dependence.tau_c) and 
+                (self.tau_d == timing_dependence.tau_d))
 
     @property
     def vertex_executable_suffix(self):
@@ -49,15 +82,17 @@ class TimingDependenceSpikePair(AbstractTimingDependence):
 
     @property
     def pre_trace_n_bytes(self):
-
         # Pair rule requires no pre-synaptic trace when only the nearest
         # Neighbours are considered and, a single 16-bit R1 trace
         return 2
 
     @overrides(AbstractTimingDependence.get_parameters_sdram_usage_in_bytes)
     def get_parameters_sdram_usage_in_bytes(self):
-        return 2 * (LOOKUP_TAU_PLUS_SIZE + LOOKUP_TAU_MINUS_SIZE)
-
+        if self.supervised:
+            return (2 * (LOOKUP_TAU_PLUS_SIZE + LOOKUP_TAU_MINUS_SIZE + \
+                    LOOKUP_TAU_C_SIZE + LOOKUP_TAU_D_SIZE)) + 4
+        else:
+            return 2 * (LOOKUP_TAU_PLUS_SIZE + LOOKUP_TAU_MINUS_SIZE)
     @property
     def n_weight_terms(self):
         return 1
@@ -76,6 +111,22 @@ class TimingDependenceSpikePair(AbstractTimingDependence):
         self._tau_minus_last_entry = plasticity_helpers.write_exp_lut(
             spec, self._tau_minus, LOOKUP_TAU_MINUS_SIZE,
             LOOKUP_TAU_MINUS_SHIFT)
+        
+        if self.supervised:
+            # Write Izhikevich model exp look up tables
+            self._tau_c_last_entry = plasticity_helpers.write_exp_lut(
+                spec, self._tau_c, LOOKUP_TAU_C_SIZE,
+                LOOKUP_TAU_C_SHIFT)
+            self._tau_d_last_entry = plasticity_helpers.write_exp_lut(
+                spec, self._tau_d, LOOKUP_TAU_D_SIZE,
+                LOOKUP_TAU_D_SHIFT)
+
+            # Calculate constant component in Izhikevich's model weight update
+            # function and write to SDRAM.
+
+            spec.write_value(data=self.weight_update_component,
+                             data_type=DataType.INT32)
+
 
     @property
     def synaptic_structure(self):
@@ -89,8 +140,21 @@ class TimingDependenceSpikePair(AbstractTimingDependence):
         prov_data.append(plasticity_helpers.get_lut_provenance(
             pre_population_label, post_population_label, "SpikePairRule",
             "tau_minus_last_entry", "tau_minus", self._tau_minus_last_entry))
+
+        if self.supervised:
+            prov_data.append(plasticity_helpers.get_lut_provenance(
+                pre_population_label, post_population_label, "SpikePairRule",
+                "tau_c_last_entry", "tau_c", self._tau_c_last_entry))
+            prov_data.append(plasticity_helpers.get_lut_provenance(
+                pre_population_label, post_population_label, "SpikePairRule",
+                "tau_d_last_entry", "tau_d", self._tau_d_last_entry))
+
         return prov_data
 
     @overrides(AbstractTimingDependence.get_parameter_names)
     def get_parameter_names(self):
-        return ['tau_plus', 'tau_minus']
+        names = ['tau_plus', 'tau_minus']
+        if self.supervised:
+            names += ['tau_c', 'tau_d']
+
+        return names

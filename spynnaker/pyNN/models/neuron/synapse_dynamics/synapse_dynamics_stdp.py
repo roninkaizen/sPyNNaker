@@ -20,7 +20,8 @@ class SynapseDynamicsSTDP(
 
     def __init__(
             self, timing_dependence=None, weight_dependence=None,
-            voltage_dependence=None, dendritic_delay_fraction=1.0):
+            voltage_dependence=None,
+            dendritic_delay_fraction=1.0, neuromodulation=False):
         AbstractPlasticSynapseDynamics.__init__(self)
         AbstractPopulationSettable.__init__(self)
         AbstractChangableAfterRun.__init__(self)
@@ -28,6 +29,13 @@ class SynapseDynamicsSTDP(
         self._weight_dependence = weight_dependence
         self._dendritic_delay_fraction = float(dendritic_delay_fraction)
         self._change_requires_mapping = True
+        try:
+            can_be_modulated = timing_dependence.supervised
+        except:
+            print("synapses can't be neuromodulated")
+            can_be_modulated = False
+
+        self._neuromodulation = (neuromodulation and can_be_modulated)
 
         if (self._dendritic_delay_fraction < 0.5 or
                 self._dendritic_delay_fraction > 1.0):
@@ -102,6 +110,10 @@ class SynapseDynamicsSTDP(
     @property
     def timing_dependence(self):
         return self._timing_dependence
+    
+    @property
+    def neuromodulation(self):
+        return self._neuromodulation
 
     @property
     def dendritic_delay_fraction(self):
@@ -126,6 +138,11 @@ class SynapseDynamicsSTDP(
         return False
 
     def get_vertex_executable_suffix(self):
+        # For neuromodulation binary name is set in the supervision synapse
+        
+        if self.neuromodulation:
+            return "_stdp_mad_neuromodulated"
+
         name = "_stdp_mad"
         name += "_" + self._timing_dependence.vertex_executable_suffix
         name += "_" + self._weight_dependence.vertex_executable_suffix

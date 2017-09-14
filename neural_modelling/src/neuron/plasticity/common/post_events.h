@@ -21,6 +21,11 @@ typedef struct {
 
     uint32_t times[MAX_POST_SYNAPTIC_EVENTS];
     post_trace_t traces[MAX_POST_SYNAPTIC_EVENTS];
+#if SYNAPSE_TYPE_COUNT > SYNAPSE_INPUT_TYPE_COUNT
+    uint32_t last_dopamine_spike_time;
+    int16_t last_neuromodulator_trace; // Trace (Updated on pre-spikes)
+    int16_t neuromodulator_level;      // Real time neuromodulator level
+#endif
 } post_event_history_t;
 
 typedef struct {
@@ -55,6 +60,11 @@ static inline post_event_history_t *post_events_init_buffers(
         post_event_history[n].times[0] = 0;
         post_event_history[n].traces[0] = timing_get_initial_post_trace();
         post_event_history[n].count_minus_one = 0;
+#if SYNAPSE_TYPE_COUNT > SYNAPSE_INPUT_TYPE_COUNT
+        post_event_history[n].last_dopamine_spike_time = 0xFFFFFF;
+        post_event_history[n].last_neuromodulator_trace = 0;
+        post_event_history[n].neuromodulator_level = 0;
+#endif
     }
 
     return post_event_history;

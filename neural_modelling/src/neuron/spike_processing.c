@@ -277,8 +277,10 @@ bool spike_processing_initialise(
     simulation_dma_transfer_done_callback_on(
         DMA_TAG_READ_SYNAPTIC_ROW, _dma_complete_callback);
     spin1_callback_on(USER_EVENT, _user_event_callback, user_event_priority);
+    
 
     return true;
+
 }
 
 void spike_processing_finish_write(uint32_t process_id) {

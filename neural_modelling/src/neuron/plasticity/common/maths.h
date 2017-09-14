@@ -22,7 +22,10 @@ static inline address_t maths_copy_int16_lut(
 
     // Copy entries to LUT
     spin1_memcpy(lut, start_address, sizeof(int16_t) * num_entries);
-
+    // uint16_t *data = start_address;
+    // for(uint32_t i=0; i < num_entries; i++){
+    //     log_info("\t\t\tentry %u\t%u", i, data[i]);
+    // }
     // Return address after words
     return start_address + num_words;
 }
