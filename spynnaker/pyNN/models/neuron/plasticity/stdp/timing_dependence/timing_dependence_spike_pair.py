@@ -141,13 +141,13 @@ class TimingDependenceSpikePair(AbstractTimingDependence):
             pre_population_label, post_population_label, "SpikePairRule",
             "tau_minus_last_entry", "tau_minus", self._tau_minus_last_entry))
 
-        if self.supervised:
-            prov_data.append(plasticity_helpers.get_lut_provenance(
-                pre_population_label, post_population_label, "SpikePairRule",
-                "tau_c_last_entry", "tau_c", self._tau_c_last_entry))
-            prov_data.append(plasticity_helpers.get_lut_provenance(
-                pre_population_label, post_population_label, "SpikePairRule",
-                "tau_d_last_entry", "tau_d", self._tau_d_last_entry))
+        # if self.supervised:
+        #     prov_data.append(plasticity_helpers.get_lut_provenance(
+        #         pre_population_label, post_population_label, "SpikePairRule",
+        #         "tau_c_last_entry", "tau_c", self._tau_c_last_entry))
+        #     prov_data.append(plasticity_helpers.get_lut_provenance(
+        #         pre_population_label, post_population_label, "SpikePairRule",
+        #         "tau_d_last_entry", "tau_d", self._tau_d_last_entry))
 
         return prov_data
 

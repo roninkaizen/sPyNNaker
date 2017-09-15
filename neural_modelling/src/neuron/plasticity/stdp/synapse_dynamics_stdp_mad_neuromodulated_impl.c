@@ -77,7 +77,7 @@ static inline post_trace_t add_dopamine_spike(
             DECAY_LOOKUP_TAU_D(delta_time));
 
     // Increase dopamine level due to new spike
-    int16_t new_trace = decayed_trace + concentration;
+    int16_t new_trace = (int16_t)(decayed_trace + concentration);
 
     last_dopamine_spike_time = time;
     *last_dopamine_level = new_trace;
@@ -95,11 +95,11 @@ static inline void correlation_apply_post_spike(
     use(&trace);
 
     // Calculate EXP components in JK's weight update equation
-    int16_t decay_eligibility_trace = DECAY_LOOKUP_TAU_C(
+    int32_t decay_eligibility_trace = DECAY_LOOKUP_TAU_C(
         time - last_non_dopamine_spike_time);
-    int16_t decay_dopamine_trace = DECAY_LOOKUP_TAU_D(
+    int32_t decay_dopamine_trace = DECAY_LOOKUP_TAU_D(
         time - post_event_history -> last_dopamine_spike_time);
-    int16_t third_exp_component;
+    int32_t third_exp_component;
     if (last_update_time == last_non_dopamine_spike_time) {
         third_exp_component = DECAY_LOOKUP_TAU_D(
             last_non_dopamine_spike_time -
@@ -111,7 +111,7 @@ static inline void correlation_apply_post_spike(
     }
 
     // Evaluate weight function
-    uint32_t weight_change = 0;
+    int32_t weight_change = 0;
     if(post_event_history -> last_neuromodulator_trace != 0){
 
         weight_change = STDP_FIXED_MUL_16X16(
@@ -120,18 +120,18 @@ static inline void correlation_apply_post_spike(
             STDP_FIXED_MUL_16X16(weight_update_constant_component,
         STDP_FIXED_MUL_16X16(decay_eligibility_trace, decay_dopamine_trace)
             - third_exp_component));
-    }
 
-    previous_state -> weight += weight_change;
+        previous_state -> weight += weight_change;
 
-    if (previous_state -> weight & 0x8000) {
-        previous_state -> weight = 0;
-    }
-    else {
-        // Saturate weight
-        previous_state -> weight= MIN(weight_state.weight_region->max_weight,
-                                      MAX(previous_state -> weight,
-                                      weight_state.weight_region->min_weight));
+        if (previous_state -> weight & 0x8000) {
+            previous_state -> weight = 0;
+        }
+        else {
+            // Saturate weight
+            previous_state -> weight= MIN(weight_state.weight_region->max_weight,
+                                          MAX(previous_state -> weight,
+                                          weight_state.weight_region->min_weight));
+        }
     }
 
     // Update eligibility trace if this spike is non-dopamine spike
@@ -161,11 +161,11 @@ static inline void correlation_apply_pre_spike(
     use(&last_post_trace);
 
     // Calculate EXP components in JK's weight update equation
-    int16_t decay_eligibility_trace = DECAY_LOOKUP_TAU_C(
+    int32_t decay_eligibility_trace = DECAY_LOOKUP_TAU_C(
         time - last_non_dopamine_spike_time);
-    int16_t decay_dopamine_trace = DECAY_LOOKUP_TAU_D(
+    int32_t decay_dopamine_trace = DECAY_LOOKUP_TAU_D(
         time - post_event_history -> last_dopamine_spike_time);
-    int16_t third_exp_component;
+    int32_t third_exp_component;
     if (last_update_time == last_non_dopamine_spike_time) {
         third_exp_component = DECAY_LOOKUP_TAU_D(
             last_non_dopamine_spike_time -
@@ -177,7 +177,7 @@ static inline void correlation_apply_pre_spike(
     }
 
     // Evaluate weight function
-    uint32_t weight_change = 0;
+    int32_t weight_change = 0;
     if(post_event_history -> last_neuromodulator_trace != 0){
 
         weight_change = STDP_FIXED_MUL_16X16(
@@ -186,21 +186,22 @@ static inline void correlation_apply_pre_spike(
             STDP_FIXED_MUL_16X16(weight_update_constant_component,
         STDP_FIXED_MUL_16X16(decay_eligibility_trace, decay_dopamine_trace)
             - third_exp_component));
-    }
 
-    previous_state -> weight += weight_change;
 
-    if (previous_state -> weight & 0x8000) {
-        previous_state -> weight = 0;
-    } else {
-        // Saturate weight
-        previous_state -> weight= MIN(weight_state.weight_region->max_weight,
-                                      MAX(previous_state -> weight,
-                                      weight_state.weight_region->min_weight));
+        previous_state -> weight += weight_change;
+
+        if (previous_state -> weight & 0x8000) {
+            previous_state -> weight = 0;
+        } else {
+            // Saturate weight
+            previous_state -> weight= MIN(weight_state.weight_region->max_weight,
+                                          MAX(previous_state -> weight,
+                                          weight_state.weight_region->min_weight));
+        }
     }
 
     // Update eligibility trace if this spike is non-dopamine spike
-    if (last_post_trace.dopamine == 0) {
+//    if (last_post_trace.dopamine == 0) {
         // Decay eligibility trace
         int32_t decayed_eligibility_trace = STDP_FIXED_MUL_16X16(
             previous_state -> eligibility_trace, decay_eligibility_trace);
@@ -212,12 +213,12 @@ static inline void correlation_apply_pre_spike(
                 last_post_trace.stdp_post_trace,
                 DECAY_LOOKUP_TAU_MINUS(time_since_last_post));
             decayed_eligibility_trace -= decayed_r1;
-            if (decayed_eligibility_trace < 0) {
-                decayed_eligibility_trace = 0;
-            }
+//            if (decayed_eligibility_trace < 0) {
+//                decayed_eligibility_trace = 0;
+//            }
         }
         previous_state -> eligibility_trace = decayed_eligibility_trace;
-    }
+//    }
 }
 
 // Synapse update loop
