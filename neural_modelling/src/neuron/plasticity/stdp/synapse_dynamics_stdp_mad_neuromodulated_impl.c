@@ -112,8 +112,7 @@ static inline void correlation_apply_post_spike(
 
     // Evaluate weight function
     uint32_t weight_change = 0;
-    if(post_event_history -> last_neuromodulator_trace != 0 &&
-        previous_state -> eligibility_trace != 0){
+    if(post_event_history -> last_neuromodulator_trace != 0){
 
         weight_change = STDP_FIXED_MUL_16X16(
             STDP_FIXED_MUL_16X16(post_event_history -> last_neuromodulator_trace,
@@ -179,8 +178,7 @@ static inline void correlation_apply_pre_spike(
 
     // Evaluate weight function
     uint32_t weight_change = 0;
-    if(post_event_history -> last_neuromodulator_trace != 0 &&
-        previous_state -> eligibility_trace != 0){
+    if(post_event_history -> last_neuromodulator_trace != 0){
 
         weight_change = STDP_FIXED_MUL_16X16(
             STDP_FIXED_MUL_16X16(post_event_history -> last_neuromodulator_trace,
