@@ -10,12 +10,13 @@ from spynnaker.pyNN.models.neuron.synapse_types.synapse_type_exp_supervision \
     import ExpSupervision
 from spynnaker.pyNN.models.neuron.threshold_types.threshold_type_static \
     import ThresholdTypeStatic
-
+# global objects
+DEFAULT_MAX_ATOMS_PER_CORE = 255
 
 class IFCurrExpSupervision(AbstractPopulationVertex):
 
     # the maximum number of atoms per core that can be supported
-    _model_based_max_atoms_per_core = 256
+    _model_based_max_atoms_per_core = DEFAULT_MAX_ATOMS_PER_CORE
 
     # default parameters for this build. Used when end user has not entered any
     default_parameters = {
@@ -75,7 +76,7 @@ class IFCurrExpSupervision(AbstractPopulationVertex):
                 binary="IF_curr_exp_supervision.aplx")
 
     @staticmethod
-    def set_model_max_atoms_per_core(new_value):
+    def set_model_max_atoms_per_core(new_value=DEFAULT_MAX_ATOMS_PER_CORE):
 
         IFCurrExpSupervision._model_based_max_atoms_per_core = new_value
 

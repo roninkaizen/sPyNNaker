@@ -48,7 +48,7 @@ from spynnaker.pyNN.utilities.utility_calls \
     translate_parameters
 from spynnaker.pyNN.utilities.running_stats import RunningStats
 
-
+TIME_STAMP_BYTES = 4
 
 DEFAULT_CONN_PARAMS_KEYS = {'uniform': ['low', 'high'],
                             'normal':  ['mean', 'std_dev'],
@@ -131,6 +131,7 @@ class SynapticManager(object):
         self._address_list = None
         self._any_gen_on_machine = False
         self._matrix_size = 0
+        self._num_post_targets = {}
 
     @property
     def synapse_dynamics(self):
@@ -262,9 +263,14 @@ class SynapticManager(object):
                 # Get an estimate of the number of pre-vertices - clearly
                 # this will not be correct if the SDRAM usage is high!
                 n_atoms_per_machine_vertex = sys.maxint
-                if isinstance(in_edge.pre_vertex, AbstractHasGlobalMaxAtoms):
+                # if isinstance(in_edge.pre_vertex, AbstractHasGlobalMaxAtoms):
+                #     n_atoms_per_machine_vertex = \
+                #         in_edge.pre_vertex.get_max_atoms_per_core()
+                try:
                     n_atoms_per_machine_vertex = \
                         in_edge.pre_vertex.get_max_atoms_per_core()
+                except:
+                    pass
                 if in_edge.pre_vertex.n_atoms < n_atoms_per_machine_vertex:
                     n_atoms_per_machine_vertex = in_edge.pre_vertex.n_atoms
 
@@ -637,8 +643,8 @@ class SynapticManager(object):
                     m_edge.pre_vertex)
                 
                 for synapse_info in app_edge.synapse_information:
-
-                    gen_in_spinn = synapse_info.connector.generate_on_machine()
+                    conn = synapse_info.connector
+                    gen_in_spinn = conn.generate_on_machine()
                     self._any_gen_on_machine |= gen_in_spinn
 
                     # print("\n\n%s\n"%synapse_info.connector)
@@ -649,11 +655,11 @@ class SynapticManager(object):
 
                         # 32-bit words required by each pre neuron to connect to
                         # X post neurons
-                        max_row_length = synapse_info.connector.\
-                                             get_n_connections_from_pre_vertex_maximum\
+                        max_row_length = conn.get_n_connections_from_pre_vertex_maximum\
                                                  (pre_slices, pre_slice_idx,
                                                   post_slices, post_slice_index,
                                                   pre_vertex_slice, post_vertex_slice)
+                        self._num_post_targets[conn] = max_row_length
                         # print("MAX ROW LENGTH %d"%(max_row_length))
                         if max_row_length == 0:
                             continue
@@ -663,20 +669,22 @@ class SynapticManager(object):
                             # print(dir(syn_info.synapse_dynamics))
                             try:
                                 header_bytes = synapse_info.\
-                                                      synapse_dynamics._n_header_bytes
+                                                        synapse_dynamics._n_header_bytes
                             except:
                                 # print("aparently not!")
                                 header_bytes = 0
 
                             n_32bit_header_words = numpy.uint32(
-                                                   header_bytes // 4 + header_bytes % 4)
+                                                   header_bytes // 4 +
+                                                   (1 if header_bytes % 4 > 0 else 0) )
                             # print("number of 32-bit header words: "
                             #       "%d"%n_32bit_header_words)
 
-                            # weights [plastic-plastic]
+                            # weights [plastic-plastic] are 32-bit (why?)
                             # and (delay,type,target) [fixed-plastic]
-                            # info are both 16-bit words
-                            max_row_length = 2*(max_row_length//2 + max_row_length % 2)
+                            # are 16-bit words
+                            # apparently we love wasting space!
+                            max_row_length += (max_row_length//2 + max_row_length % 2)
                             max_row_length += n_32bit_header_words
 
                         max_conn_delay = synapse_info.connector.get_delay_maximum()
@@ -699,6 +707,7 @@ class SynapticManager(object):
                         # num_pre = num_pre * stages
                         # print("Num pre = %d"%num_pre)
                         # print("Max row length = %d"%max_row_length)
+                        #add 3 due to format of matrix
                         data_length = num_pre * (max_row_length + 3)
                         # print("Data length = %d"%data_length)
 
@@ -1326,6 +1335,7 @@ class SynapticManager(object):
                 param_block.append(address_delta)
                 param_block.append(row_len)
                 param_block.append(n_pre_neurons)
+                param_block.append(numpy.uint32(self._num_post_targets[conn]))
                 param_block.append(slice_start)
                 param_block.append(slice_count)
                 param_block.append(direct)
@@ -1368,8 +1378,10 @@ class SynapticManager(object):
                         # print("aparently not!")
                         header_bytes = 0
 
-                    n_32bit_header_words = numpy.uint32(header_bytes//4 + header_bytes%4)
-                    # print("number of 32-bit header words: %d"%n_32bit_header_words)
+                    n_32bit_header_words = numpy.uint32(header_bytes//4 +
+                                                        (1 if header_bytes%4 > 0 else 0))
+                    # print("\n\nheader bytes: %d"%header_bytes)
+                    # print("number of 32-bit header words: %d\n\n"%n_32bit_header_words)
                 else:
                     n_32bit_header_words = 0
 

@@ -207,8 +207,10 @@ class KernelConnector(AbstractConnector):
 
                 r, c = self.pre_as_post((r, c))
 
-                fr_r = max(0, r - hh); to_r = min(r + hh + 1, self._shape_pre[HEIGHT])
-                fr_c = max(0, c - hw); to_c = min(c + hw + 1, self._shape_pre[WIDTH])
+                fr_r = max(0, r - hh)
+                to_r = min(r + hh + 1, self._shape_pre[HEIGHT])
+                fr_c = max(0, c - hw)
+                to_c = min(c + hw + 1, self._shape_pre[WIDTH])
 
                 if fr_r <= pre_r and pre_r < to_r and \
                    fr_c <= pre_c and pre_c < to_c:

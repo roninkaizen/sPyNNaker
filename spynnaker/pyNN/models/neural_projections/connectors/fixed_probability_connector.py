@@ -126,4 +126,4 @@ class FixedProbabilityConnector(AbstractConnector):
 
     def gen_on_machine_info(self):
         return [self._allow_self_connections,
-                self._p_connect * numpy.uint32(0xFFFFFFFF)]
+                numpy.uint32(self._p_connect * (1 << 32))]

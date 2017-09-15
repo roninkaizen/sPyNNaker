@@ -180,7 +180,7 @@ class SynapseDynamicsSTDP(
             TIME_STAMP_BYTES + self.timing_dependence.pre_trace_n_bytes)
 
         # The actual number of bytes is in a word-aligned struct, so work out
-        # the number of words
+        # the number to fit words
         return int(math.ceil(float(n_bytes) / 4.0)) * 4
 
     def get_n_words_for_plastic_connections(self, n_connections):
