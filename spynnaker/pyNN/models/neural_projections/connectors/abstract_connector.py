@@ -335,8 +335,8 @@ class AbstractConnector(object):
     def _generate_weights(self, values, n_connections, connection_slices):
         """ Generate weight values
         """
-        weights = self._generate_values(
-            values, n_connections, connection_slices)
+        weights = numpy.clip(self._generate_values(
+                    values, n_connections, connection_slices), 0., numpy.inf)
         if self._safe:
             if len(weights) == 0:
                 logger.warning("No connection in " + str(self))

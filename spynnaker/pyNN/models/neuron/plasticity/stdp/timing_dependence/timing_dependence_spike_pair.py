@@ -6,6 +6,8 @@ from spynnaker.pyNN.models.neuron.plasticity.stdp.common \
 from .abstract_timing_dependence import AbstractTimingDependence
 from spynnaker.pyNN.models.neuron.plasticity.stdp.synapse_structure\
     import SynapseStructureWeightEligibilityTrace
+from spynnaker.pyNN.models.neuron.plasticity.stdp.synapse_structure\
+    import SynapseStructureWeightOnly
 
 import logging
 logger = logging.getLogger(__name__)
@@ -28,7 +30,11 @@ class TimingDependenceSpikePair(AbstractTimingDependence):
         self._tau_c = tau_c
         self._tau_d = tau_d
         self._supervised = ((tau_c is not None) and (tau_d is not None))
-        self._synapse_structure = SynapseStructureWeightEligibilityTrace()
+        if self._supervised:
+            self._synapse_structure = SynapseStructureWeightEligibilityTrace()
+        else:
+            self._synapse_structure = SynapseStructureWeightOnly
+
         self._tau_plus_last_entry = None
         self._tau_minus_last_entry = None
         self._tau_c_last_entry = None

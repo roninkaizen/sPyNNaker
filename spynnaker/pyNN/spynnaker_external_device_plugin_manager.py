@@ -170,13 +170,13 @@ class SpynnakerExternalDevicePluginManager(object):
             port=port, hostname=hostname, tag=tag, board_address=board_address,
             strip_sdp=strip_sdp, use_prefix=use_prefix, key_prefix=key_prefix,
             prefix_type=prefix_type, message_type=message_type,
-            right_shift=right_shift, payload_prefix=payload_prefix,
-            payload_as_time_stamps=payload_as_time_stamps,
-            use_payload_prefix=use_payload_prefix,
+            right_shift=right_shift, payload_as_time_stamps=payload_as_time_stamps,
+            use_payload_prefix=use_payload_prefix, payload_prefix=payload_prefix,
             payload_right_shift=payload_right_shift,
-            number_of_packets_sent_per_time_step=(
-                number_of_packets_sent_per_time_step),
+            number_of_packets_sent_per_time_step=(number_of_packets_sent_per_time_step),
+            label=vertex_to_record_from.label,
             partition_id=partition_id)
+
 
         # add to the tracker
         globals_variables.get_simulator().add_live_packet_gatherer_parameters(

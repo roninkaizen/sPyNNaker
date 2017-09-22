@@ -132,6 +132,7 @@ class SynapticManager(object):
         self._any_gen_on_machine = False
         self._matrix_size = 0
         self._num_post_targets = {}
+        self._num_words_per_weight = {}
 
     @property
     def synapse_dynamics(self):
@@ -655,16 +656,16 @@ class SynapticManager(object):
 
                         # 32-bit words required by each pre neuron to connect to
                         # X post neurons
-                        max_row_length = conn.get_n_connections_from_pre_vertex_maximum\
+                        conns_per_row = conn.get_n_connections_from_pre_vertex_maximum\
                                                  (pre_slices, pre_slice_idx,
                                                   post_slices, post_slice_index,
                                                   pre_vertex_slice, post_vertex_slice)
-                        self._num_post_targets[conn] = max_row_length
+                        self._num_post_targets[conn] = conns_per_row
                         # print("MAX ROW LENGTH %d"%(max_row_length))
-                        if max_row_length == 0:
+                        if conns_per_row == 0:
                             continue
 
-                        if not synapse_info.synapse_dynamics.is_static:
+                        if synapse_info.synapse_dynamics.is_plastic:
                             # print("does syn_dyn have n_header_words?")
                             # print(dir(syn_info.synapse_dynamics))
                             try:
@@ -680,15 +681,31 @@ class SynapticManager(object):
                             # print("number of 32-bit header words: "
                             #       "%d"%n_32bit_header_words)
 
-                            # weights [plastic-plastic] are 32-bit (why?)
-                            # and (delay,type,target) [fixed-plastic]
-                            # are 16-bit words
-                            # apparently we love wasting space!
-                            max_row_length += (max_row_length//2 + max_row_length % 2)
+                            bytes_per_weight = synapse_info.synapse_dynamics.\
+                                                 timing_dependence._synapse_structure.\
+                                                 get_n_bytes_per_connection()
+
+                            half_words_per_weight = bytes_per_weight//2 + \
+                                                    bytes_per_weight%2
+                            half_words_per_row = half_words_per_weight*conns_per_row
+                            weight_words_per_row = half_words_per_row//2 + \
+                                                   half_words_per_row%2
+                            self._num_words_per_weight[synapse_info.connector] = \
+                                                                    half_words_per_weight
+                            # 16-bit control vars in 32-bit words
+                            control_words_per_row = \
+                                        (conns_per_row//2 + conns_per_row % 2)
+
+                            max_row_length = weight_words_per_row
+                            max_row_length += control_words_per_row
                             max_row_length += n_32bit_header_words
+                        else:
+                            max_row_length = conns_per_row
+                            self._num_words_per_weight[conn] = 0
 
                         max_conn_delay = synapse_info.connector.get_delay_maximum()
 
+                        #todo: get 16 from global config
                         n_stages = max_conn_delay // 16
 
                         if (max_conn_delay % 16) == 0:
@@ -1336,6 +1353,7 @@ class SynapticManager(object):
                 param_block.append(row_len)
                 param_block.append(n_pre_neurons)
                 param_block.append(numpy.uint32(self._num_post_targets[conn]))
+                param_block.append(numpy.uint32(self._num_words_per_weight[conn]))
                 param_block.append(slice_start)
                 param_block.append(slice_count)
                 param_block.append(direct)
