@@ -694,7 +694,7 @@ class SynapticManager(object):
                             half_words_per_row = half_words_per_weight*conns_per_row
                             weight_words_per_row = half_words_per_row//2 + \
                                                    half_words_per_row%2
-                            self._num_words_per_weight[synapse_info.connector] = \
+                            self._num_words_per_weight[synapse_info] = \
                                                                     half_words_per_weight
                             # 16-bit control vars in 32-bit words
                             control_words_per_row = \
