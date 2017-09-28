@@ -10,8 +10,8 @@ class MappingConnector(AbstractConnector):
     pynn_population.py for all i.
     """
 
-    def __init__(self, width, height, row_bits, channel, channel_bits=1, safe=True,
-            verbose=False, generate_on_machine=False,
+    def __init__(self, width, height, row_bits, channel, channel_bits=1, event_bits=0,
+            safe=True, verbose=False, generate_on_machine=False,
             random_number_class=RandomDistribution):
         """
         """
@@ -22,10 +22,18 @@ class MappingConnector(AbstractConnector):
         self._row_mask = (1 << row_bits) - 1
         self._channel_bits = channel_bits
         self._channel_mask = (1 << channel_bits) - 1
-        self._col_shift_bits = row_bits + channel_bits
+
+        self._event_bits = event_bits
+        self._event_mask = (1 << event_bits) - 1
+
+        self._chan_shift_bits = event_bits
+        self._row_shift_bits = channel_bits + self._chan_shift_bits
+        self._col_shift_bits = row_bits + self._row_shift_bits
+
         self._col_mask = (1 << (32 - self._col_shift_bits)) - 1
 
         self._channel = channel & self._channel_mask
+
         self._random_number_class = random_number_class
 
         AbstractConnector.__init__(self, safe, verbose,
@@ -58,9 +66,8 @@ class MappingConnector(AbstractConnector):
 
 
     def extreme_row(self, v_slice, op):
-        ids = numpy.arange(v_slice.lo_atom, v_slice.hi_atom + 1,
-                           dtype='uint32')
-        rows = numpy.bitwise_and(numpy.right_shift(ids, self._channel_bits),
+        ids = numpy.arange(v_slice.lo_atom, v_slice.hi_atom + 1, dtype='uint32')
+        rows = numpy.bitwise_and(numpy.right_shift(ids, self._row_shift_bits),
                                  self._row_mask)
         if op == 'max':
             return rows.max()
@@ -69,9 +76,8 @@ class MappingConnector(AbstractConnector):
 
 
     def extreme_col(self, v_slice, op):
-        ids = numpy.arange(v_slice.lo_atom, v_slice.hi_atom + 1,
-                           dtype='uint32')
-        cols = numpy.right_shift(ids, self._channel_bits + self._row_bits)
+        ids = numpy.arange(v_slice.lo_atom, v_slice.hi_atom + 1, dtype='uint32')
+        cols = numpy.right_shift(ids, self._col_shift_bits)
 
         if op == 'max':
             return cols.max()
@@ -83,8 +89,8 @@ class MappingConnector(AbstractConnector):
         row = numpy.bitwise_and(numpy.uint32(row), self._row_mask)
         col = numpy.bitwise_and(numpy.uint32(col), self._col_mask)
         id = numpy.left_shift(col, self._col_shift_bits) + \
-             numpy.left_shift(row, self._channel_bits) + \
-             (self._channel)
+             numpy.left_shift(row, self._row_shift_bits) + \
+             numpy.left_shift(self._channel, self._chan_shift_bits)
         return numpy.uint32(id)
 
     def in_pre_range(self, min_row, max_row, pre_slice):
@@ -97,7 +103,7 @@ class MappingConnector(AbstractConnector):
         return matching
 
     def to_post_ids(self, indices):
-        rows = numpy.bitwise_and(numpy.right_shift(indices, self._channel_bits),
+        rows = numpy.bitwise_and(numpy.right_shift(indices, self._row_shift_bits),
                                  self._row_mask)
         cols = numpy.bitwise_and(numpy.right_shift(indices, self._col_shift_bits),
                                  self._col_mask)
@@ -154,8 +160,11 @@ class MappingConnector(AbstractConnector):
             self, pre_slices, pre_slice_index, post_slices,
             post_slice_index, pre_vertex_slice, post_vertex_slice,
             min_delay=None, max_delay=None):
+        n_conns = int(self._nconns(pre_vertex_slice, post_vertex_slice) > 0)
 
-        if self._nconns(pre_vertex_slice, post_vertex_slice) == 0:
+        # print("in get_n_connections_from_pre_vertex_maximum")
+        # print(n_conns)
+        if n_conns == 0:
             return 0
 
         max_lo_atom = max(
@@ -164,28 +173,31 @@ class MappingConnector(AbstractConnector):
             (pre_vertex_slice.hi_atom, post_vertex_slice.hi_atom))
 
         if min_delay is None or max_delay is None:
-            return 1
+            return n_conns
         if isinstance(self._delays, self._random_number_class):
-            return 1
+            return n_conns
         elif numpy.isscalar(self._delays):
             if self._delays >= min_delay and self._delays <= max_delay:
-                return 1
+                return n_conns
             return 0
         else:
             connection_slice = slice(max_lo_atom, min_hi_atom + 1)
             slice_min_delay = min(self._delays[connection_slice])
             slice_max_delay = max(self._delays[connection_slice])
             if slice_min_delay >= min_delay and slice_max_delay <= max_delay:
-                return 1
+                return n_conns
             return 0
 
     def get_n_connections_to_post_vertex_maximum(
             self, pre_slices, pre_slice_index, post_slices,
             post_slice_index, pre_vertex_slice, post_vertex_slice):
 
-        if self._nconns(pre_vertex_slice, post_vertex_slice) == 0:
+        # return min(self._nconns(pre_vertex_slice, post_vertex_slice),
+        #            post_vertex_slice.n_atoms)
+        if self._nconns(pre_vertex_slice, post_vertex_slice) > 0:
+            return 1
+        else:
             return 0
-        return 1
 
     def get_weight_mean(
             self, pre_slices, pre_slice_index, post_slices,
@@ -293,7 +305,9 @@ class MappingConnector(AbstractConnector):
         block.append( shape2word(self._width,
                                  self._height) )
 
-        block.append( numpy.uint32(self._channel + (self._channel_bits << 8) +
-                                   (self._row_bits << 16)) )
+        block.append( numpy.uint32(self._channel +
+                                   (self._event_bits << 8) +
+                                   (self._channel_bits << 16) +
+                                   (self._row_bits << 24)) )
 
         return block

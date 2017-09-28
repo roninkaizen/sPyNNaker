@@ -57,6 +57,7 @@ static inline int32_t maths_lut_exponential_decay(
     return (lut_index < lut_size) ? lut[lut_index] : 0;
 }
 
+
 //---------------------------------------
 static inline int32_t maths_fixed_mul16(
         int32_t a, int32_t b, const int32_t fixed_point_position) {

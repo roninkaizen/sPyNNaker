@@ -9,6 +9,7 @@ int16_t tau_minus_lookup[TAU_MINUS_SIZE];
 int16_t tau_c_lookup[TAU_C_SIZE];
 int16_t tau_d_lookup[TAU_D_SIZE];
 int32_t weight_update_constant_component=0;
+
 //---------------------------------------
 // Functions
 //---------------------------------------

@@ -12,6 +12,7 @@ from pacman.model.abstract_classes import AbstractHasGlobalMaxAtoms
 from pacman.model.graphs.common import Slice
 
 # spinn utils
+
 from spinn_utilities.helpful_functions import get_valid_components
 
 # fec
@@ -47,6 +48,7 @@ from spynnaker.pyNN.utilities.utility_calls \
     import get_maximum_probable_value, write_parameters_per_neuron, \
     translate_parameters
 from spynnaker.pyNN.utilities.running_stats import RunningStats
+
 
 TIME_STAMP_BYTES = 4
 
@@ -644,6 +646,7 @@ class SynapticManager(object):
                     m_edge.pre_vertex)
                 
                 for synapse_info in app_edge.synapse_information:
+
                     conn = synapse_info.connector
                     gen_in_spinn = conn.generate_on_machine()
                     self._any_gen_on_machine |= gen_in_spinn
@@ -660,10 +663,11 @@ class SynapticManager(object):
                                                  (pre_slices, pre_slice_idx,
                                                   post_slices, post_slice_index,
                                                   pre_vertex_slice, post_vertex_slice)
-                        self._num_post_targets[conn] = conns_per_row
                         # print("MAX ROW LENGTH %d"%(max_row_length))
                         if conns_per_row == 0:
                             continue
+
+                        self._num_post_targets[synapse_info] = conns_per_row
 
                         if synapse_info.synapse_dynamics.is_plastic:
                             # print("does syn_dyn have n_header_words?")
@@ -701,7 +705,7 @@ class SynapticManager(object):
                             max_row_length += n_32bit_header_words
                         else:
                             max_row_length = conns_per_row
-                            self._num_words_per_weight[conn] = 0
+                            self._num_words_per_weight[synapse_info] = 0
 
                         max_conn_delay = synapse_info.connector.get_delay_maximum()
 
@@ -1111,9 +1115,9 @@ class SynapticManager(object):
             self, transceiver, placement, vertex_slice):
         # locate sdram address to where the synapse parameters are stored
         synapse_region_sdram_address = \
-            helpful_functions.locate_memory_region_for_placement(
+                locate_memory_region_for_placement(
                 placement,
-                constants.POPULATION_BASED_REGIONS.SYNAPSE_PARAMS.value,
+                POPULATION_BASED_REGIONS.SYNAPSE_PARAMS.value,
                 transceiver)
 
         # get size of synapse params
@@ -1126,7 +1130,7 @@ class SynapticManager(object):
             placement.x, placement.y, synapse_region_sdram_address,
             size_of_region)
 
-        synapse_params, _ = utility_calls.translate_parameters(
+        synapse_params, _ = translate_parameters(
             self._synapse_type.get_synapse_type_parameter_types(),
             byte_array, 0, vertex_slice)
         self._synapse_type.set_synapse_type_parameters(
@@ -1136,12 +1140,14 @@ class SynapticManager(object):
             self, spec, placement, machine_time_step, time_scale_factor,
             vertex_slice):
         spec.reserve_memory_region(
-            region=constants.POPULATION_BASED_REGIONS.SYNAPSE_PARAMS.value,
+            region=POPULATION_BASED_REGIONS.SYNAPSE_PARAMS.value,
             size=self._get_synapse_params_size(vertex_slice),
             label='SynapseParams')
+
         spec.switch_write_focus(
-            region=constants.POPULATION_BASED_REGIONS.SYNAPSE_PARAMS.value)
-        utility_calls.write_parameters_per_neuron(
+            region=POPULATION_BASED_REGIONS.SYNAPSE_PARAMS.value)
+
+        write_parameters_per_neuron(
             spec, vertex_slice,
             self._synapse_type.get_synapse_type_parameters())
 
@@ -1339,21 +1345,22 @@ class SynapticManager(object):
             # if max_per_dyn_type[int_dyn_type] < max_per_pre:
             #     max_per_dyn_type[int_dyn_type] = max_per_pre
 
-            if conn.generate_on_machine():
+            if conn.generate_on_machine() and syn_info in self._num_post_targets :#\
+               # and self._num_post_targets[synapse_info] > 0 \
+               # and row_len > 0:
 
                 for _ in range(num_seeds):
-                    rnd_int = numpy.random.randint(1324, 2 ** 32)
+                    rnd_int = numpy.random.randint(1323, 2 ** 32)
                     param_block.append(numpy.uint32(rnd_int))
 
                 param_block.append(conn.name_hash())
-                # param_block.append(max_conns)
                 param_block.append(key)#todo: don't need?
                 param_block.append(mask)#todo: don't need?
                 param_block.append(address_delta)
                 param_block.append(row_len)
                 param_block.append(n_pre_neurons)
-                param_block.append(numpy.uint32(self._num_post_targets[conn]))
-                param_block.append(numpy.uint32(self._num_words_per_weight[conn]))
+                param_block.append(numpy.uint32(self._num_post_targets[syn_info]))
+                param_block.append(numpy.uint32(self._num_words_per_weight[syn_info]))
                 param_block.append(slice_start)
                 param_block.append(slice_count)
                 param_block.append(direct)
@@ -1532,7 +1539,8 @@ class SynapticManager(object):
                      # 1 for num_synapse_types
                      # 1 for synapse_bits
                      # 1 for num header words for plastic weights
-
+        # print("in _write_on_machine_data_spec")
+        # print(total_count)
         # print("Reserving connector builder region")
         spec.reserve_memory_region(
             region=POPULATION_BASED_REGIONS.CONNECTOR_BUILDER.value,
