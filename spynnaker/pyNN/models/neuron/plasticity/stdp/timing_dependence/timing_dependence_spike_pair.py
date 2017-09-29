@@ -33,7 +33,7 @@ class TimingDependenceSpikePair(AbstractTimingDependence):
         if self._supervised:
             self._synapse_structure = SynapseStructureWeightEligibilityTrace()
         else:
-            self._synapse_structure = SynapseStructureWeightOnly
+            self._synapse_structure = SynapseStructureWeightOnly()
 
         self._tau_plus_last_entry = None
         self._tau_minus_last_entry = None
