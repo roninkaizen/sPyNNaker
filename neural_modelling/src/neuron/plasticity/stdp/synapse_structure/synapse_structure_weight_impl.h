@@ -6,10 +6,7 @@
 //---------------------------------------
 // Plastic synapse types have weights and eligibility traces
 #if SYNAPSE_TYPE_COUNT > SYNAPSE_INPUT_TYPE_COUNT
-typedef struct {
-    int16_t eligibility_trace;
-    weight_t weight;
-} plastic_synapse_t;
+typedef int32_t plastic_synapse_t;
 #else
 typedef weight_t plastic_synapse_t;
 #endif
@@ -21,16 +18,35 @@ typedef weight_state_t update_state_t;
 // Both the weight and the synaptic word
 typedef weight_t final_state_t;
 
+
+
 //---------------------------------------
 // Synapse interface functions
 //---------------------------------------
+
+static inline int32_t synapse_structure_get_weight(plastic_synapse_t state) {
+    return (state >> 16);
+}
+
+static inline int32_t synapse_structure_get_eligibility_trace(plastic_synapse_t state) {
+    return (state & 0xFFFF);
+}
+
+static inline int32_t synapse_structure_update_state(int32_t trace, int32_t weight) {
+    return (plastic_synapse_t)(((((uint16_t)(weight)) << 16)) | (int16_t)trace);
+//    return (plastic_synapse_t)((weight << 16) | trace);
+}
+
 static inline update_state_t synapse_structure_get_update_state(
         plastic_synapse_t synaptic_word, index_t synapse_type) {
+
 #if SYNAPSE_TYPE_COUNT > SYNAPSE_INPUT_TYPE_COUNT
-    return weight_get_initial(synaptic_word.weight, synapse_type);
+    return weight_get_initial(synapse_structure_get_weight(synaptic_word),
+                              synapse_type);
 #else
     return weight_get_initial(synaptic_word, synapse_type);
 #endif
+
 }
 
 //---------------------------------------
@@ -54,7 +70,7 @@ static inline plastic_synapse_t synapse_structure_get_final_synaptic_word(
     return final_state;
 #else
     use(final_state);
-    return (plastic_synapse_t){0,0};
+    return (plastic_synapse_t)0;
 #endif
 }
 

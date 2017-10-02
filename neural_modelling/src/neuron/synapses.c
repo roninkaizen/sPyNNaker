@@ -182,13 +182,9 @@ static inline void _process_fixed_synapses(
             uint32_t concentration = synapse_row_sparse_weight(synaptic_word);
             uint32_t index = synapse_row_sparse_index(synaptic_word);
             uint32_t delay = synapse_row_sparse_delay(synaptic_word);
-            // In case this is punishment synapse, invert dopamine level
-            // to cause depression.
-            if (synapse_type == 3) {
-                concentration = ~concentration + 1; //fancy c = -c
-            }
+
             synapse_dynamics_process_neuromodulator_event(time + delay,
-                concentration, index);
+                concentration, synapse_type, index);
         }
         else {
             // Extract components from this word

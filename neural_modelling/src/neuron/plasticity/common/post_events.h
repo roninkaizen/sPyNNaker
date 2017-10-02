@@ -21,11 +21,8 @@ typedef struct {
 
     uint32_t times[MAX_POST_SYNAPTIC_EVENTS];
     post_trace_t traces[MAX_POST_SYNAPTIC_EVENTS];
-#if SYNAPSE_TYPE_COUNT > SYNAPSE_INPUT_TYPE_COUNT
-    uint32_t last_dopamine_spike_time;
-    uint32_t last_non_dopamine_spike_time;
-    int16_t last_neuromodulator_trace; // Trace (Updated on pre-spikes)
-    int16_t neuromodulator_level;      // Real time neuromodulator level
+#ifdef _SYNAPSE_TYPES_EXP_SUPERVISION_IMPL_H
+    uint32_t dopamine_trace_markers;
 #endif
 } post_event_history_t;
 
@@ -35,6 +32,9 @@ typedef struct {
     const post_trace_t *next_trace;
     const uint32_t *next_time;
     uint32_t num_events;
+#ifdef _SYNAPSE_TYPES_EXP_SUPERVISION_IMPL_H
+    uint32_t dopamine_trace_markers;
+#endif
 } post_event_window_t;
 
 //---------------------------------------
@@ -61,11 +61,8 @@ static inline post_event_history_t *post_events_init_buffers(
         post_event_history[n].times[0] = 0;
         post_event_history[n].traces[0] = timing_get_initial_post_trace();
         post_event_history[n].count_minus_one = 0;
-#if SYNAPSE_TYPE_COUNT > SYNAPSE_INPUT_TYPE_COUNT
-        post_event_history[n].last_dopamine_spike_time = 0xFFFFFF;
-        post_event_history[n].last_non_dopamine_spike_time = 0x1FFFFFF;
-        post_event_history[n].last_neuromodulator_trace = 0;
-        post_event_history[n].neuromodulator_level = 0;
+#ifdef _SYNAPSE_TYPES_EXP_SUPERVISION_IMPL_H
+        post_event_history[n].dopamine_trace_markers = 0;
 #endif
     }
 
@@ -144,7 +141,10 @@ static inline post_event_window_t post_events_get_window_delayed(
     const post_trace_t *end_event_trace = events->traces + count;
     window.next_trace = (end_event_trace - window.num_events);
     window.prev_trace = *(window.next_trace - 1);
-
+#ifdef _SYNAPSE_TYPES_EXP_SUPERVISION_IMPL_H
+    window.dopamine_trace_markers = (events -> dopamine_trace_markers
+                                     >> (count - window.num_events));
+#endif
     // Return window
     return window;
 }
@@ -174,12 +174,67 @@ static inline post_event_window_t post_events_next_delayed(
 
     // Decrement remaining events
     window.num_events--;
+#ifdef _SYNAPSE_TYPES_EXP_SUPERVISION_IMPL_H
+    window.dopamine_trace_markers >>= 1;
+#endif
     return window;
 }
 
+
+#ifdef _SYNAPSE_TYPES_EXP_SUPERVISION_IMPL_H
+static inline bool post_events_next_is_dopamine(
+        post_event_window_t window) {
+    return (window.dopamine_trace_markers & 0x1) != 0x0;
+}
+#endif
+
 //---------------------------------------
+#ifdef _SYNAPSE_TYPES_EXP_SUPERVISION_IMPL_H
+static inline void post_events_add(uint32_t time, post_event_history_t *events,
+                                   post_trace_t trace, bool dopamine) {
+
+    if (events->count_minus_one < (MAX_POST_SYNAPTIC_EVENTS - 1)) {
+
+        // If there's still space, store time at current end
+        // and increment count minus 1
+        const uint32_t new_index = ++events->count_minus_one;
+        events->times[new_index] = time;
+        events->traces[new_index] = trace;
+
+        if(dopamine) {
+            events->dopamine_trace_markers |= (1 << new_index);
+        }
+        else {
+            events->dopamine_trace_markers &= ~(1 << new_index);
+        }
+    } else {
+
+        // Otherwise Shuffle down elements
+        // **NOTE** 1st element is always an entry at time 0
+        for (uint32_t e = 2; e < MAX_POST_SYNAPTIC_EVENTS; e++) {
+            events->times[e - 1] = events->times[e];
+            events->traces[e - 1] = events->traces[e];
+        }
+        events->dopamine_trace_markers >>= 1;
+
+        // Stick new time at end
+        events->times[MAX_POST_SYNAPTIC_EVENTS - 1] = time;
+        events->traces[MAX_POST_SYNAPTIC_EVENTS - 1] = trace;
+
+        if(dopamine) {
+            events->dopamine_trace_markers |=
+                (1 << (MAX_POST_SYNAPTIC_EVENTS - 1));
+        }
+        else {
+            events->dopamine_trace_markers &=
+                ~(1 << (MAX_POST_SYNAPTIC_EVENTS - 1));
+        }
+    }
+}
+#else
 static inline void post_events_add(uint32_t time, post_event_history_t *events,
                                    post_trace_t trace) {
+
 
     if (events->count_minus_one < (MAX_POST_SYNAPTIC_EVENTS - 1)) {
 
@@ -202,5 +257,6 @@ static inline void post_events_add(uint32_t time, post_event_history_t *events,
         events->traces[MAX_POST_SYNAPTIC_EVENTS - 1] = trace;
     }
 }
+#endif //dopamine synapse
 
 #endif  // _POST_EVENTS_H_

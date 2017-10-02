@@ -5,10 +5,7 @@
 // Typedefines
 //---------------------------------------
 
-typedef struct {
-  int16_t stdp_post_trace;
-  int16_t dopamine;
-} post_trace_t;
+typedef int32_t post_trace_t; //[stdp | dopamine ]
 
 typedef int16_t pre_trace_t;
 
@@ -42,17 +39,24 @@ typedef int16_t pre_trace_t;
 
 // Helper macros for looking up decays
 #define DECAY_LOOKUP_TAU_PLUS(time) \
-    maths_lut_exponential_decay( \
-        time, TAU_PLUS_TIME_SHIFT, TAU_PLUS_SIZE, tau_plus_lookup)
+                maths_lut_exponential_decay( \
+                    (time), TAU_PLUS_TIME_SHIFT, \
+                    TAU_PLUS_SIZE, tau_plus_lookup)
+
 #define DECAY_LOOKUP_TAU_MINUS(time) \
-    maths_lut_exponential_decay( \
-        time, TAU_MINUS_TIME_SHIFT, TAU_MINUS_SIZE, tau_minus_lookup)
+                maths_lut_exponential_decay( \
+                    (time), TAU_MINUS_TIME_SHIFT, \
+                    TAU_MINUS_SIZE, tau_minus_lookup)
+
 #define DECAY_LOOKUP_TAU_C(time) \
-    maths_lut_exponential_decay( \
-        time, TAU_C_TIME_SHIFT, TAU_C_SIZE, tau_c_lookup)
+                maths_lut_exponential_decay( \
+                    (time), TAU_C_TIME_SHIFT, \
+                    TAU_C_SIZE, tau_c_lookup)
+
 #define DECAY_LOOKUP_TAU_D(time) \
-    maths_lut_exponential_decay( \
-        time, TAU_D_TIME_SHIFT, TAU_D_SIZE, tau_d_lookup)
+                maths_lut_exponential_decay( \
+                    (time), TAU_D_TIME_SHIFT, \
+                    TAU_D_SIZE, tau_d_lookup)
 
 //---------------------------------------
 // Externals
@@ -63,11 +67,25 @@ extern int16_t tau_c_lookup[TAU_C_SIZE];
 extern int16_t tau_d_lookup[TAU_D_SIZE];
 extern int32_t weight_update_constant_component;
 
+// Trace get and set helper funtions
+static inline int32_t get_post_trace(post_trace_t trace) {
+    return (int32_t)(trace >> 16);
+}
+
+static inline int32_t get_dopamine_trace(post_trace_t trace) {
+    return (int32_t)(trace & 0xFFFF);
+}
+
+static inline post_trace_t trace_build(int32_t post_trace, int32_t dopamine_trace) {
+    return (post_trace_t)((((int16_t)(post_trace)) << 16) | ((int16_t)dopamine_trace));
+//    return (post_trace_t)((post_trace << 16) | dopamine_trace);
+}
+
 //---------------------------------------
 // Timing dependence inline functions
 //---------------------------------------
 static inline post_trace_t timing_get_initial_post_trace() {
-    return (post_trace_t) {.stdp_post_trace = 0, .dopamine = 0};
+    return (post_trace_t) 0;
 }
 
 //---------------------------------------
@@ -77,9 +95,9 @@ static inline post_trace_t timing_add_post_spike(
     // Get time since last spike
     uint32_t delta_time = time - last_time;
 
-    // Decay previous o1 and o2 traces
-    int32_t decayed_o1_trace = STDP_FIXED_MUL_16X16(last_trace.stdp_post_trace,
-            DECAY_LOOKUP_TAU_MINUS(delta_time));
+    // Decay previous post trace
+    int32_t decayed_o1_trace = STDP_FIXED_MUL_16X16(get_post_trace(last_trace),
+                                    DECAY_LOOKUP_TAU_MINUS(delta_time));
 
     // Add energy caused by new spike to trace
     // **NOTE** o2 trace is pre-multiplied by a3_plus
@@ -87,10 +105,16 @@ static inline post_trace_t timing_add_post_spike(
 
     log_debug("\tdelta_time=%d, o1=%d\n", delta_time, new_o1_trace);
 
+    // Decay previous dopamine trace
+    int32_t new_dopamine_trace = STDP_FIXED_MUL_16X16(get_dopamine_trace(last_trace),
+            DECAY_LOOKUP_TAU_D(delta_time));
+
     // Return new pre- synaptic event with decayed trace values with energy
     // for new spike added
-    return (post_trace_t) { .stdp_post_trace = new_o1_trace, .dopamine = 0 };
+    return (post_trace_t) trace_build(new_o1_trace, new_dopamine_trace);
 }
+
+
 
 //---------------------------------------
 static inline pre_trace_t timing_add_pre_spike(
@@ -115,36 +139,36 @@ static inline pre_trace_t timing_add_pre_spike(
 
 
 //---------------------------------------
-static inline update_state_t timing_apply_pre_spike(
-        uint32_t time, pre_trace_t trace, uint32_t last_pre_time,
-        pre_trace_t last_pre_trace, uint32_t last_post_time,
-        post_trace_t last_post_trace, update_state_t previous_state) {
-    use(time);
-    use(&trace);
-    use(last_pre_time);
-    use(last_pre_trace);
-    use(last_post_time);
-    use(&last_post_trace);
-
-    return previous_state;
-
-}
-
-//---------------------------------------
-static inline update_state_t timing_apply_post_spike(
-        uint32_t time, post_trace_t trace, uint32_t last_pre_time,
-        pre_trace_t last_pre_trace, uint32_t last_post_time,
-        post_trace_t last_post_trace, update_state_t previous_state) {
-    use(time);
-    use(&trace);
-    use(last_pre_time);
-    use(last_pre_trace);
-    use(last_post_time);
-    use(&last_post_trace);
-    
-
-    return previous_state;
-}
+//static inline update_state_t timing_apply_pre_spike(
+//        uint32_t time, pre_trace_t trace, uint32_t last_pre_time,
+//        pre_trace_t last_pre_trace, uint32_t last_post_time,
+//        post_trace_t last_post_trace, update_state_t previous_state) {
+//    use(time);
+//    use(&trace);
+//    use(last_pre_time);
+//    use(last_pre_trace);
+//    use(last_post_time);
+//    use(&last_post_trace);
+//
+//    return previous_state;
+//
+//}
+//
+////---------------------------------------
+//static inline update_state_t timing_apply_post_spike(
+//        uint32_t time, post_trace_t trace, uint32_t last_pre_time,
+//        pre_trace_t last_pre_trace, uint32_t last_post_time,
+//        post_trace_t last_post_trace, update_state_t previous_state) {
+//    use(time);
+//    use(&trace);
+//    use(last_pre_time);
+//    use(last_pre_trace);
+//    use(last_post_time);
+//    use(&last_post_trace);
+//
+//
+//    return previous_state;
+//}
 
 
 #endif // _TIMING_PAIR_IMPL_H_
