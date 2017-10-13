@@ -139,7 +139,7 @@ class PyNNProjectionCommon(object):
             post_vertex = post_synaptic_population._get_vertex
             connection_holder = ConnectionHolder(
                 None, False, pre_vertex.n_atoms, post_vertex.n_atoms,
-                self._label, self._virtual_connection_list)
+                self._label, connections=self._virtual_connection_list)
 
             post_vertex.add_pre_run_connection_holder(
                 connection_holder, self._projection_edge,
@@ -236,8 +236,8 @@ class PyNNProjectionCommon(object):
             pre_vertex = self._projection_edge.pre_vertex
             connection_holder = ConnectionHolder(
                 data_to_get, as_list, pre_vertex.n_atoms, post_vertex.n_atoms,
-                self._virtual_connection_list, fixed_values=fixed_values,
-                notify=notify)
+                self._label, connections=self._virtual_connection_list,
+                fixed_values=fixed_values, notify=notify)
             connection_holder.finish()
             return connection_holder
 
