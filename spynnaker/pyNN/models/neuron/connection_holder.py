@@ -84,6 +84,10 @@ class ConnectionHolder(object):
             This should accept a single parameter, which will contain the\
             data requested
         """
+        if not isinstance(connections, numpy.ndarray) and \
+            connections is not None:
+            raise Exception("Connections are not of type ndarray")
+
         self._data_items_to_return = data_items_to_return
         self._as_list = as_list
         self._n_pre_atoms = n_pre_atoms
@@ -102,6 +106,8 @@ class ConnectionHolder(object):
             projection_label = u"projection_{}_{:010d}".\
                                     format(str(datetime.date.today()),
                                            numpy.random.randint(0, 10000000000))
+        elif not isinstance(projection_label, str):
+            raise Exception("Projection label is not string type")
 
         self._proj_label = slugify(projection_label)
 

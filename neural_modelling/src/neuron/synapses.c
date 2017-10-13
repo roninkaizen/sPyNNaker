@@ -180,11 +180,12 @@ static inline void _process_fixed_synapses(
             // Dopaminergic neurons send some amount of neuromodulator
             // concentration so this can actually be a weight as usual.
             uint32_t concentration = synapse_row_sparse_weight(synaptic_word);
+            log_info("concentration %u", concentration);
             uint32_t index = synapse_row_sparse_index(synaptic_word);
             uint32_t delay = synapse_row_sparse_delay(synaptic_word);
 
             synapse_dynamics_process_neuromodulator_event(time + delay,
-                concentration, synapse_type, index);
+                                        concentration, synapse_type, index);
         }
         else {
             // Extract components from this word
@@ -340,8 +341,7 @@ void synapses_do_timestep_update(timer_t time) {
 
         // Loop through all synapse types
         for (uint32_t synapse_type_index = 0;
-                synapse_type_index < SYNAPSE_TYPE_COUNT;
-                synapse_type_index++) {
+                synapse_type_index < SYNAPSE_TYPE_COUNT; synapse_type_index++) {
 
             // Get index in the ring buffers for the current time slot for
             // this synapse type and neuron
