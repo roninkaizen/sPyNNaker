@@ -70,7 +70,6 @@ static inline post_event_window_t post_events_get_window(
     const uint32_t *event_time = end_event_time;
     post_event_window_t window;
     do {
-
         // Cache pointer to this event as potential
         // Next event and go back one event
         // **NOTE** next_time can be invalid
@@ -191,5 +190,8 @@ static inline void post_events_add(uint32_t time, post_event_history_t *events,
         events->traces[MAX_POST_SYNAPTIC_EVENTS - 1] = trace;
     }
 }
+
+//void _post_events_print_window(post_event_window){
+//}
 
 #endif  // _POST_EVENTS_H_

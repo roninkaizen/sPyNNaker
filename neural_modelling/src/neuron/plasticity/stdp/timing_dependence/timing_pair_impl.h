@@ -107,7 +107,7 @@ static inline update_state_t timing_apply_pre_spike(
         int32_t decayed_o1 = STDP_FIXED_MUL_16X16(
             last_post_trace, DECAY_LOOKUP_TAU_MINUS(time_since_last_post));
 
-        log_debug("\t\t\ttime_since_last_post_event=%u, decayed_o1=%d\n",
+        log_info("\t\t\ttime_since_last_post_event=%u, decayed_o1=%d\n",
                   time_since_last_post, decayed_o1);
 
         // Apply depression to state (which is a weight_state)

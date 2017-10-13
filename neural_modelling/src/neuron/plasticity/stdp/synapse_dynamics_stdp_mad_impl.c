@@ -253,6 +253,9 @@ bool synapse_dynamics_process_plastic_synapses(
         uint32_t index = synapse_row_sparse_index(control_word);
         uint32_t type_index = synapse_row_sparse_type_index(control_word);
 
+
+        log_info("Updating synapse type %u", type);
+
         // Create update state from the plastic synaptic word
         update_state_t current_state = synapse_structure_get_update_state(
             *plastic_words, type);
@@ -273,8 +276,6 @@ bool synapse_dynamics_process_plastic_synapses(
         ring_buffers[ring_buffer_index] += synapse_structure_get_final_weight(
             final_state);
 
-        log_info("new weight of synapse type %u: %12.6k", type, synapse_structure_get_final_weight(
-            final_state) );
 
         // Write back updated synaptic word to plastic region
         *plastic_words++ = synapse_structure_get_final_synaptic_word(
@@ -285,7 +286,7 @@ bool synapse_dynamics_process_plastic_synapses(
 
 void synapse_dynamics_process_post_synaptic_event(
         uint32_t time, index_t neuron_index) {
-    log_info("Adding post-synaptic event to trace at time:%u", time);
+    log_info("Adding post-synaptic event to trace at time: %u", time);
 
     // Add post-event
     post_event_history_t *history = &post_event_history[neuron_index];
