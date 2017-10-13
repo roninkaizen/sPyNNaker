@@ -89,8 +89,9 @@ static inline final_state_t _plasticity_update_synapse(
     while (post_window.num_events > 0) {
         const uint32_t delayed_post_time = *post_window.next_time
                                            + delay_dendritic;
-        log_debug("\t\tApplying post-synaptic event at delayed time:%u\n",
+        log_info("\t\tApplying post-synaptic event at delayed time:%u\n",
               delayed_post_time);
+        log_info("Current time: %u", time);
 
         // Apply spike to state
         current_state = timing_apply_post_spike(
@@ -103,7 +104,7 @@ static inline final_state_t _plasticity_update_synapse(
     }
 
     const uint32_t delayed_pre_time = time + delay_axonal;
-    log_debug("\t\tApplying pre-synaptic event at time:%u last post time:%u\n",
+    log_info("\t\tApplying pre-synaptic event at time:%u last post time:%u\n",
               delayed_pre_time, post_window.prev_time);
 
     // Apply spike to state
@@ -271,6 +272,9 @@ bool synapse_dynamics_process_plastic_synapses(
         // potential location for overflow
         ring_buffers[ring_buffer_index] += synapse_structure_get_final_weight(
             final_state);
+
+        log_info("new weight of synapse type %u: %12.6k", type, synapse_structure_get_final_weight(
+            final_state) );
 
         // Write back updated synaptic word to plastic region
         *plastic_words++ = synapse_structure_get_final_synaptic_word(
