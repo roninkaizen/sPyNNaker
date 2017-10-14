@@ -249,6 +249,15 @@ bool read_poisson_parameters(address_t address) {
         memcpy(
             spike_source_array, &address[spikes_offset],
             num_spike_sources * sizeof(spike_source_t));
+
+        // Loop through slow spike sources and initialise 1st time to spike
+        for (index_t s = 0; s < num_spike_sources; s++) {
+            if (!spike_source_array[s].is_fast_source) {
+                spike_source_array[s].time_to_spike_ticks =
+                    slow_spike_source_get_time_to_spike(
+                        spike_source_array[s].mean_isi_ticks);
+            }
+        }
     }
 
     log_info("read_parameters: completed successfully");
