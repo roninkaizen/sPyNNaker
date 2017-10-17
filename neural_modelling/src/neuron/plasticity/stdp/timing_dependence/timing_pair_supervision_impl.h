@@ -1,5 +1,5 @@
-#ifndef _TIMING_PAIR_IMPL_H_
-#define _TIMING_PAIR_IMPL_H_
+#ifndef _TIMING_PAIR_SUPERVISION_IMPL_H_
+#define _TIMING_PAIR_SUPERVISION_IMPL_H_
 
 //---------------------------------------
 // Typedefines

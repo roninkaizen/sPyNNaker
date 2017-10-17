@@ -141,9 +141,10 @@ static inline post_event_window_t post_events_get_window_delayed(
     const post_trace_t *end_event_trace = events->traces + count;
     window.next_trace = (end_event_trace - window.num_events);
     window.prev_trace = *(window.next_trace - 1);
+
 #ifdef _SYNAPSE_TYPES_EXP_SUPERVISION_IMPL_H
-    window.dopamine_trace_markers = (events -> dopamine_trace_markers
-                                     >> (count - window.num_events));
+    window.dopamine_trace_markers =
+            (events -> dopamine_trace_markers >> (count - window.num_events));
 #endif
     // Return window
     return window;

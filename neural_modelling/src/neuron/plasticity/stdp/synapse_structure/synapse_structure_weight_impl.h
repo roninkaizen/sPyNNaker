@@ -5,7 +5,7 @@
 // Structures
 //---------------------------------------
 // Plastic synapse types have weights and eligibility traces
-#if SYNAPSE_TYPE_COUNT > SYNAPSE_INPUT_TYPE_COUNT
+#ifdef _SYNAPSE_TYPES_EXP_SUPERVISION_IMPL_H
 typedef int32_t plastic_synapse_t;
 #else
 typedef weight_t plastic_synapse_t;
@@ -40,7 +40,7 @@ static inline int32_t synapse_structure_update_state(int32_t trace, int32_t weig
 static inline update_state_t synapse_structure_get_update_state(
         plastic_synapse_t synaptic_word, index_t synapse_type) {
 
-#if SYNAPSE_TYPE_COUNT > SYNAPSE_INPUT_TYPE_COUNT
+#ifdef _SYNAPSE_TYPES_EXP_SUPERVISION_IMPL_H
     return weight_get_initial(synapse_structure_get_weight(synaptic_word),
                               synapse_type);
 #else
@@ -63,16 +63,11 @@ static inline weight_t synapse_structure_get_final_weight(
 
 
 //---------------------------------------
-
+#ifndef _SYNAPSE_TYPES_EXP_SUPERVISION_IMPL_H
 static inline plastic_synapse_t synapse_structure_get_final_synaptic_word(
         final_state_t final_state) {
-#if SYNAPSE_TYPE_COUNT == SYNAPSE_INPUT_TYPE_COUNT
     return final_state;
-#else
-    use(final_state);
-    return (plastic_synapse_t)0;
-#endif
 }
-
+#endif
 
 #endif  // _SYNAPSE_STRUCUTRE_WEIGHT_IMPL_H_
