@@ -24,11 +24,11 @@ static update_state_t timing_apply_post_spike(
     post_trace_t last_post_trace, update_state_t previous_state);
 
 #ifdef _SYNAPSE_TYPES_EXP_SUPERVISION_IMPL_H
-static inline int32_t get_post_trace(int32_t trace);
+static inline int32_t get_post_trace(post_trace_t trace);
 
-static inline int32_t get_dopamine_trace(int32_t trace);
+static inline int32_t get_dopamine_trace(post_trace_t trace);
 
-static inline int32_t trace_build(int32_t post_trace, int32_t dopamine_trace);
+static inline post_trace_t trace_build(int32_t post_trace, int32_t dopamine_trace);
 #endif
 
 #endif // _TIMING_H_

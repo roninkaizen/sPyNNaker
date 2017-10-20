@@ -5,7 +5,7 @@
 // Typedefines
 //---------------------------------------
 
-typedef int32_t post_trace_t; //[stdp | dopamine ]
+typedef uint32_t post_trace_t; //[stdp | dopamine ]
 
 typedef int16_t pre_trace_t;
 
@@ -69,16 +69,15 @@ extern int32_t weight_update_constant_component;
 
 // Trace get and set helper funtions
 static inline int32_t get_post_trace(post_trace_t trace) {
-    return (int32_t)(trace >> 16);
+    return (int16_t)(trace >> 16);
 }
 
 static inline int32_t get_dopamine_trace(post_trace_t trace) {
-    return (int32_t)(trace & 0xFFFF);
+    return (int16_t)(trace & 0xFFFF);
 }
 
 static inline post_trace_t trace_build(int32_t post_trace, int32_t dopamine_trace) {
-    return (post_trace_t)((((int16_t)(post_trace)) << 16) | ((int16_t)dopamine_trace));
-//    return (post_trace_t)((post_trace << 16) | dopamine_trace);
+    return (post_trace_t)( (post_trace << 16) | ((uint16_t)(dopamine_trace)) );
 }
 
 //---------------------------------------
@@ -97,7 +96,7 @@ static inline post_trace_t timing_add_post_spike(
 
     // Decay previous post trace
     int32_t decayed_o1_trace = STDP_FIXED_MUL_16X16(get_post_trace(last_trace),
-                                    DECAY_LOOKUP_TAU_MINUS(delta_time));
+                                            DECAY_LOOKUP_TAU_MINUS(delta_time));
 
     // Add energy caused by new spike to trace
     // **NOTE** o2 trace is pre-multiplied by a3_plus
@@ -107,7 +106,7 @@ static inline post_trace_t timing_add_post_spike(
 
     // Decay previous dopamine trace
     int32_t new_dopamine_trace = STDP_FIXED_MUL_16X16(get_dopamine_trace(last_trace),
-            DECAY_LOOKUP_TAU_D(delta_time));
+                                                    DECAY_LOOKUP_TAU_D(delta_time));
 
     // Return new pre- synaptic event with decayed trace values with energy
     // for new spike added

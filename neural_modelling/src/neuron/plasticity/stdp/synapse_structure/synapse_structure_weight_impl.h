@@ -6,7 +6,7 @@
 //---------------------------------------
 // Plastic synapse types have weights and eligibility traces
 #ifdef _SYNAPSE_TYPES_EXP_SUPERVISION_IMPL_H
-typedef int32_t plastic_synapse_t;
+typedef uint32_t plastic_synapse_t;
 #else
 typedef weight_t plastic_synapse_t;
 #endif
@@ -25,16 +25,17 @@ typedef weight_t final_state_t;
 //---------------------------------------
 
 static inline int32_t synapse_structure_get_weight(plastic_synapse_t state) {
-    return (state >> 16);
+    return (int16_t)(state >> 16);
 }
 
-static inline int32_t synapse_structure_get_eligibility_trace(plastic_synapse_t state) {
-    return (state & 0xFFFF);
+static inline int32_t synapse_structure_get_eligibility_trace(
+                                                    plastic_synapse_t state) {
+    return (int16_t)(state & 0xFFFF);
 }
 
-static inline int32_t synapse_structure_update_state(int32_t trace, int32_t weight) {
-    return (plastic_synapse_t)(((((uint16_t)(weight)) << 16)) | (int16_t)trace);
-//    return (plastic_synapse_t)((weight << 16) | trace);
+static inline plastic_synapse_t synapse_structure_update_state(
+                                                    int32_t trace, int32_t weight) {
+    return (plastic_synapse_t)( (weight << 16) | ((uint16_t)(trace)) );
 }
 
 static inline update_state_t synapse_structure_get_update_state(

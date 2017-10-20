@@ -62,6 +62,13 @@ post_event_history_t *post_event_history;
 extern int32_t weight_update_constant_component;
 weight_state_t weight_state;
 
+#define SMULBB_SHIFT(a, b, s) ((__smulbb((a), (b))) >> (s))
+#define SMULTB_SHIFT(a, b, s) ((__smultb((a), (b))) >> (s))
+#define SMULBT_SHIFT(a, b, s) ((__smulbt((a), (b))) >> (s))
+
+#define SMULBB_FIXED(a, b) (SMULBB_SHIFT((a), (b), STDP_FIXED_POINT))
+#define SMULTB_FIXED(a, b) (SMULTB_SHIFT((a), (b), STDP_FIXED_POINT))
+#define SMULBT_FIXED(a, b) (SMULBT_SHIFT((a), (b), STDP_FIXED_POINT))
 
 //---------------------------------------
 // Dopamine trace is a simple decaying trace similarly implemented as pre and
@@ -74,8 +81,8 @@ static inline post_trace_t add_dopamine_spike(
     uint32_t delta_time = time - last_post_time;
 
     // Apply exponential decay to get the current value
-    int32_t decayed_trace = __smulbb(last_trace,
-            DECAY_LOOKUP_TAU_D(delta_time)) >> STDP_FIXED_POINT;
+    int32_t decayed_trace =
+                    SMULBB_FIXED(last_trace, DECAY_LOOKUP_TAU_D(delta_time));
 
     // Put concentration in STDP fixed-point format
     weight_state_t weight_state = weight_get_initial(
@@ -96,14 +103,12 @@ static inline post_trace_t add_dopamine_spike(
         new_trace = decayed_trace - concentration;
     }
 
-
     // Decay previous post trace
-    int32_t decayed_last_post_trace = __smultb(
-            last_trace,
-            DECAY_LOOKUP_TAU_MINUS(delta_time)) >> STDP_FIXED_POINT;
+    int32_t decayed_last_post_trace =
+                SMULTB_FIXED(last_trace, DECAY_LOOKUP_TAU_MINUS(delta_time));
 
     // Return decayed dopamine trace
-    return (post_trace_t) trace_build(decayed_last_post_trace, new_trace);
+    return trace_build(decayed_last_post_trace, new_trace);
 }
 
 static inline void correlation_apply_post_spike(
@@ -115,39 +120,39 @@ static inline void correlation_apply_post_spike(
     use(&trace);
 
     // Calculate EXP components in JK's weight update equation
-    int32_t decay_eligibility_trace = DECAY_LOOKUP_TAU_C(
-        time - last_update_time);
-    int32_t decay_dopamine_trace = DECAY_LOOKUP_TAU_D(
-        time - last_update_time);
+    int32_t decay_eligibility_trace =
+                                DECAY_LOOKUP_TAU_C(time - last_update_time);
+    int32_t decay_dopamine_trace =
+                                DECAY_LOOKUP_TAU_D(time - last_update_time);
 
     if (last_dopamine_trace != 0) {
         // Evaluate weight function
-        uint32_t weight_change = __smulbb(
-                __smulbb(last_dopamine_trace, *previous_state) >> STDP_FIXED_POINT,
-                __smulbb(weight_update_constant_component,
-                   (__smulbb(decay_eligibility_trace, decay_dopamine_trace) >> STDP_FIXED_POINT)
-                   - STDP_FIXED_POINT_ONE) >> STDP_FIXED_POINT) >> STDP_FIXED_POINT;
+        int32_t weight_change = SMULBB_FIXED(
+                SMULBB_FIXED(last_dopamine_trace, *previous_state),
+                SMULBB_FIXED(weight_update_constant_component,
+                             SMULBB_FIXED(decay_eligibility_trace,
+                                          decay_dopamine_trace)
+                                        - STDP_FIXED_POINT_ONE));
 
         *weight_update += weight_change;
     }
 
+
+    // Decay eligibility trace (regardless of spike nature)
     int32_t decayed_eligibility_trace =
-       synapse_structure_get_eligibility_trace(*previous_state);
+                    SMULBB_FIXED(*previous_state, decay_eligibility_trace);
 
     // Update eligibility trace if this spike is non-dopamine spike
-    // Decay eligibility trace (regardless of spike nature)
-    decayed_eligibility_trace = __smulbb(
-        *previous_state, decay_eligibility_trace) >> STDP_FIXED_POINT;
-
     if (!dopamine) {
 
         // Apply STDP
         uint32_t time_since_last_pre = time - last_pre_time;
         if (time_since_last_pre > 0) {
-            int32_t decayed_r1 = __smulbb(
-                last_pre_trace, DECAY_LOOKUP_TAU_PLUS(time_since_last_pre)) >> STDP_FIXED_POINT;
-            decayed_r1 = __smulbb(decayed_r1,
-                weight_state.weight_region -> a2_plus) >> weight_state.weight_multiply_right_shift;
+            int32_t decayed_r1 = SMULBB_FIXED(last_pre_trace,
+                                    DECAY_LOOKUP_TAU_PLUS(time_since_last_pre));
+//            decayed_r1 = SMULBB_SHIFT(decayed_r1,
+//                            weight_state.weight_region -> a2_plus,
+//                            weight_state.weight_multiply_right_shift);
             decayed_eligibility_trace += decayed_r1;
         }
     }
@@ -160,6 +165,7 @@ static inline void correlation_apply_post_spike(
 
 static inline void correlation_apply_pre_spike(
         uint32_t time, pre_trace_t trace, uint32_t last_post_time,
+        uint32_t last_std_post_time,
         post_trace_t last_post_trace, int32_t last_dopamine_trace,
         plastic_synapse_t *previous_state, bool dopamine,
         int32_t* weight_update) {
@@ -168,46 +174,45 @@ static inline void correlation_apply_pre_spike(
     use(&last_post_trace);
 
     // Calculate EXP components in JK's weight update equation
-    int32_t decay_eligibility_trace = DECAY_LOOKUP_TAU_C(
-        time - last_post_time);
-    int32_t decay_dopamine_trace = DECAY_LOOKUP_TAU_D(
-        time - last_post_time);
+    int32_t decay_eligibility_trace =
+                                DECAY_LOOKUP_TAU_C(time - last_post_time);
+    int32_t decay_dopamine_trace =
+                                DECAY_LOOKUP_TAU_D(time - last_post_time);
 
     if (last_dopamine_trace != 0) {
         // Evaluate weight function
-        uint32_t weight_change = __smulbb(
-                __smulbb(last_dopamine_trace, *previous_state) >> STDP_FIXED_POINT,
-                __smulbb(weight_update_constant_component,
-                   (__smulbb(decay_eligibility_trace, decay_dopamine_trace) >> STDP_FIXED_POINT)
-                   - STDP_FIXED_POINT_ONE) >> STDP_FIXED_POINT) >> STDP_FIXED_POINT;
+        int32_t weight_change = SMULBB_FIXED(
+                    SMULBB_FIXED(last_dopamine_trace, *previous_state),
+                    SMULBB_FIXED(weight_update_constant_component,
+                        SMULBB_FIXED(decay_eligibility_trace,
+                                     decay_dopamine_trace)
+                                    - STDP_FIXED_POINT_ONE));
 
         *weight_update += weight_change;
     }
 
+    // Decay eligibility trace
     int32_t decayed_eligibility_trace =
-       synapse_structure_get_eligibility_trace(*previous_state);
+                        SMULBB_FIXED(*previous_state, decay_eligibility_trace);
 
-    // Update eligibility trace if this spike is non-dopamine spike
-    //if (!dopamine) {
+    // Update eligibility trace if previous spike is non-dopamine spike
+//    if (!dopamine) {
     //Pre is always non-dopamine
-        // Decay eligibility trace
-        decayed_eligibility_trace = __smulbb(
-            *previous_state, decay_eligibility_trace) >> STDP_FIXED_POINT;
 
         // Apply STDP
-        uint32_t time_since_last_post = time - last_post_time;
+        uint32_t time_since_last_post = time - last_std_post_time;
         if (time_since_last_post > 0) {
-            int32_t decayed_r1 = __smultb(
-                last_post_trace,
-                DECAY_LOOKUP_TAU_MINUS(time_since_last_post)) >> STDP_FIXED_POINT;
-            decayed_r1 = __smulbb(decayed_r1,
-                weight_state.weight_region -> a2_minus) >> weight_state.weight_multiply_right_shift;
+            int32_t decayed_r1 = SMULTB_FIXED(last_post_trace,
+                                DECAY_LOOKUP_TAU_MINUS(time_since_last_post));
+//            decayed_r1 = SMULBB_SHIFT(decayed_r1,
+//                            weight_state.weight_region -> a2_minus,
+//                            weight_state.weight_multiply_right_shift);
             decayed_eligibility_trace -= decayed_r1;
-            if (decayed_eligibility_trace < 0) {
-                decayed_eligibility_trace = 0;
-            }
+//            if (decayed_eligibility_trace < 0) {
+//                decayed_eligibility_trace = 0;
+//            }
         }
-    //}
+//    }
 
     // Update eligibility trace in synapse state
     *previous_state =
@@ -236,17 +241,22 @@ static inline plastic_synapse_t plasticity_update_synapse(
 
     // Process events in post-synaptic window
     uint32_t prev_corr_time = delayed_last_pre_time;
-    int32_t last_dopamine_trace = __smulbb(post_window.prev_trace,
-            DECAY_LOOKUP_TAU_D(delayed_last_pre_time - post_window.prev_time))
-            >> STDP_FIXED_POINT;
+    int32_t last_dopamine_trace =
+            SMULBB_FIXED(post_window.prev_trace,
+                        DECAY_LOOKUP_TAU_D(
+                                delayed_last_pre_time - post_window.prev_time));
+
     bool next_trace_is_dopamine = false;
     int32_t weight_update = 0;
+    uint32_t last_std_post_time = 0xFFFFFF;
 
     while (post_window.num_events > 0) {
         const uint32_t delayed_post_time =
             *post_window.next_time + delay_dendritic;
         next_trace_is_dopamine = post_events_next_is_dopamine(post_window);
-
+        if(!next_trace_is_dopamine){
+            last_std_post_time = delayed_post_time;
+        }
         correlation_apply_post_spike(
             delayed_post_time, *post_window.next_trace,
             delayed_last_pre_time, last_pre_trace,
@@ -265,12 +275,10 @@ static inline plastic_synapse_t plasticity_update_synapse(
 
     const uint32_t delayed_pre_time = time + delay_axonal;
 
-    correlation_apply_pre_spike(
-        delayed_pre_time, new_pre_trace,
-        prev_corr_time, post_window.prev_trace,
-        last_dopamine_trace, current_state,
-        next_trace_is_dopamine,
-        &weight_update);
+    correlation_apply_pre_spike(delayed_pre_time, new_pre_trace,
+            prev_corr_time, last_std_post_time, post_window.prev_trace,
+            last_dopamine_trace, current_state, next_trace_is_dopamine,
+            &weight_update);
 
     // Put total weight change into correct run-time weight fixed-point format
     // NOTE: Accuracy loss when shifting right.
@@ -281,7 +289,8 @@ static inline plastic_synapse_t plasticity_update_synapse(
         weight_update >>=
            (STDP_FIXED_POINT - weight_state.weight_multiply_right_shift);
 
-    int32_t new_weight = weight_update + synapse_structure_get_weight(*current_state);
+    int32_t new_weight =
+                synapse_structure_get_weight(*current_state) + weight_update;
 
     // Saturate weight
     new_weight = MIN(weight_state.weight_region->max_weight,
@@ -324,7 +333,8 @@ bool synapse_dynamics_initialise(
 static inline plastic_synapse_t* plastic_synapses(address_t plastic) {
     const uint32_t pre_event_history_size_words =
         sizeof(pre_event_history_t) / sizeof(uint32_t);
-    static_assert(pre_event_history_size_words * sizeof(uint32_t) == sizeof(pre_event_history_t),
+    static_assert(pre_event_history_size_words * sizeof(uint32_t) ==
+                  sizeof(pre_event_history_t),
         "Size of pre_event_history_t structure should be a multiple of 32-bit words");
 
     return (plastic_synapse_t*)(&plastic[pre_event_history_size_words]);
