@@ -62,6 +62,7 @@ post_event_history_t *post_event_history;
 extern int32_t weight_update_constant_component;
 weight_state_t weight_state;
 
+
 #define SMULBB_SHIFT(a, b, s) ((__smulbb((a), (b))) >> (s))
 #define SMULTB_SHIFT(a, b, s) ((__smultb((a), (b))) >> (s))
 #define SMULBT_SHIFT(a, b, s) ((__smulbt((a), (b))) >> (s))
@@ -69,6 +70,7 @@ weight_state_t weight_state;
 #define SMULBB_FIXED(a, b) (SMULBB_SHIFT((a), (b), STDP_FIXED_POINT))
 #define SMULTB_FIXED(a, b) (SMULTB_SHIFT((a), (b), STDP_FIXED_POINT))
 #define SMULBT_FIXED(a, b) (SMULBT_SHIFT((a), (b), STDP_FIXED_POINT))
+#define MUL_FIXED(a, b) (maths_fixed_mul32((a), (b), STDP_FIXED_POINT))
 
 //---------------------------------------
 // Dopamine trace is a simple decaying trace similarly implemented as pre and
@@ -127,12 +129,13 @@ static inline void correlation_apply_post_spike(
 
     if (last_dopamine_trace != 0) {
         // Evaluate weight function
-        int32_t weight_change = SMULBB_FIXED(
+
+        int32_t weight_change = MUL_FIXED(
                 SMULBB_FIXED(last_dopamine_trace, *previous_state),
-                SMULBB_FIXED(weight_update_constant_component,
-                             SMULBB_FIXED(decay_eligibility_trace,
-                                          decay_dopamine_trace)
-                                        - STDP_FIXED_POINT_ONE));
+                MUL_FIXED(weight_update_constant_component,
+                          MUL_FIXED(decay_eligibility_trace,
+                                    decay_dopamine_trace)
+                                    - STDP_FIXED_POINT_ONE));
 
         *weight_update += weight_change;
     }
@@ -181,12 +184,12 @@ static inline void correlation_apply_pre_spike(
 
     if (last_dopamine_trace != 0) {
         // Evaluate weight function
-        int32_t weight_change = SMULBB_FIXED(
+        int32_t weight_change = MUL_FIXED(
                     SMULBB_FIXED(last_dopamine_trace, *previous_state),
-                    SMULBB_FIXED(weight_update_constant_component,
-                        SMULBB_FIXED(decay_eligibility_trace,
-                                     decay_dopamine_trace)
-                                    - STDP_FIXED_POINT_ONE));
+                    MUL_FIXED(weight_update_constant_component,
+                        MUL_FIXED(decay_eligibility_trace,
+                                  decay_dopamine_trace)
+                                - STDP_FIXED_POINT_ONE));
 
         *weight_update += weight_change;
     }
