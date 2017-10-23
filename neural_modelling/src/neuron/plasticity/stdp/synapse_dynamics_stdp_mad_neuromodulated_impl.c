@@ -153,9 +153,9 @@ static inline void correlation_apply_post_spike(
         if (time_since_last_pre > 0) {
             int32_t decayed_r1 = SMULBB_FIXED(last_pre_trace,
                                     DECAY_LOOKUP_TAU_PLUS(time_since_last_pre));
-//            decayed_r1 = SMULBB_SHIFT(decayed_r1,
-//                            weight_state.weight_region -> a2_plus,
-//                            weight_state.weight_multiply_right_shift);
+            decayed_r1 = SMULBB_SHIFT(decayed_r1,
+                            weight_state.weight_region -> a2_plus,
+                            weight_state.weight_multiply_right_shift);
             decayed_eligibility_trace += decayed_r1;
         }
     }
@@ -207,9 +207,9 @@ static inline void correlation_apply_pre_spike(
         if (time_since_last_post > 0) {
             int32_t decayed_r1 = SMULTB_FIXED(last_post_trace,
                                 DECAY_LOOKUP_TAU_MINUS(time_since_last_post));
-//            decayed_r1 = SMULBB_SHIFT(decayed_r1,
-//                            weight_state.weight_region -> a2_minus,
-//                            weight_state.weight_multiply_right_shift);
+            decayed_r1 = SMULBB_SHIFT(decayed_r1,
+                            weight_state.weight_region -> a2_minus,
+                            weight_state.weight_multiply_right_shift);
             decayed_eligibility_trace -= decayed_r1;
 //            if (decayed_eligibility_trace < 0) {
 //                decayed_eligibility_trace = 0;
