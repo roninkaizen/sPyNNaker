@@ -50,15 +50,15 @@ class WeightDependenceMultiplicative(
 
         # Loop through each synapse type's weight scale
         for w in weight_scales:
-            spec.write_value(
-                data=int(round(self._w_min * w)), data_type=DataType.INT32)
-            spec.write_value(
-                data=int(round(self._w_max * w)), data_type=DataType.INT32)
-
-            spec.write_value(
-                data=int(round(self._a_plus * w)), data_type=DataType.INT32)
-            spec.write_value(
-                data=int(round(self._a_minus * w)), data_type=DataType.INT32)
+            wmin = int(round(self._w_min * w))
+            wmax = int(round(self._w_max * w))
+            aplus = int(round(self._a_plus * w))
+            aminus = int(round(self._a_minus * w))
+            # print(int(w), wmin, wmax, aplus, aminus)
+            spec.write_value(data=wmin, data_type=DataType.INT32)
+            spec.write_value(data=wmax, data_type=DataType.INT32)
+            spec.write_value(data=aplus, data_type=DataType.INT32)
+            spec.write_value(data=aminus, data_type=DataType.INT32)
 
     @property
     def weight_maximum(self):

@@ -128,6 +128,9 @@ class SynapticManager(object):
         self._one_to_one_connection_dtcm_max_bytes = config.getint(
             "Simulation", "one_to_one_connection_dtcm_max_bytes")
 
+        # TODO: Hard-coded to 0 to disable as currently broken!
+        self._one_to_one_connection_dtcm_max_bytes = 0
+
         self._max_per_pre = 0
         self._pop_table = None
         self._address_list = None
@@ -498,7 +501,7 @@ class SynapticManager(object):
                     if isinstance(app_edge.pre_vertex, SpikeSourcePoisson):
                         spikes_per_second = app_edge.pre_vertex.rate
                         if hasattr(spikes_per_second, "__getitem__"):
-                            spikes_per_second = max(spikes_per_second)
+                            spikes_per_second = numpy.max(spikes_per_second)
                         elif get_simulator().is_a_pynn_random(
                                 spikes_per_second):
                             spikes_per_second = get_maximum_probable_value(
@@ -509,13 +512,30 @@ class SynapticManager(object):
                             (1000000.0 / float(machine_timestep)))
                         spikes_per_tick = scipy.stats.poisson.ppf(
                             prob, spikes_per_tick)
+
+                        if n_connections == 1 and spikes_per_tick == 0.:
+                            spikes_per_tick = 1.
+
+
                     rate_stats[synapse_type].add_items(
                         spikes_per_second, 0, n_connections)
+
                     total_weights[synapse_type] += spikes_per_tick * (
                         weight_max * n_connections)
 
+                    # total_weights[synapse_type] += spikes_per_tick * (
+                    #     weight_max)
+
+                    # total_weights[synapse_type] += spikes_per_tick * (
+                    #     weight_mean * n_connections * 0.01)
+
+                    # total_weights[synapse_type] = max(total_weights[synapse_type],
+                    #         spikes_per_tick * (weight_max * n_connections))
+
                     if synapse_dynamics.are_weights_signed():
                         weights_signed = True
+        # if n_synapse_types == 4:
+        #     print("modulated")
 
         max_weights = numpy.zeros(n_synapse_types)
         for synapse_type in range(n_synapse_types):
@@ -534,21 +554,21 @@ class SynapticManager(object):
                     max_weights[synapse_type], biggest_weight[synapse_type])
 
         # Convert these to powers
-        max_weight_powers = (0 if w <= 0
+        max_weight_powers = (0 if w <= 1
                              else int(math.ceil(max(0, math.log(w, 2))))
                              for w in max_weights)
 
         # If 2^max_weight_power equals the max weight, we have to add another
         # power, as range is 0 - (just under 2^max_weight_power)!
-        max_weight_powers = (w + 1 if (2 ** w) <= a else w
-                             for w, a in zip(max_weight_powers, max_weights))
+        max_weight_powers = (p + 1 if (2 ** p) <= w else p
+                             for p, w in zip(max_weight_powers, max_weights))
 
         # If we have synapse dynamics that uses signed weights,
         # Add another bit of shift to prevent overflows
         if weights_signed:
             max_weight_powers = (m + 1 for m in max_weight_powers)
-
-        return list(max_weight_powers)
+        max_weight_powers_list = list(max_weight_powers)
+        return max_weight_powers_list
 
     @staticmethod
     def _get_weight_scale(ring_buffer_to_input_left_shift):
@@ -794,7 +814,7 @@ class SynapticManager(object):
                     if len(row_data) > 0:
                         if (row_length == 1 and isinstance(
                                 synapse_info.connector, OneToOneConnector) and
-                                (next_single_start_position * 4) <
+                                (next_single_start_position + len(row_data)) <=
                                 self._one_to_one_connection_dtcm_max_bytes):
                             single_rows = row_data.reshape(-1, 4)[:, 3]
                             single_synapses.append(single_rows)
@@ -836,7 +856,8 @@ class SynapticManager(object):
 
                         if (delayed_row_length == 1 and isinstance(
                                 synapse_info.connector, OneToOneConnector) and
-                                (next_single_start_position * 4) <
+                                (next_single_start_position +
+                                 len(delayed_row_data)) <=
                                 self._one_to_one_connection_dtcm_max_bytes):
                             single_rows = delayed_row_data.reshape(-1, 4)[:, 3]
                             single_synapses.append(single_rows)
@@ -1057,7 +1078,7 @@ class SynapticManager(object):
                 # read in the synaptic row data
                 single_block = numpy.asarray(transceiver.read_memory(
                     placement.x, placement.y,
-                    direct_synapses_address + (synaptic_block_offset * 4),
+                    direct_synapses_address + synaptic_block_offset,
                     synaptic_block_size), dtype="uint8").view("uint32")
 
                 # Convert the block into a set of rows

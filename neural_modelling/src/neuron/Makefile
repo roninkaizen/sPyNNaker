@@ -3,6 +3,8 @@ MODELS = IF_curr_exp \
          IF_curr_exp_stdp_mad_pair_additive \
          IF_curr_exp_supervision \
          IF_curr_exp_supervision_stdp_mad_neuromodulated \
+         IZK_curr_exp_supervision \
+         IZK_curr_exp_supervision_stdp_mad_neuromodulated \
          external_device_lif_control \
          IF_cond_exp \
          IZK_curr_exp \

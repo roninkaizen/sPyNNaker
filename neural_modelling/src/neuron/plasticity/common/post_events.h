@@ -22,6 +22,7 @@ typedef struct {
     uint32_t times[MAX_POST_SYNAPTIC_EVENTS];
     post_trace_t traces[MAX_POST_SYNAPTIC_EVENTS];
 #ifdef _SYNAPSE_TYPES_EXP_SUPERVISION_IMPL_H
+    uint32_t has_spiked;
     uint32_t dopamine_trace_markers;
 #endif
 } post_event_history_t;
@@ -62,6 +63,7 @@ static inline post_event_history_t *post_events_init_buffers(
         post_event_history[n].traces[0] = timing_get_initial_post_trace();
         post_event_history[n].count_minus_one = 0;
 #ifdef _SYNAPSE_TYPES_EXP_SUPERVISION_IMPL_H
+        post_event_history[n].has_spiked = 0;
         post_event_history[n].dopamine_trace_markers = 0;
 #endif
     }

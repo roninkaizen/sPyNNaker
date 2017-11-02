@@ -77,7 +77,7 @@ static inline int32_t get_dopamine_trace(post_trace_t trace) {
 }
 
 static inline post_trace_t trace_build(int32_t post_trace, int32_t dopamine_trace) {
-    return (post_trace_t)( (post_trace << 16) | ((uint16_t)(dopamine_trace)) );
+    return (post_trace_t)( (post_trace << 16) | ((uint16_t)(dopamine_trace)) & 0xFFFF);
 }
 
 //---------------------------------------

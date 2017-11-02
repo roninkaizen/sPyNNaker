@@ -35,7 +35,7 @@ static inline int32_t synapse_structure_get_eligibility_trace(
 
 static inline plastic_synapse_t synapse_structure_update_state(
                                                     int32_t trace, int32_t weight) {
-    return (plastic_synapse_t)( (weight << 16) | ((uint16_t)(trace)) );
+    return (plastic_synapse_t)( (weight << 16) | ((uint16_t)(trace)) & 0xFFFF );
 }
 
 static inline update_state_t synapse_structure_get_update_state(
