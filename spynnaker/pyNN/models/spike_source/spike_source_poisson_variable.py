@@ -152,8 +152,12 @@ class SpikeSourcePoissonVariable(
         self._change_requires_mapping = True
         self._change_requires_neuron_parameters_reload = False
 
+        self._rate = []
         # Store the parameters
-        self._rate = utility_calls.convert_param_to_numpy(rate, n_neurons)
+        for block in rate:
+            self._rate.append(utility_calls.convert_param_to_numpy(block, n_neurons))
+
+        self._num_rates = 2
         self._start = utility_calls.convert_param_to_numpy(start, n_neurons)
         self._duration = utility_calls.convert_param_to_numpy(
             duration, n_neurons)
@@ -316,8 +320,9 @@ class SpikeSourcePoissonVariable(
 
         :param vertex_slice:
         """
+        num_rates = 2
         return (RANDOM_SEED_WORDS + PARAMS_BASE_WORDS +
-                (vertex_slice.n_atoms * PARAMS_WORDS_PER_NEURON)) * 4
+                (vertex_slice.n_atoms * PARAMS_WORDS_PER_NEURON * num_rates)) * 4
 
     def reserve_memory_regions(self, spec, placement, graph_mapper):
         """ Reserve memory regions for poisson source parameters and output\
@@ -403,7 +408,18 @@ class SpikeSourcePoissonVariable(
             MICROSECONDS_PER_SECOND / machine_time_step)))
 
         # Write the number of microseconds between sending spikes
-        total_mean_rate = numpy.sum(self._rate)
+        block_rates = []
+        for block in self._rate:
+            block_rates.append(numpy.sum(block))
+
+        total_mean_rate = max(block_rates)
+
+        # the total mean rate is used to space the sending of spikes WITHIN a
+        # timestep in order to avoid flooding the router. For the variable
+        # rate source we take the maximum rate that will occur for any of the
+        # configurations and use this to calculate the rate for the entire
+        # simulation
+
         if total_mean_rate > 0:
             max_spikes = scipy.stats.poisson.ppf(
                 1.0 - (1.0 / total_mean_rate), total_mean_rate)
@@ -463,42 +479,43 @@ class SpikeSourcePoissonVariable(
         end_scaled[positions] = self._convert_ms_to_n_timesteps(
             start[positions] + duration[positions], machine_time_step)
 
-        # Get the rates for the atoms
-        rates = self._rate[vertex_slice.as_slice].astype("float")
+        for rate in self._rate:
+            # Get the rates for the atoms
+            rates = rate[vertex_slice.as_slice].astype("float")
 
-        # Compute the spikes per tick for each atom
-        spikes_per_tick = (
-            rates * (float(machine_time_step) / MICROSECONDS_PER_SECOND))
+            # Compute the spikes per tick for each atom
+            spikes_per_tick = (
+                rates * (float(machine_time_step) / MICROSECONDS_PER_SECOND))
 
-        # Determine which sources are fast and which are slow
-        is_fast_source = spikes_per_tick > SLOW_RATE_PER_TICK_CUTOFF
+            # Determine which sources are fast and which are slow
+            is_fast_source = spikes_per_tick > SLOW_RATE_PER_TICK_CUTOFF
 
-        # Compute the e^-(spikes_per_tick) for fast sources to allow fast
-        # computation of the Poisson distribution to get the number of spikes
-        # per timestep
-        exp_minus_lambda = numpy.zeros(len(spikes_per_tick), dtype="float")
-        exp_minus_lambda[is_fast_source] = numpy.exp(
-            -1.0 * spikes_per_tick[is_fast_source])
-        # Compute the inter-spike-interval for slow sources to get the average
-        # number of timesteps between spikes
-        isi_val = numpy.zeros(len(spikes_per_tick), dtype="float")
-        elements = numpy.logical_not(is_fast_source) & (spikes_per_tick > 0)
-        isi_val[elements] = 1.0 / spikes_per_tick[elements]
+            # Compute the e^-(spikes_per_tick) for fast sources to allow fast
+            # computation of the Poisson distribution to get the number of spikes
+            # per timestep
+            exp_minus_lambda = numpy.zeros(len(spikes_per_tick), dtype="float")
+            exp_minus_lambda[is_fast_source] = numpy.exp(
+                -1.0 * spikes_per_tick[is_fast_source])
+            # Compute the inter-spike-interval for slow sources to get the average
+            # number of timesteps between spikes
+            isi_val = numpy.zeros(len(spikes_per_tick), dtype="float")
+            elements = numpy.logical_not(is_fast_source) & (spikes_per_tick > 0)
+            isi_val[elements] = 1.0 / spikes_per_tick[elements]
 
-        # Get the time to spike value
-        time_to_spike = self._time_to_spike[vertex_slice.as_slice]
+            # Get the time to spike value
+            time_to_spike = self._time_to_spike[vertex_slice.as_slice]
 
-        # Merge the arrays as parameters per atom
-        data = numpy.dstack((
-            start_scaled.astype("uint32"),
-            end_scaled.astype("uint32"),
-            is_fast_source.astype("uint32"),
-            (exp_minus_lambda * (2 ** 32)).astype("uint32"),
-            (isi_val * (2 ** 15)).astype("uint32"),
-            (time_to_spike * (2 ** 15)).astype("uint32")
-        ))[0]
+            # Merge the arrays as parameters per atom
+            data = numpy.dstack((
+                start_scaled.astype("uint32"),
+                end_scaled.astype("uint32"),
+                is_fast_source.astype("uint32"),
+                (exp_minus_lambda * (2 ** 32)).astype("uint32"),
+                (isi_val * (2 ** 15)).astype("uint32"),
+                (time_to_spike * (2 ** 15)).astype("uint32")
+            ))[0]
 
-        spec.write_array(data)
+            spec.write_array(data)
 
     @staticmethod
     def _convert_ms_to_n_timesteps(value, machine_time_step):

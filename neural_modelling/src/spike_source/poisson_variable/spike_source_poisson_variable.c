@@ -566,6 +566,54 @@ void timer_callback(uint timer_count, uint unused) {
                 spike_source->time_to_spike_ticks -= REAL_CONST(1.0);
 
             }
+
+
+            /*
+             *
+             if (time window is up and it's time to update rates){
+             	 copy struct from next_rate holder to in-use struct
+             	 kick-off dma to copy data from SDRAM to populate next_rate struct
+             }
+             spin1_dma_transfer(
+        		DMA_TAG_READ_SYNAPTIC_ROW, row_address, next_buffer->row,
+        		DMA_READ, n_bytes_to_transfer);
+             *
+             ****f* spin1_api.c/spin1_dma_transfer
+*
+* SUMMARY
+*  This function enqueues a DMA transfer request. Requests are consumed by
+*  dma_done_isr, which schedules a user callback with the ID of the completed
+*  transfer and fulfils the next transfer request. If the DMA controller
+*  hardware buffer is not full (which also implies that the request queue is
+*  empty, given the consumer operation) then a transfer request is fulfilled
+*  immediately.
+*
+* SYNOPSIS
+*  uint spin1_dma_transfer(uint tag, void *system_address, void *tcm_address,
+*                          uint direction, uint length)
+*
+* INPUTS
+*  uint *system_address: system NOC address of the transfer
+*  uint *tcm_address: processor TCM address of the transfer
+*  uint direction: 0 = transfer to TCM, 1 = transfer to system
+*  uint length: length of transfer in bytes
+*
+* OUTPUTS
+*   uint: 0 if the request queue is full, DMA transfer ID otherwise
+*
+* SOURCE
+
+uint spin1_dma_transfer (uint tag, void *system_address, void *tcm_address,
+            uint direction, uint length)
+             *
+             *
+             *
+             *
+             */
+
+
+
+
         }
     }
 
