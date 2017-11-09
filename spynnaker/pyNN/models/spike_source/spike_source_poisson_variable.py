@@ -320,7 +320,7 @@ class SpikeSourcePoissonVariable(
 
         :param vertex_slice:
         """
-        num_rates = 2
+        num_rates = 3
         return (RANDOM_SEED_WORDS + PARAMS_BASE_WORDS +
                 (vertex_slice.n_atoms * PARAMS_WORDS_PER_NEURON * num_rates)) * 4
 

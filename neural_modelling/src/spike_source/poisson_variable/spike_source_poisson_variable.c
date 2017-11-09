@@ -61,6 +61,10 @@ typedef enum poisson_region_parameters_before_seed{
 // Globals
 //! global variable which contains all the data for neurons
 static spike_source_t *spike_source_array = NULL;
+static spike_source_t *next_window_sources = NULL;
+
+
+uint32_t time_to_change = 500;
 
 //! counter for how many neurons exhibit slow spike generation
 static uint32_t num_spike_sources = 0;
@@ -121,6 +125,8 @@ static REAL slow_rate_per_tick_cutoff;
 
 static bool recording_in_progress = false;
 
+static uint32_t start_of_next_block;
+
 //! \brief ??????????????
 //! \param[in] n ?????????????????
 //! \return bit field of the ???????????????
@@ -136,6 +142,13 @@ static inline void _reset_spikes() {
         clear_bit_field(_out_spikes(n - 1), n_spike_buffer_words);
     }
 }
+
+/*
+static inline uint32_t _get_next_block_address(address_t address, num_spike_sources){
+
+	return address
+}
+*/
 
 //! \brief deduces the time in timer ticks until the next spike is to occur
 //!        given the mean inter-spike interval
@@ -162,6 +175,23 @@ static inline uint32_t fast_spike_source_get_num_spikes(
     else {
         return poisson_dist_variate_exp_minus_lambda(
             mars_kiss64_seed, spike_source_seed, exp_minus_lambda);
+    }
+}
+
+void print_next_spike_sources(){
+    if (num_spike_sources > 0) {
+        for (index_t s = 0; s < num_spike_sources; s++) {
+            log_info("atom %d", s);
+            log_info("scaled_start = %u", next_window_sources[s].start_ticks);
+            log_info("scaled end = %u", next_window_sources[s].end_ticks);
+            log_info("is_fast_source = %d",
+                     next_window_sources[s].is_fast_source);
+            log_info("exp_minus_lamda = %k",
+                     (REAL)(next_window_sources[s].exp_minus_lambda));
+            log_info("isi_val = %k", next_window_sources[s].mean_isi_ticks);
+            log_info("time_to_spike = %k",
+                     next_window_sources[s].time_to_spike_ticks);
+        }
     }
 }
 
@@ -237,6 +267,11 @@ bool read_poisson_parameters(address_t address) {
             spike_source_array = (spike_source_t*) spin1_malloc(
                 num_spike_sources * sizeof(spike_source_t));
         }
+        if (next_window_sources == NULL){
+        	next_window_sources = (spike_source_t*) spin1_malloc(
+                        num_spike_sources * sizeof(spike_source_t));
+                }
+
 
         // if failed to alloc memory, report and fail.
         if (spike_source_array == NULL) {
@@ -249,6 +284,20 @@ bool read_poisson_parameters(address_t address) {
         memcpy(
             spike_source_array, &address[spikes_offset],
             num_spike_sources * sizeof(spike_source_t));
+
+        // Initialise future spike source structs
+        uint32_t next_offset  = spikes_offset + 18;
+        		//(num_spike_sources * sizeof(spike_source_array) * 0.25);
+
+        start_of_next_block = next_offset + 18;
+
+        memcpy(
+            next_window_sources, &address[next_offset],
+            num_spike_sources * sizeof(spike_source_t));
+
+        print_next_spike_sources();
+
+
     }
 
     log_info("read_parameters: completed successfully");
@@ -318,6 +367,8 @@ static bool initialize(uint32_t *timer_period) {
                     spike_source_array[s].mean_isi_ticks);
         }
     }
+
+
 
     // print spike sources for debug purposes
     // print_spike_sources();
@@ -500,7 +551,41 @@ void timer_callback(uint timer_count, uint unused) {
     // Reset the out spikes before the loop
     out_spikes_reset();
 
-    log_info("Timer tick %u", time);
+    //log_info("Timer tick %u", time);
+
+
+
+
+
+    if (time == time_to_change){
+    	log_info("time = %u, changing spike sources", time);
+    	log_info("before");
+    	print_spike_sources();
+
+    	memcpy(spike_source_array, next_window_sources, num_spike_sources * sizeof(spike_source_t));
+
+
+    	address_t address = data_specification_get_data_address();
+
+    	for (index_t s = 0; s < num_spike_sources; s++) {
+            if (!spike_source_array[s].is_fast_source) {
+                spike_source_array[s].time_to_spike_ticks =
+                    slow_spike_source_get_time_to_spike(
+                        spike_source_array[s].mean_isi_ticks);
+            }
+        }
+
+    	log_info("after");
+    	print_spike_sources();
+    	time_to_change += 500;
+
+    	// kick_off dma to retrieve next source spikes
+    	spin1_dma_transfer(0, &address[start_of_next_block - 1 + 24], next_window_sources,
+    	        		0, num_spike_sources * sizeof(spike_source_t));
+
+    	log_info("+==========+++++++++++++++++++++++++++++");
+     }
+
 
     // Loop through spike sources
     for (index_t s = 0; s < num_spike_sources; s++) {
@@ -568,12 +653,9 @@ void timer_callback(uint timer_count, uint unused) {
             }
 
 
-            /*
-             *
-             if (time window is up and it's time to update rates){
-             	 copy struct from next_rate holder to in-use struct
-             	 kick-off dma to copy data from SDRAM to populate next_rate struct
-             }
+
+/*
+
              spin1_dma_transfer(
         		DMA_TAG_READ_SYNAPTIC_ROW, row_address, next_buffer->row,
         		DMA_READ, n_bytes_to_transfer);
