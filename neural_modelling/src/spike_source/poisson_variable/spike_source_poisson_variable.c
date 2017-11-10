@@ -125,6 +125,7 @@ static REAL slow_rate_per_tick_cutoff;
 
 static bool recording_in_progress = false;
 
+static uint32_t block_size;
 static uint32_t start_of_next_block;
 
 //! \brief ??????????????
@@ -272,7 +273,6 @@ bool read_poisson_parameters(address_t address) {
                         num_spike_sources * sizeof(spike_source_t));
                 }
 
-
         // if failed to alloc memory, report and fail.
         if (spike_source_array == NULL) {
             log_error("Failed to allocate spike_source_array");
@@ -285,17 +285,20 @@ bool read_poisson_parameters(address_t address) {
             spike_source_array, &address[spikes_offset],
             num_spike_sources * sizeof(spike_source_t));
 
-        // Initialise future spike source structs
-        uint32_t next_offset  = spikes_offset + 18;
-        		//(num_spike_sources * sizeof(spike_source_array) * 0.25);
+        block_size = num_spike_sources * sizeof(spike_source_t) / 4;
+        log_info("block size = %u", block_size);
 
-        start_of_next_block = next_offset + 18;
+        // Initialise future spike source structs
+        uint32_t next_offset  = spikes_offset + block_size;
 
         memcpy(
             next_window_sources, &address[next_offset],
             num_spike_sources * sizeof(spike_source_t));
 
-        print_next_spike_sources();
+        // set global variable for use in spike source updates
+        start_of_next_block = next_offset + block_size + 24 - 1;
+
+        // print_next_spike_sources();
 
 
     }
@@ -540,8 +543,6 @@ void timer_callback(uint timer_count, uint unused) {
         return;
     }
 
-
-
     // Sleep for a random time
     spin1_delay_us(random_backoff_us);
 
@@ -551,22 +552,18 @@ void timer_callback(uint timer_count, uint unused) {
     // Reset the out spikes before the loop
     out_spikes_reset();
 
-    //log_info("Timer tick %u", time);
-
-
-
-
-
+    // update to new rate if time
     if (time == time_to_change){
     	log_info("time = %u, changing spike sources", time);
     	log_info("before");
     	print_spike_sources();
 
-    	memcpy(spike_source_array, next_window_sources, num_spike_sources * sizeof(spike_source_t));
-
+    	memcpy(spike_source_array, next_window_sources,
+    			num_spike_sources * sizeof(spike_source_t));
 
     	address_t address = data_specification_get_data_address();
 
+    	// initialise isi for new slow sources
     	for (index_t s = 0; s < num_spike_sources; s++) {
             if (!spike_source_array[s].is_fast_source) {
                 spike_source_array[s].time_to_spike_ticks =
@@ -580,12 +577,13 @@ void timer_callback(uint timer_count, uint unused) {
     	time_to_change += 500;
 
     	// kick_off dma to retrieve next source spikes
-    	spin1_dma_transfer(0, &address[start_of_next_block - 1 + 24], next_window_sources,
+    	spin1_dma_transfer(0, &address[start_of_next_block], next_window_sources,
     	        		0, num_spike_sources * sizeof(spike_source_t));
 
-    	log_info("+==========+++++++++++++++++++++++++++++");
-     }
+    	start_of_next_block += block_size;
 
+    	log_info("+++++++++++++++++++++++++++++++++++");
+     }
 
     // Loop through spike sources
     for (index_t s = 0; s < num_spike_sources; s++) {
@@ -651,51 +649,6 @@ void timer_callback(uint timer_count, uint unused) {
                 spike_source->time_to_spike_ticks -= REAL_CONST(1.0);
 
             }
-
-
-
-/*
-
-             spin1_dma_transfer(
-        		DMA_TAG_READ_SYNAPTIC_ROW, row_address, next_buffer->row,
-        		DMA_READ, n_bytes_to_transfer);
-             *
-             ****f* spin1_api.c/spin1_dma_transfer
-*
-* SUMMARY
-*  This function enqueues a DMA transfer request. Requests are consumed by
-*  dma_done_isr, which schedules a user callback with the ID of the completed
-*  transfer and fulfils the next transfer request. If the DMA controller
-*  hardware buffer is not full (which also implies that the request queue is
-*  empty, given the consumer operation) then a transfer request is fulfilled
-*  immediately.
-*
-* SYNOPSIS
-*  uint spin1_dma_transfer(uint tag, void *system_address, void *tcm_address,
-*                          uint direction, uint length)
-*
-* INPUTS
-*  uint *system_address: system NOC address of the transfer
-*  uint *tcm_address: processor TCM address of the transfer
-*  uint direction: 0 = transfer to TCM, 1 = transfer to system
-*  uint length: length of transfer in bytes
-*
-* OUTPUTS
-*   uint: 0 if the request queue is full, DMA transfer ID otherwise
-*
-* SOURCE
-
-uint spin1_dma_transfer (uint tag, void *system_address, void *tcm_address,
-            uint direction, uint length)
-             *
-             *
-             *
-             *
-             */
-
-
-
-
         }
     }
 

@@ -323,7 +323,11 @@ class SpikeSourcePoissonVariable(
 
         :param vertex_slice:
         """
+<<<<<<< HEAD
 
+=======
+        num_rates = 5
+>>>>>>> branch 'variable_rate_poisson_source' of https://github.com/SpiNNakerManchester/sPyNNaker
         return (RANDOM_SEED_WORDS + PARAMS_BASE_WORDS +
                 (vertex_slice.n_atoms * PARAMS_WORDS_PER_NEURON * self._num_rates)) * 4
 
