@@ -153,11 +153,14 @@ class SpikeSourcePoissonVariable(
         self._change_requires_neuron_parameters_reload = False
 
         self._rate = []
+        self._num_rates = len(rate)
+
         # Store the parameters
         for block in rate:
             self._rate.append(utility_calls.convert_param_to_numpy(block, n_neurons))
 
-        self._num_rates = 2
+
+
         self._start = utility_calls.convert_param_to_numpy(start, n_neurons)
         self._duration = utility_calls.convert_param_to_numpy(
             duration, n_neurons)
@@ -314,15 +317,15 @@ class SpikeSourcePoissonVariable(
     def get_max_atoms_per_core():
         return SpikeSourcePoissonVariable._model_based_max_atoms_per_core
 
-    @staticmethod
-    def get_params_bytes(vertex_slice):
+    #@staticmethod
+    def get_params_bytes(self, vertex_slice):
         """ Gets the size of the poisson parameters in bytes
 
         :param vertex_slice:
         """
-        num_rates = 3
+
         return (RANDOM_SEED_WORDS + PARAMS_BASE_WORDS +
-                (vertex_slice.n_atoms * PARAMS_WORDS_PER_NEURON * num_rates)) * 4
+                (vertex_slice.n_atoms * PARAMS_WORDS_PER_NEURON * self._num_rates)) * 4
 
     def reserve_memory_regions(self, spec, placement, graph_mapper):
         """ Reserve memory regions for poisson source parameters and output\
