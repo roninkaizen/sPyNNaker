@@ -296,7 +296,7 @@ bool read_poisson_parameters(address_t address) {
             num_spike_sources * sizeof(spike_source_t));
 
         // set global variable for use in spike source updates
-        start_of_next_block = next_offset + block_size + 24 - 1;
+        start_of_next_block = next_offset + block_size;// + 24 - 1;
 
         // print_next_spike_sources();
 
@@ -562,6 +562,8 @@ void timer_callback(uint timer_count, uint unused) {
     			num_spike_sources * sizeof(spike_source_t));
 
     	address_t address = data_specification_get_data_address();
+    	address = data_specification_get_region(POISSON_PARAMS, address);
+
 
     	// initialise isi for new slow sources
     	for (index_t s = 0; s < num_spike_sources; s++) {
