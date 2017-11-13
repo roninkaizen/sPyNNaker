@@ -10,29 +10,29 @@ class MappingConnector(AbstractConnector):
     pynn_population.py for all i.
     """
 
-    def __init__(self, width, height, row_bits, channel, channel_bits=1, event_bits=0,
+    def __init__(self, width, height, channel, height_bits, channel_bits=1, event_bits=0,
             safe=True, verbose=False, generate_on_machine=False,
             random_number_class=RandomDistribution):
         """
         """
-        self._width = width
-        self._height = height
+        self._width = numpy.uint32(width)
+        self._height = numpy.uint32(height)
 
-        self._row_bits = row_bits
-        self._row_mask = (1 << row_bits) - 1
-        self._channel_bits = channel_bits
-        self._channel_mask = (1 << channel_bits) - 1
+        self._height_bits = numpy.uint32(height_bits)
+        self._row_mask = numpy.uint32((1 << height_bits) - 1)
+        self._channel_bits = numpy.uint32(channel_bits)
+        self._channel_mask = numpy.uint32((1 << channel_bits) - 1)
 
-        self._event_bits = event_bits
-        self._event_mask = (1 << event_bits) - 1
+        self._event_bits = numpy.uint32(event_bits)
+        self._event_mask = numpy.uint32((1 << event_bits) - 1)
 
         self._chan_shift_bits = event_bits
         self._row_shift_bits = channel_bits + self._chan_shift_bits
-        self._col_shift_bits = row_bits + self._row_shift_bits
+        self._col_shift_bits = height_bits + self._row_shift_bits
 
-        self._col_mask = (1 << (32 - self._col_shift_bits)) - 1
+        self._col_mask = (1 << (32 - self._row_shift_bits)) - 1
 
-        self._channel = channel & self._channel_mask
+        self._channel = numpy.uint32(channel & self._channel_mask)
 
         self._random_number_class = random_number_class
 
@@ -304,10 +304,10 @@ class MappingConnector(AbstractConnector):
         block = []
         block.append( shape2word(self._width,
                                  self._height) )
-
-        block.append( numpy.uint32(self._channel +
-                                   (self._event_bits << 8) +
-                                   (self._channel_bits << 16) +
-                                   (self._row_bits << 24)) )
+        cfg = numpy.uint32(self._channel & 0xFF |
+                           ((self._event_bits & 0xFF) << 8) |
+                           ((self._channel_bits & 0xFF) << 16) |
+                           ((self._height_bits & 0xFF) << 24))
+        block.append( cfg )
 
         return block
