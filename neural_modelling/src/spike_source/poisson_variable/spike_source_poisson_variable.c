@@ -391,6 +391,11 @@ static bool initialize(uint32_t *timer_period) {
 void resume_callback() {
     recording_reset();
 
+    //////////////////////////////////////////////////////
+    // re-start region address (but only at the end of the interval
+    // i.e. not during an auto-pause and resume restart).
+    //////////////////////////////////////////////////////
+
     address_t address = data_specification_get_data_address();
 
     if (!read_poisson_parameters(
