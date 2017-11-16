@@ -30,7 +30,7 @@ from spinn_front_end_common.abstract_models \
 from spinn_front_end_common.abstract_models.impl\
     import ProvidesKeyToAtomMappingImpl
 from spinn_front_end_common.utilities import globals_variables
-from spinn_front_end_common.utilities.utility_objs import ExecutableStartType
+from spinn_front_end_common.utilities.utility_objs import ExecutableType
 
 from spynnaker.pyNN.models.common.abstract_spike_recordable \
     import AbstractSpikeRecordable
@@ -51,6 +51,9 @@ logger = logging.getLogger(__name__)
 # seconds_per_timestep, timesteps_per_second, slow_rate_tick_cutoff
 PARAMS_BASE_WORDS = 8
 
+# number_intervals, rate_interval_duration
+PARAMS_VARIABLE = 2
+
 # start_scaled, end_scaled, is_fast_source, exp_minus_lambda, isi_val,
 # time_to_spike
 PARAMS_WORDS_PER_NEURON = 6
@@ -61,7 +64,7 @@ RANDOM_SEED_WORDS = 4
 # has key, key, random_back off, time_between_spikes,
 # seed1, seed2, seed3 , seed4,
 # n_sources, seconds_per_timestep, timesteps_per_second, slow_rate_tick_cutoff
-START_OF_POISSON_GENERATOR_PARAMETERS = 12 * 4
+START_OF_POISSON_GENERATOR_PARAMETERS = (PARAMS_BASE_WORDS + PARAMS_VARIABLE + RANDOM_SEED_WORDS) * 4
 MICROSECONDS_PER_SECOND = 1000000.0
 MICROSECONDS_PER_MILLISECOND = 1000.0
 SLOW_RATE_PER_TICK_CUTOFF = 1.0
@@ -77,6 +80,8 @@ class _PoissonStruct(Enum):
     EXP_MINUS_LAMDA = (3, DataType.U032)
     ISI_VAL = (4, DataType.S1615)
     TIME_TO_SPIKE = (5, DataType.S1615)
+    NUM_RATES = (6, DataType.UINT32)
+    RATE_INTERVAL_DURATION = (7, DataType.UINT32)
 
     def __new__(cls, value, data_type, doc=""):
         obj = object.__new__(cls)
@@ -118,7 +123,7 @@ class SpikeSourcePoissonVariable(
     _n_poisson_machine_vertices = 0
 
     # parameters expected by PyNN
-    default_parameters = {
+    default_parameters = {'rate_interval_duration':10,
         'start': 0.0, 'duration': None, 'rate': 1.0}
 
     # parameters expected by spinnaker
@@ -126,13 +131,14 @@ class SpikeSourcePoissonVariable(
         'constraints': None, 'seed': None, 'label': None}
 
     def __init__(
-            self, n_neurons,
+            self, n_neurons, rate_interval_duration,
             constraints=none_pynn_default_parameters['constraints'],
             label=none_pynn_default_parameters['label'],
             rate=default_parameters['rate'],
             start=default_parameters['start'],
             duration=default_parameters['duration'],
             seed=none_pynn_default_parameters['seed']):
+
         ApplicationVertex.__init__(
             self, label, constraints, self._model_based_max_atoms_per_core)
         AbstractSpikeRecordable.__init__(self)
@@ -152,6 +158,7 @@ class SpikeSourcePoissonVariable(
         self._change_requires_mapping = True
         self._change_requires_neuron_parameters_reload = False
 
+        self._rate_interval_duration = rate_interval_duration
         self._rate = []
         self._num_rates = len(rate)
 
@@ -323,7 +330,7 @@ class SpikeSourcePoissonVariable(
 
         :param vertex_slice:
         """
-        return (RANDOM_SEED_WORDS + PARAMS_BASE_WORDS +
+        return (RANDOM_SEED_WORDS + PARAMS_BASE_WORDS + PARAMS_VARIABLE +
                 (vertex_slice.n_atoms * PARAMS_WORDS_PER_NEURON * self._num_rates)) * 4
 
     def reserve_memory_regions(self, spec, placement, graph_mapper):
@@ -465,6 +472,12 @@ class SpikeSourcePoissonVariable(
         # Write the slow-rate-per-tick-cutoff (accum)
         spec.write_value(
             data=SLOW_RATE_PER_TICK_CUTOFF, data_type=DataType.S1615)
+
+        # Write the number of different rates considered
+        spec.write_value(data=self._num_rates, data_type=DataType.UINT32)
+
+        # Write the interval duration before changing rates
+        spec.write_value(data=self._rate_interval_duration, data_type = DataType.UINT32)
 
         # Compute the start times in machine time steps
         start = self._start[vertex_slice.as_slice]
@@ -736,7 +749,7 @@ class SpikeSourcePoissonVariable(
 
     @overrides(AbstractHasAssociatedBinary.get_binary_start_type)
     def get_binary_start_type(self):
-        return ExecutableStartType.USES_SIMULATION_INTERFACE
+        return ExecutableType.USES_SIMULATION_INTERFACE
 
     @overrides(AbstractSpikeRecordable.get_spikes)
     def get_spikes(

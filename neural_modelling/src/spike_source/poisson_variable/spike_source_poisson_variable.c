@@ -63,8 +63,14 @@ typedef enum poisson_region_parameters_before_seed{
 static spike_source_t *spike_source_array = NULL;
 static spike_source_t *next_window_sources = NULL;
 
+uint32_t seed_size = sizeof(mars_kiss64_seed_t) / sizeof(uint32_t);
+static uint32_t time_to_change;
+static uint32_t num_diff_rates;
+static uint32_t rate_interval_duration;
+static uint32_t current_spike_source_count;
+static uint32_t block_size;
+static uint32_t first_poisson_struct;
 
-uint32_t time_to_change = 500;
 
 //! counter for how many neurons exhibit slow spike generation
 static uint32_t num_spike_sources = 0;
@@ -125,8 +131,7 @@ static REAL slow_rate_per_tick_cutoff;
 
 static bool recording_in_progress = false;
 
-static uint32_t block_size;
-static uint32_t start_of_next_block;
+
 
 //! \brief ??????????????
 //! \param[in] n ?????????????????
@@ -161,6 +166,11 @@ static inline REAL slow_spike_source_get_time_to_spike(
         REAL mean_inter_spike_interval_in_ticks) {
     return exponential_dist_variate(mars_kiss64_seed, spike_source_seed)
             * mean_inter_spike_interval_in_ticks;
+}
+
+
+static inline uint32_t  _calc_memory_loc(){
+	return first_poisson_struct + current_spike_source_count*block_size;
 }
 
 //! \brief Determines how many spikes to transmit this timer tick.
@@ -228,7 +238,6 @@ bool read_poisson_parameters(address_t address) {
     time_between_spikes = address[TIME_BETWEEN_SPIKES] * sv->cpu_clk;
     log_info("\t key = %08x, back off = %u", key, random_backoff_us);
 
-    uint32_t seed_size = sizeof(mars_kiss64_seed_t) / sizeof(uint32_t);
     memcpy(spike_source_seed, &address[PARAMETER_SEED_START_POSITION],
         seed_size * sizeof(uint32_t));
 
@@ -255,9 +264,24 @@ bool read_poisson_parameters(address_t address) {
         &address[PARAMETER_SEED_START_POSITION + seed_size + 3],
         sizeof(REAL));
 
+    memcpy(
+    	&num_diff_rates,
+		&address[PARAMETER_SEED_START_POSITION + seed_size + 4],
+	    sizeof(uint32_t));
+
+    memcpy(
+        &rate_interval_duration,
+    	&address[PARAMETER_SEED_START_POSITION + seed_size + 5],
+    	sizeof(uint32_t));
+
+    // initialise time to change to end of first interval
+    time_to_change = rate_interval_duration;
+
     log_info("seconds_per_tick = %k\n", (REAL)(seconds_per_tick));
     log_info("ticks_per_second = %k\n", ticks_per_second);
     log_info("slow_rate_per_tick_cutoff = %k\n", slow_rate_per_tick_cutoff);
+    log_info("number of different rates = %u", num_diff_rates);
+    log_info("rate interval duration = %u", rate_interval_duration);
 
     // Allocate DTCM for array of spike sources and copy block of data
     if (num_spike_sources > 0) {
@@ -280,26 +304,19 @@ bool read_poisson_parameters(address_t address) {
         }
 
         // store spike source data into DTCM
-        uint32_t spikes_offset = PARAMETER_SEED_START_POSITION + seed_size + 4;
         memcpy(
-            spike_source_array, &address[spikes_offset],
+            spike_source_array, &address[_calc_memory_loc()],
             num_spike_sources * sizeof(spike_source_t));
 
         block_size = num_spike_sources * sizeof(spike_source_t) / 4;
         log_info("block size = %u", block_size);
 
-        // Initialise future spike source structs
-        uint32_t next_offset  = spikes_offset + block_size;
 
+
+        current_spike_source_count +=1;
         memcpy(
-            next_window_sources, &address[next_offset],
+            next_window_sources, &address[_calc_memory_loc()],
             num_spike_sources * sizeof(spike_source_t));
-
-        // set global variable for use in spike source updates
-        start_of_next_block = next_offset + block_size;// + 24 - 1;
-
-        // print_next_spike_sources();
-
 
     }
 
@@ -356,6 +373,12 @@ static bool initialize(uint32_t *timer_period) {
         return false;
     }
 
+    // get handle on start of poisson parameter structs in memory
+    current_spike_source_count = 0;
+    first_poisson_struct = PARAMETER_SEED_START_POSITION + seed_size + 6;
+
+
+
     // Setup regions that specify spike source array data
     if (!read_poisson_parameters(
             data_specification_get_region(POISSON_PARAMS, address))) {
@@ -370,8 +393,6 @@ static bool initialize(uint32_t *timer_period) {
                     spike_source_array[s].mean_isi_ticks);
         }
     }
-
-
 
     // print spike sources for debug purposes
     // print_spike_sources();
@@ -397,6 +418,10 @@ void resume_callback() {
     //////////////////////////////////////////////////////
 
     address_t address = data_specification_get_data_address();
+
+    // clone read function and omit re-reading the starting parts. or split it, and
+    // have read parameters, and read poisson source structs functions. Both can be
+    // called at initialise, but only the spike source structs will be updated at resume?
 
     if (!read_poisson_parameters(
             data_specification_get_region(POISSON_PARAMS, address))){
@@ -563,12 +588,9 @@ void timer_callback(uint timer_count, uint unused) {
     	log_info("before");
     	print_spike_sources();
 
+    	// copy contents of next pointer to current
     	memcpy(spike_source_array, next_window_sources,
     			num_spike_sources * sizeof(spike_source_t));
-
-    	address_t address = data_specification_get_data_address();
-    	address = data_specification_get_region(POISSON_PARAMS, address);
-
 
     	// initialise isi for new slow sources
     	for (index_t s = 0; s < num_spike_sources; s++) {
@@ -581,15 +603,30 @@ void timer_callback(uint timer_count, uint unused) {
 
     	log_info("after");
     	print_spike_sources();
-    	time_to_change += 500;
-
-    	// kick_off dma to retrieve next source spikes
-    	spin1_dma_transfer(0, &address[start_of_next_block], next_window_sources,
-    	        		0, num_spike_sources * sizeof(spike_source_t));
-
-    	start_of_next_block += block_size;
-
+    	time_to_change += rate_interval_duration;
     	log_info("+++++++++++++++++++++++++++++++++++");
+
+    	address_t address = data_specification_get_data_address();
+    	address = data_specification_get_region(POISSON_PARAMS, address);
+
+    	// check if reached the end of the cycle
+    	if (current_spike_source_count != num_diff_rates -1){
+
+    		current_spike_source_count += 1;
+    	   	// kick_off dma to retrieve next source spikes
+    	    spin1_dma_transfer(0, &address[_calc_memory_loc()], next_window_sources,
+    	    	        	        		0, num_spike_sources * sizeof(spike_source_t));
+
+
+    	} else{
+    		// reset pointer back to beginning
+    		current_spike_source_count = 0;
+    	    spin1_dma_transfer(0, &address[_calc_memory_loc()], next_window_sources,
+    	    	        	        		0, num_spike_sources * sizeof(spike_source_t));
+    	}
+
+
+
      }
 
     // Loop through spike sources
