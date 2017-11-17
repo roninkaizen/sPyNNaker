@@ -1,4 +1,4 @@
-BUILDS = spike_source/poisson delay_extension neuron robot_motor_control
+BUILDS = spike_source/poisson delay_extension neuron robot_motor_control spike_source/poisson_variable
 DIRS = $(BUILDS:%=src/%)
 
 all: $(DIRS)
