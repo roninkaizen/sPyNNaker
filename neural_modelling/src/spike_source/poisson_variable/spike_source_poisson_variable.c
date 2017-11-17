@@ -449,7 +449,7 @@ bool store_poisson_parameters(){
 
     // store array of spike sources into sdram for reading by the host
     if (num_spike_sources > 0) {
-        uint32_t spikes_offset = PARAMETER_SEED_START_POSITION + seed_size + 4;
+        uint32_t spikes_offset = PARAMETER_SEED_START_POSITION + seed_size + 6;
         memcpy(
             &address[spikes_offset], spike_source_array,
             num_spike_sources * sizeof(spike_source_t));
