@@ -429,6 +429,8 @@ void resume_callback() {
         rt_error(RTE_SWERR);
     }
 
+    time_to_change = 0;
+
     // print spike sources for debug purposes
     // print_spike_sources();
 }
@@ -621,6 +623,7 @@ void timer_callback(uint timer_count, uint unused) {
     	} else{
     		// reset pointer back to beginning
     		current_spike_source_count = 0;
+
     	    spin1_dma_transfer(0, &address[_calc_memory_loc()], next_window_sources,
     	    	        	        		0, num_spike_sources * sizeof(spike_source_t));
     	}
