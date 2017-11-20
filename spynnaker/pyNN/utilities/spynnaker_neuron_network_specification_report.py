@@ -35,23 +35,22 @@ class SpYNNakerNeuronGraphNetworkSpecificationReport(object):
             "The graph of the network in graphical form")
 
         # build progress bar for the vertices, edges, and rendering
-        progress_bar = ProgressBar(
+        progress = ProgressBar(
             application_graph.n_vertices +
             application_graph.n_outgoing_edge_partitions + 1,
             "generating the graphical representation of the neural network")
 
         # write vertices into dot diagram
-        vertex_counter = 0
-        for vertex in application_graph.vertices:
+        for vertex_id, vertex in progress.over(
+                enumerate(application_graph.vertices), False):
             dot_diagram.node(
-                "{}".format(vertex_counter),
+                "{}".format(vertex_id),
                 "{} ({} neurons)".format(vertex.label, vertex.n_atoms))
-            vertex_holders[vertex] = vertex_counter
-            vertex_counter += 1
-            progress_bar.update()
+            vertex_holders[vertex] = vertex_id
 
         # write edges into dot diagram
-        for partition in application_graph.outgoing_edge_partitions:
+        for partition in progress.over(
+                application_graph.outgoing_edge_partitions, False):
             for edge in partition.edges:
                 source_vertex_id = vertex_holders[edge.pre_vertex]
                 dest_vertex_id = vertex_holders[edge.post_vertex]
@@ -65,10 +64,9 @@ class SpYNNakerNeuronGraphNetworkSpecificationReport(object):
                     dot_diagram.edge(
                         "{}".format(source_vertex_id),
                         "{}".format(dest_vertex_id))
-            progress_bar.update()
 
         # write dot file and generate pdf
         file_to_output = os.path.join(report_folder, "network_graph.gv")
         dot_diagram.render(file_to_output, view=False)
-        progress_bar.update()
-        progress_bar.end()
+        progress.update()
+        progress.end()
