@@ -274,8 +274,6 @@ bool read_poisson_parameters(address_t address) {
     	&address[PARAMETER_SEED_START_POSITION + seed_size + 5],
     	sizeof(uint32_t));
 
-    // initialise time to change to end of first interval
-    time_to_change = rate_interval_duration;
 
     log_info("seconds_per_tick = %k\n", (REAL)(seconds_per_tick));
     log_info("ticks_per_second = %k\n", ticks_per_second);
@@ -401,6 +399,8 @@ static bool initialize(uint32_t *timer_period) {
     n_spike_buffers_allocated = 0;
     n_spike_buffer_words = get_bit_field_size(num_spike_sources);
     spike_buffer_size = n_spike_buffer_words * sizeof(uint32_t);
+    // initialise time to change to end of first interval
+    time_to_change = rate_interval_duration;
 
     log_info("Initialise: completed successfully");
 
@@ -430,7 +430,7 @@ void resume_callback() {
     }
 
     // print spike sources for debug purposes
-    // print_spike_sources();
+    print_spike_sources();
 }
 
 //! \brief stores the poisson parameters back into sdram for reading by the
@@ -449,9 +449,13 @@ bool store_poisson_parameters(){
 
     // store array of spike sources into sdram for reading by the host
     if (num_spike_sources > 0) {
-        uint32_t spikes_offset = PARAMETER_SEED_START_POSITION + seed_size + 4;
+//        uint32_t spikes_offset = PARAMETER_SEED_START_POSITION + seed_size + 4;
+//        memcpy(
+//            &address[spikes_offset], spike_source_array,
+//            num_spike_sources * sizeof(spike_source_t));
+        // store spike source data into DTCM
         memcpy(
-            &address[spikes_offset], spike_source_array,
+            &address[_calc_memory_loc()], spike_source_array,
             num_spike_sources * sizeof(spike_source_t));
     }
 
@@ -548,10 +552,11 @@ void timer_callback(uint timer_count, uint unused) {
     time++;
 
     log_debug("Timer tick %u", time);
+    log_debug("simulation ticks: %u, of %u", time, simulation_ticks);
 
     // If a fixed number of simulation ticks are specified and these have passed
     if (infinite_run != TRUE && time >= simulation_ticks) {
-
+    	time_to_change += rate_interval_duration;
         // rewrite poisson params to sdram for reading out if needed
         if (!store_poisson_parameters()){
             log_error("Failed to write poisson parameters to sdram");
@@ -585,8 +590,8 @@ void timer_callback(uint timer_count, uint unused) {
     // update to new rate if time
     if (time == time_to_change){
     	log_info("time = %u, changing spike sources", time);
-    	log_info("before");
-    	print_spike_sources();
+    	//log_info("before");
+    	//print_spike_sources();
 
     	// copy contents of next pointer to current
     	memcpy(spike_source_array, next_window_sources,
@@ -601,10 +606,10 @@ void timer_callback(uint timer_count, uint unused) {
             }
         }
 
-    	log_info("after");
-    	print_spike_sources();
+//    	log_info("after");
+//    	print_spike_sources();
     	time_to_change += rate_interval_duration;
-    	log_info("+++++++++++++++++++++++++++++++++++");
+    	//log_info("+++++++++++++++++++++++++++++++++++");
 
     	address_t address = data_specification_get_data_address();
     	address = data_specification_get_region(POISSON_PARAMS, address);

@@ -80,8 +80,9 @@ class _PoissonStruct(Enum):
     EXP_MINUS_LAMDA = (3, DataType.U032)
     ISI_VAL = (4, DataType.S1615)
     TIME_TO_SPIKE = (5, DataType.S1615)
-    NUM_RATES = (6, DataType.UINT32)
-    RATE_INTERVAL_DURATION = (7, DataType.UINT32)
+
+#     NUM_RATES = (6, DataType.UINT32)
+#     RATE_INTERVAL_DURATION = (7, DataType.UINT32)
 
     def __new__(cls, value, data_type, doc=""):
         obj = object.__new__(cls)
@@ -164,7 +165,7 @@ class SpikeSourcePoissonVariable(
 
         # Store the parameters
         for block in rate:
-            self._rate.append(utility_calls.convert_param_to_numpy(block, n_neurons))
+            self._rate.append(utility_calls.convert_param_to_numpy(block, self._n_atoms))
 
 
 
@@ -288,7 +289,9 @@ class SpikeSourcePoissonVariable(
 
     @rate.setter
     def rate(self, rate):
-        self._rate = utility_calls.convert_param_to_numpy(rate, self._n_atoms)
+        self._rate = []
+        for block in rate:
+            self._rate.append(utility_calls.convert_param_to_numpy(block, self._n_atoms))
 
     @property
     def start(self):
