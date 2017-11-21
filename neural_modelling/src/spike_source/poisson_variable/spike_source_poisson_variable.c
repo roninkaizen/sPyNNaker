@@ -451,15 +451,12 @@ bool store_poisson_parameters(){
 
     // store array of spike sources into sdram for reading by the host
     if (num_spike_sources > 0) {
-<<<<<<< HEAD
 //        uint32_t spikes_offset = PARAMETER_SEED_START_POSITION + seed_size + 4;
 //        memcpy(
 //            &address[spikes_offset], spike_source_array,
 //            num_spike_sources * sizeof(spike_source_t));
-        // store spike source data into DTCM
-=======
-        uint32_t spikes_offset = PARAMETER_SEED_START_POSITION + seed_size + 6;
->>>>>>> branch 'variable_rate_poisson_source' of https://github.com/SpiNNakerManchester/sPyNNaker
+//        // store spike source data into DTCM
+//        uint32_t spikes_offset = PARAMETER_SEED_START_POSITION + seed_size + 6;
         memcpy(
             &address[_calc_memory_loc()], spike_source_array,
             num_spike_sources * sizeof(spike_source_t));
