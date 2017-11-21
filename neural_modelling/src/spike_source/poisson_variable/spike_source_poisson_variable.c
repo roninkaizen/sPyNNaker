@@ -429,6 +429,8 @@ void resume_callback() {
         rt_error(RTE_SWERR);
     }
 
+    time_to_change = 0;
+
     // print spike sources for debug purposes
     print_spike_sources();
 }
@@ -449,11 +451,15 @@ bool store_poisson_parameters(){
 
     // store array of spike sources into sdram for reading by the host
     if (num_spike_sources > 0) {
+<<<<<<< HEAD
 //        uint32_t spikes_offset = PARAMETER_SEED_START_POSITION + seed_size + 4;
 //        memcpy(
 //            &address[spikes_offset], spike_source_array,
 //            num_spike_sources * sizeof(spike_source_t));
         // store spike source data into DTCM
+=======
+        uint32_t spikes_offset = PARAMETER_SEED_START_POSITION + seed_size + 6;
+>>>>>>> branch 'variable_rate_poisson_source' of https://github.com/SpiNNakerManchester/sPyNNaker
         memcpy(
             &address[_calc_memory_loc()], spike_source_array,
             num_spike_sources * sizeof(spike_source_t));
@@ -626,6 +632,7 @@ void timer_callback(uint timer_count, uint unused) {
     	} else{
     		// reset pointer back to beginning
     		current_spike_source_count = 0;
+
     	    spin1_dma_transfer(0, &address[_calc_memory_loc()], next_window_sources,
     	    	        	        		0, num_spike_sources * sizeof(spike_source_t));
     	}
