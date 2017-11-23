@@ -429,7 +429,7 @@ void resume_callback() {
         rt_error(RTE_SWERR);
     }
 
-    time_to_change = 0;
+//    time_to_change = 0;
 
     // print spike sources for debug purposes
     print_spike_sources();
