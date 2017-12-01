@@ -25,11 +25,12 @@ MODELS = IF_curr_exp \
          IF_curr_comb_exp_5E5I \
          IF_curr_comb_exp_7E7I \
          IZK_curr_comb_exp_4E4I
-         
+         IF_cond_exp_stdp_mad_nearest_pair_additive \
+	 IF_curr_alpha
 BUILD_DIRS := $(addprefix builds/, $(MODELS))
 
 all: $(BUILD_DIRS)
-	for d in $(BUILD_DIRS); do (cd $$d; "$(MAKE)") || exit $$?; done
+	for d in $(BUILD_DIRS); do $(MAKE) -C $$d || exit $$?; done
 
 clean: $(BUILD_DIRS)
-	for d in $(BUILD_DIRS); do (cd $$d; "$(MAKE)" clean) || exit $$?; done
+	for d in $(BUILD_DIRS); do $(MAKE) -C $$d clean || exit $$?; done
