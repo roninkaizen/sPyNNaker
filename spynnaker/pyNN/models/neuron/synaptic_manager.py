@@ -520,8 +520,8 @@ class SynapticManager(object):
                     rate_stats[synapse_type].add_items(
                         spikes_per_second, 0, n_connections)
 
-                    total_weights[synapse_type] += spikes_per_tick * (
-                        weight_max * n_connections)
+                    # total_weights[synapse_type] += spikes_per_tick * (
+                    #     weight_max * n_connections)
 
                     # total_weights[synapse_type] += spikes_per_tick * (
                     #     weight_max)
@@ -529,8 +529,8 @@ class SynapticManager(object):
                     # total_weights[synapse_type] += spikes_per_tick * (
                     #     weight_mean * n_connections * 0.01)
 
-                    # total_weights[synapse_type] = max(total_weights[synapse_type],
-                    #         spikes_per_tick * (weight_max * n_connections))
+                    total_weights[synapse_type] = max(total_weights[synapse_type],
+                            spikes_per_tick * (weight_max * n_connections))
 
                     if synapse_dynamics.are_weights_signed():
                         weights_signed = True
@@ -730,9 +730,9 @@ class SynapticManager(object):
                         max_conn_delay = synapse_info.connector.get_delay_maximum()
 
                         #todo: get 16 from global config
-                        n_stages = max_conn_delay // 16
+                        n_stages = int(max_conn_delay) // 16
 
-                        if (max_conn_delay % 16) == 0:
+                        if (int(max_conn_delay) % 16) == 0:
                             n_stages -= 1
 
                         n_stages = max(1, n_stages)
@@ -764,7 +764,8 @@ class SynapticManager(object):
                                                         spec, next_block_start_address,
                                                         max_row_length, key_and_mask,
                                                         master_pop_table_region)
-
+                        # print(conn)
+                        # print(n_stages, data_length)
                         next_block_start_address += (data_length * 4) #bytes
 
                         if next_block_start_address > all_syn_block_sz:
@@ -970,7 +971,8 @@ class SynapticManager(object):
                                               machine_vertex, in_edges, graph_mapper,
                                               routing_info, placements, weight_scales)
 
-        self._write_on_machine_data_spec(spec, on_machine_dict, post_vertex_slice)
+        self._write_on_machine_data_spec(spec, on_machine_dict, post_vertex_slice,
+                                         application_vertex)
 
     def clear_connection_cache(self):
         self._retrieved_blocks = dict()
@@ -1372,21 +1374,21 @@ class SynapticManager(object):
 
                 for _ in range(num_seeds):
                     rnd_int = numpy.random.randint(1323, 2 ** 32)
-                    param_block.append(numpy.uint32(rnd_int))
+                    param_block.append(numpy.uint32(rnd_int)) #0-3
 
-                param_block.append(conn.name_hash())
-                param_block.append(key)#todo: don't need?
-                param_block.append(mask)#todo: don't need?
-                param_block.append(address_delta)
-                param_block.append(row_len)
-                param_block.append(n_pre_neurons)
-                param_block.append(numpy.uint32(self._num_post_targets[syn_info]))
-                param_block.append(numpy.uint32(self._num_words_per_weight[syn_info]))
-                param_block.append(slice_start)
-                param_block.append(slice_count)
-                param_block.append(direct)
-                param_block.append(delayed)
-                param_block.append(num_delayed)
+                param_block.append(conn.name_hash())#4
+                param_block.append(key)#todo: don't need? #5
+                param_block.append(mask)#todo: don't need? #6
+                param_block.append(address_delta) #7
+                param_block.append(row_len) #8
+                param_block.append(n_pre_neurons) #9
+                param_block.append(numpy.uint32(self._num_post_targets[syn_info])) #10
+                param_block.append(numpy.uint32(self._num_words_per_weight[syn_info])) #11
+                param_block.append(slice_start) #12
+                param_block.append(slice_count) #13
+                param_block.append(direct) #14
+                param_block.append(delayed) #15
+                param_block.append(num_delayed) #16
 
                 for i in range(num_delayed):
                     param_block.append(dly_places[i])
@@ -1399,10 +1401,12 @@ class SynapticManager(object):
 
 
                 # hash names of synapse, weights and delay types
-                param_block.append(dyn_type) #static or plastic
-                param_block.append(syn_type) #inhibitory, excitatory, etc.
+                param_block.append(dyn_type) #static or plastic #17
+                param_block.append(syn_type) #inhibitory, excitatory, etc. #18
                 param_block.append(conn._param_hash(conn._weights)) #const, random, etc.
+                # 19
                 param_block.append(conn._param_hash(conn._delays))  #const, random, etc.
+                # 20
 
                 # using signed weights or not (kernel yes, everything else no)
                 if isinstance(conn, KernelConnector) and \
@@ -1411,7 +1415,7 @@ class SynapticManager(object):
                 else:
                     use_signed_weights = numpy.uint32(False)
 
-                param_block.append(use_signed_weights)
+                param_block.append(use_signed_weights) #21
 
 
                 # header words for synapse row
@@ -1431,12 +1435,12 @@ class SynapticManager(object):
                 else:
                     n_32bit_header_words = 0
 
-                param_block.append(n_32bit_header_words)
+                param_block.append(n_32bit_header_words) #22
 
 
                 #TODO: add a gen_on_machine_info method per connector
                 # connector-specific data
-                param_block += conn.gen_on_machine_info()
+                param_block += conn.gen_on_machine_info() #22+X
 
                 #weights in u1616 or s1516 fixed-point
                 if numpy.isscalar(conn._weights):
@@ -1477,7 +1481,7 @@ class SynapticManager(object):
                     param_block += conn.gen_on_machine_info()
                     for r in range(conn._delays.shape[0]):
                         for c in range(conn._delays.shape[1]):
-                            d = numpy.uint32(conn._delays[r, c])
+                            d = numpy.uint32(int(conn._delays[r, c]))
                             d = d << 16
                             param_block.append(d)
                 else:
@@ -1529,7 +1533,8 @@ class SynapticManager(object):
         conn = synapse_info.connector
         return numpy.uint32(conn.get_delay_maximum() > 16)
 
-    def _write_on_machine_data_spec(self, spec, conn_dict, post_vertex_slice):
+    def _write_on_machine_data_spec(self, spec, conn_dict, post_vertex_slice,
+                                    application_vertex):
         """dictionary keys mean
         'n_edges': how many edges in total land in this vertex
         'flags': which of the edges requires on machine generation, encoded as bits 

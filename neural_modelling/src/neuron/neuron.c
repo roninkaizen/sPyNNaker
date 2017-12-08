@@ -106,14 +106,14 @@ static inline void _print_neuron_parameters() {
 
 //! only if the models are compiled in debug mode will this method contain
 //! said lines.
-#if LOG_LEVEL >= LOG_DEBUG
+//#if LOG_LEVEL >= LOG_DEBUG
     log_debug("-------------------------------------\n");
     for (index_t n = 0; n < n_neurons; n++) {
         neuron_model_print_parameters(&(neuron_array[n]));
     }
     log_debug("-------------------------------------\n");
     //}
-#endif // LOG_LEVEL >= LOG_DEBUG
+//#endif // LOG_LEVEL >= LOG_DEBUG
 }
 
 //! \brief does the memory copy for the neuron parameters

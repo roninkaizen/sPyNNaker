@@ -1,9 +1,11 @@
 MODELS = IF_curr_exp \
+         IF_curr_exp_enabler \
          IF_curr_exp_stdp_pair_additive \
          IF_curr_exp_stdp_mad_pair_additive \
          IF_curr_exp_supervision \
          IF_curr_exp_supervision_stdp_mad_neuromodulated \
-         IZK_curr_exp_supervision \
+
+         #IZK_curr_exp_supervision \
          IZK_curr_exp_supervision_stdp_mad_neuromodulated \
          external_device_lif_control \
          IF_cond_exp \
@@ -27,7 +29,9 @@ MODELS = IF_curr_exp \
          IF_curr_exp_stdp_mad_nearest_pair_multiplicative \
          IF_curr_exp_stdp_mad_pfister_triplet_additive \
          IF_cond_exp_stdp_mad_nearest_pair_additive \
-         
+
+
+
 BUILD_DIRS := $(addprefix builds/, $(MODELS))
 
 all: $(BUILD_DIRS)

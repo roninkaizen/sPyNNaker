@@ -316,9 +316,9 @@ bool synapses_initialise(
         ring_buffers[i] = 0;
     }
 
-//    log_info("synaptic matrix size = %u", synaptic_matrix_address[0] >> 2);
+//    io_printf(IO_BUF, "matrix size = %u\n", synaptic_matrix_address[0] >> 2);
 //    for(uint32_t i = 0; i < (synaptic_matrix_address[0] >> 2)+2; i++){
-//        log_info("syn_mtx_addr[%u] = %u", i, synaptic_matrix_address[i]);
+//        io_printf(IO_BUF, "%u = %u\n", i, synaptic_matrix_address[i]);
 //    }
 
     return true;
