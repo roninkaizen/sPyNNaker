@@ -15,7 +15,7 @@ import numpy
 _IZK_THRESHOLD = 30.0
 class IzkCurrCombExp4E4I(AbstractPopulationVertex):
 
-    _max_feasible_max_atoms_per_core =  64
+    _max_feasible_max_atoms_per_core =  32
     _model_based_max_atoms_per_core = _max_feasible_max_atoms_per_core
 
     baseline_defaults = {
@@ -78,14 +78,6 @@ class IzkCurrCombExp4E4I(AbstractPopulationVertex):
         'exc4_b_B':baseline_defaults['x_b_B'],
         'exc4_b_tau':baseline_defaults['x_b_tau'],
 
-        # excitatory5
-        'exc5_a_response':baseline_defaults['x_a_response'],
-        'exc5_a_A':baseline_defaults['x_a_A'],
-        'exc5_a_tau':baseline_defaults['x_a_tau'],
-        'exc5_b_response':baseline_defaults['x_b_response'],
-        'exc5_b_B':baseline_defaults['x_b_B'],
-        'exc5_b_tau':baseline_defaults['x_b_tau'],
-
         # inhibitory
         'inh_a_response':baseline_defaults['i_a_response'],
         'inh_a_A':baseline_defaults['i_a_A'],
@@ -117,14 +109,6 @@ class IzkCurrCombExp4E4I(AbstractPopulationVertex):
         'inh4_b_response':baseline_defaults['i_b_response'],
         'inh4_b_B':baseline_defaults['i_b_B'],
         'inh4_b_tau':baseline_defaults['i_b_tau'],
-
-        # inhibitory5
-        'inh5_a_response':baseline_defaults['i_a_response'],
-        'inh5_a_A':baseline_defaults['i_a_A'],
-        'inh5_a_tau':baseline_defaults['i_a_tau'],
-        'inh5_b_response':baseline_defaults['i_b_response'],
-        'inh5_b_B':baseline_defaults['i_b_B'],
-        'inh5_b_tau':baseline_defaults['i_b_tau'],
 
 
         ##############################
