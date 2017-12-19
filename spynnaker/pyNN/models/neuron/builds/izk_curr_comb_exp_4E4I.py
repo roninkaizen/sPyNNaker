@@ -4,8 +4,8 @@ from spynnaker.pyNN.models.neuron.neuron_models\
 from spynnaker.pyNN.models.neuron.synapse_types.synapse_type_comb_exp_4E4I\
     import SynapseTypeCombExp4E4I
 from spynnaker.pyNN.models.neuron.neuron_models import neuron_model_izh
-from spynnaker.pyNN.models.neuron.input_types.input_type_current \
-    import InputTypeCurrent
+from spynnaker.pyNN.models.neuron.input_types.input_type_current_pfc \
+    import InputTypeCurrentPfc
 from spynnaker.pyNN.models.neuron.threshold_types.threshold_type_static \
     import ThresholdTypeStatic
 from spynnaker.pyNN.models.neuron.abstract_population_vertex \
@@ -281,7 +281,7 @@ class IzkCurrCombExp4E4I(AbstractPopulationVertex):
 
 
 
-        input_type = InputTypeCurrent()
+        input_type = InputTypeCurrentPfc()
         threshold_type = ThresholdTypeStatic(n_neurons, _IZK_THRESHOLD)
 
         AbstractPopulationVertex.__init__(
