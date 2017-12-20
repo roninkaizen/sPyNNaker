@@ -3,6 +3,7 @@ from pyNN.random import RandomDistribution
 from .abstract_connector import AbstractConnector
 
 from . import ConvolutionKernel
+from spynnaker.pyNN.utilities import utility_calls
 
 HEIGHT, WIDTH = 0, 1
 ROW, COL = 0, 1
@@ -161,25 +162,36 @@ class CorticalConnector(AbstractConnector):
 
 
     def pre_in_range(self, pre_vertex_slice, post_vertex_slice):
-        min_pre_orig, max_pre_orig = self.slice_to_coords(pre_vertex_slice, True)
-        min_pre = self.to_common_coords(min_pre_orig, True)
-        max_pre = self.to_common_coords(max_pre_orig, True)
-
         min_post_orig, max_post_orig = self.slice_to_coords(post_vertex_slice, False)
         min_post = self.to_common_coords(min_post_orig, False)
         max_post = self.to_common_coords(max_post_orig, False)
 
-        min_post_idx = min_post[ROW] * self._shape_common[WIDTH]
-        max_post_idx = max_post[ROW] * self._shape_common[WIDTH] + max_post[COL]
+        min_post_idx = int(numpy.ceil(
+            (min_post[ROW] - self._max_distance) * self._shape_common[WIDTH] +
+            min_post[COL] - self._max_distance))
+        max_post_idx = int(numpy.ceil(
+            (max_post[ROW] + self._max_distance) * self._shape_common[WIDTH] +
+            max_post[COL] + self._max_distance))
 
-        min_pre_idx = min_pre[ROW] * self._shape_common[WIDTH]
-        max_pre_idx = max_pre[ROW] * self._shape_common[WIDTH] + max_pre[COL]
 
-        min_idx = min(min_pre_idx, min_post_idx)
-        max_idx = max(max_pre_idx, max_post_idx)
+        post_as_pre = self.comm_to_pre(numpy.array([min_post_idx, max_post_idx]))
+        min_idx = min(pre_vertex_slice.lo_atom, post_as_pre[0])
+        max_idx = max(pre_vertex_slice.hi_atom, post_as_pre[1])
 
-        return self.comm_to_pre(numpy.arange(min_idx, max_idx + 1))
+        return numpy.arange(min_idx, max_idx + 1)
 
+
+    def subsamp(self, start, end, step):
+        return ((end - start - 1) // step) + 1
+
+
+    def comm_to_pre(self, indices):
+        rows = indices // self._shape_common[WIDTH]
+        cols = indices % self._shape_common[WIDTH]
+        pre_r = self.subsamp(self._pre_start_h, rows, self._pre_step_h)
+        pre_c = self.subsamp(self._pre_start_w, cols, self._pre_step_w)
+
+        return pre_r * self._shape_pre[WIDTH]*self._pre_per_zone + pre_c
 
     def post_as_common(self, post_vertex_slice):
         if str(post_vertex_slice) not in self._post_as_comm:
@@ -252,6 +264,7 @@ class CorticalConnector(AbstractConnector):
             pre_r, pre_c = self.idx_to_coords(pre_idx, True)
             pre_comm_r, pre_comm_c = self.pre_to_comm((pre_r, pre_c))
             coords[pre_idx] = []
+            numpy.random.seed()
             for post_idx in range(post_vertex_slice.lo_atom, post_vertex_slice.hi_atom+1):
 
                 #convert to common coord system
@@ -260,8 +273,6 @@ class CorticalConnector(AbstractConnector):
                    c < 0 or c >= self._shape_common[WIDTH]:
                     continue
 
-
-                r, c = self.to_common_coords((r, c), True)
 
                 fr_r = max(0, r - Mdist)
                 to_r = min(r + Mdist + 1, self._shape_common[HEIGHT])
@@ -272,6 +283,9 @@ class CorticalConnector(AbstractConnector):
                    fr_c <= pre_comm_c and pre_comm_c < to_c:
 
                     if post_idx in coords[pre_idx]:
+                        continue
+
+                    if numpy.random.uniform(0., 1.) > self._probability:
                         continue
 
                     coords[pre_idx].append(post_idx)
@@ -285,6 +299,7 @@ class CorticalConnector(AbstractConnector):
                     w = self.gen_weight(kr, kc)
                     if w == 0.:
                         continue
+
 
                     d = self.gen_delay(kr, kc)
 
@@ -301,8 +316,8 @@ class CorticalConnector(AbstractConnector):
         # print("\n\n%s -> %s = %d conns\n"%(prevs, postvs, count))
         self._all_post[prevs][postvs] = numpy.array(all_post_ids, dtype='uint32')
         self._all_pre_in_range[prevs][postvs] = numpy.array(all_pre_ids, dtype='uint32')
-        self._all_pre_in_range_delays[prevs][postvs] = numpy.array(all_delays)
-        self._all_pre_in_range_weights[prevs][postvs] = numpy.array(all_weights)
+        self._all_pre_in_range_delays[prevs][postvs] = numpy.array(all_delays)[:, 0]
+        self._all_pre_in_range_weights[prevs][postvs] = numpy.array(all_weights)[:, 0]
 
         return self._pre_in_range[prevs][postvs]
 
@@ -356,16 +371,47 @@ class CorticalConnector(AbstractConnector):
             self, pre_slices, pre_slice_index, post_slices,
             post_slice_index, pre_vertex_slice, post_vertex_slice,
             min_delay=None, max_delay=None):
+        max_model_pre = self._pre_population._vertex._model_based_max_atoms_per_core
+        _pre_in_range = self.pre_in_range(pre_vertex_slice, post_vertex_slice)
+        n_comm = len(_pre_in_range)
+        if n_comm == 0:
+            return 0
+
+        npost = self._post_population._vertex._model_based_max_atoms_per_core
         #max outgoing from pre connections with min_delay <= delay <= max_delay
-        max_conns = int(numpy.ceil(4 * (self._max_distance**2)))
+        # n_connections = self._get_n_connections(post_vertex_slice.n_atoms, from_pre=True)
+        max_post = min(min(npost, post_vertex_slice.n_atoms),
+                       self._post_per_zone * numpy.pi * (self._max_distance ** 2))
+        max_conns = int(numpy.ceil(max_post))
+        # max_conns = int(numpy.ceil(max_post * self._probability))
+        # return numpy.clip(max_conns, 0, npost)
         return numpy.clip(max_conns, 0, 255)
 
 
     def get_n_connections_to_post_vertex_maximum(
             self, pre_slices, pre_slice_index, post_slices,
             post_slice_index, pre_vertex_slice, post_vertex_slice):
+        max_model_pre = self._pre_population._vertex._model_based_max_atoms_per_core
+        _pre_in_range = self.pre_in_range(pre_vertex_slice, post_vertex_slice)
+        n_comm = len(_pre_in_range)
+        if n_comm == 0:
+            return 0
+        # print(n_comm)
+        # print("n conns from POST")
+        # print(pre_vertex_slice, post_vertex_slice)
+        npre = n_comm * self._pre_per_zone
+        # print(npre)
+        max_pre = min(npre, pre_vertex_slice.n_atoms) * \
+                      numpy.pi * (self._max_distance ** 2)
+        # max_conns = int(numpy.ceil(max_pre * (self._probability + 0.01)))
 
-        max_conns = int(numpy.ceil(4 * (self._max_distance ** 2)))
+        # max_conns = int(numpy.ceil(max_pre))
+        max_conns = utility_calls.get_probable_maximum_selected(
+            self._n_pre_neurons * self._n_post_neurons, int(numpy.ceil(max_pre)),
+            self._probability
+        )
+        # print(max_conns)
+        # return numpy.clip(max_conns, 0, max_model_pre)
         return numpy.clip(max_conns, 0, 255)
 
 
@@ -383,7 +429,7 @@ class CorticalConnector(AbstractConnector):
                 int(numpy.ceil(
                     self._n_pre_neurons * self._n_post_neurons * \
                     (2 * self._max_distance + 1) * (2 * self._max_distance + 1) * \
-                    self._post_per_zone * self._pre_per_zone * self._probability))
+                    self._post_per_zone * self._pre_per_zone))
 
         return self._max_n_conns
 
@@ -439,6 +485,10 @@ class CorticalConnector(AbstractConnector):
         block["synapse_type"] =  syn_type.astype('uint8')
         return block
 
+    def _get_n_connections(self, out_of, from_pre):
+        return utility_calls.get_probable_maximum_selected(
+            self._n_pre_neurons * self._n_post_neurons, out_of,
+            self._probability)
 
     def gen_on_machine_info(self):
         def shape2word(sw, sh):
@@ -448,9 +498,12 @@ class CorticalConnector(AbstractConnector):
         block = []
 
         block.append( numpy.uint32(
-                        numpy.floor(self._probability*float(1<<31) )))
-        block.append( numpy.uint32(numpy.round(self._max_distance**2)) )
-        block.append( numpy.uint32(self._self_conns))
+                        numpy.floor(self._probability*float(1<<32) )) - 1)
+        block.append(
+            numpy.uint32(self._self_conns) |
+            (numpy.uint32(numpy.round(self._max_distance)) & 0x7FFF) << 1 |
+            (numpy.uint32(numpy.round(self._max_distance**2)) & 0xFFFF) << 16 )
+
 
         block.append( shape2word(self._pre_per_zone,
                                  self._post_per_zone))
@@ -472,13 +525,7 @@ class CorticalConnector(AbstractConnector):
 
         block.append( shape2word(self._post_step_w,  self._post_step_h) )
 
-        block.append( shape2word(self._kernel_w,     self._kernel_h) )
-
         return block
-
-
-    def get_max_num_connections(self, pre_slice, post_slice):
-        return post_slice.n_atoms * self._kernel_w * self._kernel_h
 
 
     def __repr__(self):

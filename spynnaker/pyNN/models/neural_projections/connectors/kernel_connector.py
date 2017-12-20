@@ -4,7 +4,11 @@ from .abstract_connector import AbstractConnector
 
 from . import ConvolutionKernel
 
+from spynnaker.pyNN.utilities import utility_calls
+
+
 HEIGHT, WIDTH = 0, 1
+ROW, COL = 0, 1
 
 class KernelConnector(AbstractConnector):
     """
@@ -108,14 +112,68 @@ class KernelConnector(AbstractConnector):
                                    signed_weights=signed_weights,
                                    generate_on_machine=generate_on_machine)
 
+    def slice_to_coords(self, slice, is_pre):
+        return numpy.array([self.idx_to_coords(slice.lo_atom, is_pre), \
+                            self.idx_to_coords(slice.hi_atom, is_pre)])
+
+    def idx_to_coords(self, idx, is_pre):
+        if is_pre:
+            _w = self._shape_pre[WIDTH]
+        else:
+            _w = self._shape_post[WIDTH]
+
+        row = idx // _w
+        col = idx % _w
+        return [row, col]
+
+    def pre_to_comm(self, (pre_r, pre_c)):
+        return [self._pre_start_h + pre_r * self._pre_step_h, \
+                self._pre_start_w + pre_c * self._pre_step_w]
+
+
+    def post_to_comm(self, (post_r, post_c)):
+        return [self._post_start_h + post_r * self._post_step_h, \
+                self._post_start_w + post_c * self._post_step_w]
+
+
+    def to_common_coords(self, coords, from_pre):
+        if from_pre:
+            return self.pre_to_comm(coords)
+        else:
+            return self.post_to_comm(coords)
 
     def pre_in_range(self, pre_vertex_slice, post_vertex_slice):
+        half_kh = self._kernel_h // 2
+        half_kw = self._kernel_w // 2
+        min_pre_orig, max_pre_orig = self.slice_to_coords(pre_vertex_slice, True)
+        min_pre = self.to_common_coords(min_pre_orig, True)
+        max_pre = self.to_common_coords(max_pre_orig, True)
 
-        if str(pre_vertex_slice) not in self._pre_in_range and \
-           str(post_vertex_slice) not in self._pre_in_range[str(pre_vertex_slice)]:
-            self.compute_statistics(pre_vertex_slice, post_vertex_slice)
+        min_post_orig, max_post_orig = self.slice_to_coords(post_vertex_slice, False)
+        min_post = self.to_common_coords(min_post_orig, False)
+        max_post = self.to_common_coords(max_post_orig, False)
 
-        return self._pre_in_range[pre_vertex_slice][post_vertex_slice]
+        min_pre_idx = min_pre[ROW] * self._shape_common[WIDTH] + min_pre[COL]
+        max_pre_idx = max_pre[ROW] * self._shape_common[WIDTH] + max_pre[COL]
+
+        min_post_idx = int(numpy.ceil(
+            (min_post[ROW] - half_kh) * self._shape_common[WIDTH] +
+            min_post[COL] - half_kw))
+        max_post_idx = int(numpy.ceil(
+            (max_post[ROW] + half_kh) * self._shape_common[WIDTH] +
+            max_post[COL] + half_kw))
+
+        min_idx = min(min_pre_idx, min_post_idx)
+        max_idx = max(max_pre_idx, max_post_idx)
+
+        # return self.comm_to_pre(numpy.arange(min_idx, max_idx + 1))
+        return numpy.arange(min_idx, max_idx + 1)
+
+        # if str(pre_vertex_slice) not in self._pre_in_range or \
+        #    str(post_vertex_slice) not in self._pre_in_range[str(pre_vertex_slice)]:
+        #     self.compute_statistics(pre_vertex_slice, post_vertex_slice)
+        #
+        # return self._pre_in_range[str(pre_vertex_slice)][str(post_vertex_slice)]
 
     def to_post_coords(self, post_vertex_slice):
         post = numpy.arange(post_vertex_slice.lo_atom, post_vertex_slice.hi_atom+1)
@@ -293,6 +351,9 @@ class KernelConnector(AbstractConnector):
             post_slice_index, pre_vertex_slice, post_vertex_slice,
             min_delay=None, max_delay=None):
         #max outgoing from pre connections with min_delay <= delay <= max_delay
+        _pre_in_range = self.pre_in_range(pre_vertex_slice, post_vertex_slice)
+        if len(_pre_in_range) == 0:
+            return 0
 
         if isinstance(self._weights, ConvolutionKernel):
             if self._weights.size > pre_vertex_slice.n_atoms:
@@ -308,6 +369,9 @@ class KernelConnector(AbstractConnector):
     def get_n_connections_to_post_vertex_maximum(
             self, pre_slices, pre_slice_index, post_slices,
             post_slice_index, pre_vertex_slice, post_vertex_slice):
+        _pre_in_range = self.pre_in_range(pre_vertex_slice, post_vertex_slice)
+        if len(_pre_in_range) == 0:
+            return 0
 
         if isinstance(self._weights, ConvolutionKernel):
             if self._weights.size > pre_vertex_slice.n_atoms:

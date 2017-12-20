@@ -35,6 +35,8 @@ from spynnaker.pyNN.models.neural_projections.connectors.kernel_connector \
     import KernelConnector, ConvolutionKernel
 from spynnaker.pyNN.models.neural_projections.connectors.mapping_connector \
     import MappingConnector
+from spynnaker.pyNN.models.neural_projections.connectors.cortical_connector \
+    import CorticalConnector
 
 from spynnaker.pyNN.models.neural_projections import ProjectionApplicationEdge
 from spynnaker.pyNN.models.neuron import master_pop_table_generators
@@ -1386,9 +1388,9 @@ class SynapticManager(object):
                 param_block.append(numpy.uint32(self._num_words_per_weight[syn_info])) #11
                 param_block.append(slice_start) #12
                 param_block.append(slice_count) #13
-                param_block.append(direct) #14
-                param_block.append(delayed) #15
-                param_block.append(num_delayed) #16
+                param_block.append((numpy.uint32(direct) & 0xFFFF) << 16 | \
+                                   (numpy.uint32(delayed) & 0xFFFF)) #14
+                param_block.append(num_delayed) #15
 
                 for i in range(num_delayed):
                     param_block.append(dly_places[i])
@@ -1441,6 +1443,13 @@ class SynapticManager(object):
                 #TODO: add a gen_on_machine_info method per connector
                 # connector-specific data
                 param_block += conn.gen_on_machine_info() #22+X
+
+                # if isinstance(conn, CorticalConnector):
+                #     print("CorticalConnector")
+                #     print(conn._param_hash(conn._weights))
+                #     print(conn._weights)
+                #     print(conn._param_hash(conn._delays))
+                #     print(conn._delays)
 
                 #weights in u1616 or s1516 fixed-point
                 if numpy.isscalar(conn._weights):
