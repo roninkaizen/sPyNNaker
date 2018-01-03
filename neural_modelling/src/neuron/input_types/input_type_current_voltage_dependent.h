@@ -6,10 +6,12 @@
 typedef struct input_type_t {
 } input_type_t;
 
-static inline uint_ulr_t _evaluate_v_effect(state_t v){
-	v = v >> 7;
-	return  (0.783385 + v*(1.11276 +
-					v*(-1.83231 + v*(-1.76801 + v*(4.52296 + 4.45553*v)))) ) << 7;
+static inline s1615 _evaluate_v_effect(state_t v){
+	v = v / 128.0k;
+	s1615 v_dep = 0.783385k +  v * (1.42433k + v * (-3.00206k
+			+ v * (-3.70779k + v * (12.1412k + 15.3091k * v))));
+	log_info("v before: %k, v_dep: %k", v, v_dep);
+	return v_dep;
 }
 
 static inline input_t input_type_get_input_value(
@@ -22,14 +24,18 @@ static inline input_t input_type_convert_excitatory_input_to_current(
         input_t exc_input, input_type_pointer_t input_type,
         state_t membrane_voltage) {
     use(input_type);
-    return exc_input * _evaluate_v_effect(membrane_volatge);
+    s1615 v_dep = _evaluate_v_effect(membrane_voltage);
+    log_info("Exc: V: %k, V_dep: %k", membrane_voltage, v_dep);
+    return exc_input * v_dep;
 }
 
 static inline input_t input_type_convert_inhibitory_input_to_current(
         input_t inh_input, input_type_pointer_t input_type,
         state_t membrane_voltage) {
     use(input_type);
-    return inh_input * _evaluate_v_effect(membrane_voltage);
+    s1615 v_dep = _evaluate_v_effect(membrane_voltage);
+    log_info("Inh: V: %k, V_dep: %k", membrane_voltage, v_dep);
+    return inh_input * v_dep;
 }
 
 #endif // _INPUT_TYPE_CURRENT_H_
