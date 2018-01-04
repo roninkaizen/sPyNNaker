@@ -16,9 +16,18 @@
 #define SYNAPSE_TYPE_COUNT 8
 #define SYNAPSE_INDEX_BITS 5
 
+#define NUM_EXCITATORY_RECEPTORS 3
+#define NUM_INHIBITORY_RECEPTORS 3
+#define NUM_NEUROMODULATORS 0
+
+
  //---------------------------------------
  // Synapse parameters
  //---------------------------------------
+
+input_t excitatory_response[NUM_EXCITATORY_RECEPTORS];
+input_t inhibitory_response[NUM_INHIBITORY_RECEPTORS];
+
 
 typedef struct {
  	input_t a_response;
@@ -107,19 +116,33 @@ typedef struct {
  	}
  }
 
- static inline input_t synapse_types_get_excitatory_input(
+ static inline input_t* synapse_types_get_excitatory_input(
  		synapse_param_pointer_t parameter) {
 
-	 return ((parameter->ex1_str.a_A * parameter->ex1_str.a_response) + (parameter->ex1_str.b_B * parameter->ex1_str.b_response))+
-			 ((parameter->ex2_str.a_A * parameter->ex2_str.a_response) + (parameter->ex2_str.b_B * parameter->ex2_str.b_response)) +
-			 ((parameter->ex3_str.a_A * parameter->ex3_str.a_response) + (parameter->ex3_str.b_B * parameter->ex3_str.b_response));
+	 	 	excitatory_response[0] = ((parameter->ex1_str.a_A * parameter->ex1_str.a_response)
+			 + (parameter->ex1_str.b_B * parameter->ex1_str.b_response));
+
+			excitatory_response[1] = ((parameter->ex2_str.a_A * parameter->ex2_str.a_response)
+					 + (parameter->ex2_str.b_B * parameter->ex2_str.b_response));
+
+			excitatory_response[2] = ((parameter->ex3_str.a_A * parameter->ex3_str.a_response)
+					 + (parameter->ex3_str.b_B * parameter->ex3_str.b_response));
+
+			return &excitatory_response[0];
  }
 
- static inline input_t synapse_types_get_inhibitory_input(
+ static inline input_t* synapse_types_get_inhibitory_input(
  		synapse_param_pointer_t parameter) {
-	 return ((parameter->inh1_str.a_A * parameter->inh1_str.a_response) + (parameter->inh1_str.b_B * parameter->inh1_str.b_response))+
-			 ((parameter->inh2_str.a_A * parameter->inh2_str.a_response) + (parameter->inh2_str.b_B * parameter->inh2_str.b_response)) +
-			 ((parameter->inh3_str.a_A * parameter->inh3_str.a_response) + (parameter->inh3_str.b_B * parameter->inh3_str.b_response));
+	        inhibitory_response[0] = ((parameter->inh1_str.a_A * parameter->inh1_str.a_response)
+			 + (parameter->inh1_str.b_B * parameter->inh1_str.b_response));
+
+			inhibitory_response[1] = ((parameter->inh2_str.a_A * parameter->inh2_str.a_response)
+					+ (parameter->inh2_str.b_B * parameter->inh2_str.b_response));
+
+			inhibitory_response[2] = ((parameter->inh3_str.a_A * parameter->inh3_str.a_response)
+					+ (parameter->inh3_str.b_B * parameter->inh3_str.b_response));
+
+			return &inhibitory_response[0];
  }
 
  static inline const char *synapse_types_get_type_char(
@@ -149,6 +172,7 @@ typedef struct {
  }
 
  static inline void synapse_types_print_parameters(synapse_param_pointer_t parameter) {
+	 use(parameter);
  /*   log_info("-------------------------------------\n");
 
     log_info("response  = %11.4k\n", parameter->response);
