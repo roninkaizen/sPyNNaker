@@ -18,6 +18,7 @@
 //---------------------------------------
 #define SYNAPSE_TYPE_BITS 2
 #define SYNAPSE_TYPE_COUNT 3
+#define SYNAPSE_INDEX_BITS 8
 
 #include "../decay.h"
 #include <debug.h>
