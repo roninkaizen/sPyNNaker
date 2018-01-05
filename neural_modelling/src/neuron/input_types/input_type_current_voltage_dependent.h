@@ -1,5 +1,5 @@
-#ifndef _INPUT_TYPE_CURRENT_H_
-#define _INPUT_TYPE_CURRENT_H_
+#ifndef _INPUT_TYPE_CURRENT_VOLTAGE_DEPENDENT_H_
+#define _INPUT_TYPE_CURRENT_VOLTAGE_DEPENDENT_H_
 
 #ifndef NUM_EXCITATORY_RECEPTORS
 #define NUM_EXCITATORY_RECEPTORS 1
@@ -27,7 +27,7 @@ typedef struct input_type_t {
 uint16_t excitatory_shifts[NUM_EXCITATORY_RECEPTORS] = {0, 0, 0};
 uint16_t inhibitory_shifts[NUM_INHIBITORY_RECEPTORS] = {0, 0, 0};
 
-// Todo - write this from python
+// Todo - write this data structure from python
 //excitatory_shifts[] = {0, 0, 0};
 //inhibitory_shifts[] = {0, 0, 0};
 
@@ -54,7 +54,8 @@ static inline input_t* input_type_convert_excitatory_input_to_current(
 
     for(int i=0; i < NUM_EXCITATORY_RECEPTORS; i++){
 
-    	exc_input[i] = (exc_input[i] << excitatory_shifts[i]);
+    	exc_input[i] = exc_input[i] >> //input_type->
+    			excitatory_shifts[i];
 
     	if (i==1){ // NMDA synapse
     	    exc_input[i] = exc_input[i] *
@@ -74,11 +75,11 @@ static inline input_t* input_type_convert_inhibitory_input_to_current(
 
     // Currently no voltage-dependent inhibitory synapses so return scaled input
     for(int i=0; i < NUM_INHIBITORY_RECEPTORS; i++){
-    	    inh_input[i] = (inh_input[i] << //input_type->
-    	    		inhibitory_shifts[i]);
+    	    inh_input[i] = inh_input[i] >> //input_type->
+    	    		inhibitory_shifts[i];
     }
 
     return &inh_input[0];
 }
 
-#endif // _INPUT_TYPE_CURRENT_H_
+#endif // _INPUT_TYPE_CURRENT_VOLTAGE_DEPENDENT_H_
