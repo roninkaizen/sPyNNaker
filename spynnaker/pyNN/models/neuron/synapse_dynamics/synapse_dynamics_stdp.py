@@ -147,8 +147,11 @@ class SynapseDynamicsSTDP(
     def _n_header_bytes(self):
 
         # The header contains a single timestamp and pre-trace
+        # And now the stp trace, too
+        stp_bytes = 4
+
         n_bytes = (
-            TIME_STAMP_BYTES + self.timing_dependence.pre_trace_n_bytes)
+            TIME_STAMP_BYTES + self.timing_dependence.pre_trace_n_bytes + stp_bytes)
 
         # The actual number of bytes is in a word-aligned struct, so work out
         # the number of words

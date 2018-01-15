@@ -58,6 +58,7 @@ uint32_t num_plastic_pre_synaptic_events = 0;
 typedef struct {
     pre_trace_t prev_trace;
     uint32_t prev_time;
+    uint32_t stp_trace;
 } pre_event_history_t;
 
 post_event_history_t *post_event_history;
@@ -243,12 +244,14 @@ bool synapse_dynamics_process_plastic_synapses(
     // Get last pre-synaptic event from event history
     const uint32_t last_pre_time = event_history->prev_time;
     const pre_trace_t last_pre_trace = event_history->prev_trace;
+    const stp_trace = event_history->stp_trace;
 
     // Update pre-synaptic trace
     log_debug("Adding pre-synaptic event to trace at time:%u", time);
     event_history->prev_time = time;
     event_history->prev_trace = timing_add_pre_spike(time, last_pre_time,
                                                      last_pre_trace);
+    event_history->stp_trace = update_stp_trace();
 
     // Loop through plastic synapses
     for (; plastic_synapse > 0; plastic_synapse--) {
