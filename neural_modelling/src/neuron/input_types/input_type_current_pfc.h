@@ -24,8 +24,8 @@
 typedef struct input_type_t {
 } input_type_t;
 
-uint16_t excitatory_shifts[NUM_EXCITATORY_RECEPTORS] = {12, 12, 12, 12};
-uint16_t inhibitory_shifts[NUM_INHIBITORY_RECEPTORS] = {12, 12, 12, 12};
+uint16_t excitatory_shifts[NUM_EXCITATORY_RECEPTORS] = {3, 3, 3, 3};
+uint16_t inhibitory_shifts[NUM_INHIBITORY_RECEPTORS] = {3, 3, 3, 3};
 
 // Todo - write the above data structure from python
 //excitatory_shifts[] = {0, 0, 0};
