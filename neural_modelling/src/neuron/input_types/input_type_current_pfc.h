@@ -32,9 +32,19 @@ uint16_t inhibitory_shifts[NUM_INHIBITORY_RECEPTORS] = {3, 3, 3, 3};
 //inhibitory_shifts[] = {0, 0, 0};
 
 static inline s1615 _evaluate_v_effect(state_t v){
-	v = v / 128.0k;
-	s1615 v_dep = 0.783385k +  v * (1.42433k + v * (-3.00206k
-			+ v * (-3.70779k + v * (12.1412k + 15.3091k * v))));
+	s1615 v_dep = 0;
+	v = v >> 7;
+	if (v > -0.625k){
+		if (v <= 0.3125k) {
+			v_dep = 0.783385k +  v * (1.42433k + v * (-3.00206k
+					+ v * (-3.70779k + v * (12.1412k + 15.3091k * v))));
+		} else {
+			v_dep = 1.0k;
+		}
+	} else {
+		v_dep = 0.0k;
+	}
+
 	// log_info("v before: %k, v_dep: %k", v, v_dep);
 	return v_dep;
 }
