@@ -13,7 +13,7 @@ from spynnaker.pyNN.models.neuron.threshold_types.threshold_type_adaptive \
 # global objects
 DEFAULT_MAX_ATOMS_PER_CORE = 255
 
-class IFCurrExpSupervision(AbstractPopulationVertex):
+class IFCurrExpSupervisionAdaptive(AbstractPopulationVertex):
 
     # the maximum number of atoms per core that can be supported
     _model_based_max_atoms_per_core = DEFAULT_MAX_ATOMS_PER_CORE
@@ -71,7 +71,7 @@ class IFCurrExpSupervision(AbstractPopulationVertex):
                 incoming_spike_buffer_size=incoming_spike_buffer_size,
 
                 max_atoms_per_core=(
-                    IFCurrExpSupervision._model_based_max_atoms_per_core),
+                    IFCurrExpSupervisionAdaptive._model_based_max_atoms_per_core),
 
                 # the various model types
                 neuron_model=neuron_model, input_type=input_type,
@@ -87,8 +87,8 @@ class IFCurrExpSupervision(AbstractPopulationVertex):
     @staticmethod
     def set_model_max_atoms_per_core(new_value=DEFAULT_MAX_ATOMS_PER_CORE):
 
-        IFCurrExpSupervision._model_based_max_atoms_per_core = new_value
+        IFCurrExpSupervisionAdaptive._model_based_max_atoms_per_core = new_value
 
     @staticmethod
     def get_max_atoms_per_core():
-        return IFCurrExpSupervision._model_based_max_atoms_per_core
+        return IFCurrExpSupervisionAdaptive._model_based_max_atoms_per_core
