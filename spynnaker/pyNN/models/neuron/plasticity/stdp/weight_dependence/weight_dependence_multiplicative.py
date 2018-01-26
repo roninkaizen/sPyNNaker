@@ -54,7 +54,7 @@ class WeightDependenceMultiplicative(
             wmax = int(round(self._w_max * w))
             aplus = int(round(self._a_plus * w))
             aminus = int(round(self._a_minus * w))
-            # print(int(w), wmin, wmax, aplus, aminus)
+            print(int(w), wmin, wmax, aplus, aminus)
             spec.write_value(data=wmin, data_type=DataType.INT32)
             spec.write_value(data=wmax, data_type=DataType.INT32)
             spec.write_value(data=aplus, data_type=DataType.INT32)

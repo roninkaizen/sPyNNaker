@@ -33,7 +33,7 @@ typedef int16_t pre_trace_t;
 #define TAU_C_TIME_SHIFT 4
 #define TAU_C_SIZE 520
 
-#define TAU_D_TIME_SHIFT 2
+#define TAU_D_TIME_SHIFT 1
 #define TAU_D_SIZE 370
 
 

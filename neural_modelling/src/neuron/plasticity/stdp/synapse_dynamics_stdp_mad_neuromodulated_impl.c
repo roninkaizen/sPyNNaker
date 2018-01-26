@@ -61,6 +61,8 @@ uint32_t num_plastic_pre_synaptic_events = 0;
 
 #define MUL_FIXED(a, b) (maths_fixed_mul32((a), (b), STDP_FIXED_POINT))
 
+//#define DEF_SHIFT 4
+
 //---------------------------------------
 // Structures
 //---------------------------------------
@@ -146,7 +148,18 @@ static inline void correlation_apply_post_spike(
 
         *weight_update += weight_change;
     }
+#ifdef DEF_SHIFT
+    else{
+        int32_t prev_mult = SMULBB_FIXED(1 << DEF_SHIFT,  *previous_state);
+        int32_t decay_mult = MUL_FIXED(decay_eligibility_trace, decay_dopamine_trace);
+        decay_mult = decay_mult - STDP_FIXED_POINT_ONE;
+        decay_mult = MUL_FIXED(weight_update_constant_component, decay_mult);
+        int32_t weight_change = MUL_FIXED(prev_mult, decay_mult);
 
+       *weight_update += weight_change;
+//        //*weight_update += 1;
+    }
+#endif
     // Decay eligibility trace
     int32_t decayed_eligibility_trace =
                         SMULBB_FIXED(*previous_state, decay_eligibility_trace);
@@ -204,6 +217,18 @@ static inline void correlation_apply_pre_spike(
         int32_t weight_change = MUL_FIXED(prev_mult, decay_mult);
         *weight_update += weight_change;
     }
+#ifdef DEF_SHIFT
+    else{
+        int32_t prev_mult = SMULBB_FIXED(1 << DEF_SHIFT,  *previous_state);
+        int32_t decay_mult = MUL_FIXED(decay_eligibility_trace, decay_dopamine_trace);
+        decay_mult = decay_mult - STDP_FIXED_POINT_ONE;
+        decay_mult = MUL_FIXED(weight_update_constant_component, decay_mult);
+        int32_t weight_change = MUL_FIXED(prev_mult, decay_mult);
+
+        *weight_update += weight_change;
+//        //*weight_update += 1;
+    }
+#endif
 
     // Decay eligibility trace
     int32_t decayed_eligibility_trace =
@@ -220,9 +245,9 @@ static inline void correlation_apply_pre_spike(
                                         weight_state.weight_region -> a2_minus,
                                         weight_state.weight_multiply_right_shift);
             decayed_eligibility_trace -= decayed_r1;
-//            if (decayed_eligibility_trace < 0) {
-//                decayed_eligibility_trace = 0;
-//            }
+//             if (decayed_eligibility_trace < 0) {
+//                 decayed_eligibility_trace = 0;
+//             }
             log_debug("last post %d\tdecay r1 %d\te %d",
             last_post_trace, decayed_r1, decayed_eligibility_trace);
         }

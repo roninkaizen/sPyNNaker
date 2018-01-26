@@ -19,7 +19,7 @@ LOOKUP_TAU_MINUS_SHIFT = 0
 LOOKUP_TAU_C_SIZE = 520
 LOOKUP_TAU_C_SHIFT = 4
 LOOKUP_TAU_D_SIZE = 370
-LOOKUP_TAU_D_SHIFT = 2
+LOOKUP_TAU_D_SHIFT = 1
 
 
 class TimingDependenceSpikePair(AbstractTimingDependence):

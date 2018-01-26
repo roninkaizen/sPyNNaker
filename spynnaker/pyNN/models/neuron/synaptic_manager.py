@@ -516,7 +516,7 @@ class SynapticManager(object):
                             prob, spikes_per_tick)
 
                         if n_connections == 1 and spikes_per_tick == 0.:
-                            spikes_per_tick = 1.
+                            spikes_per_tick = 0.1
 
 
                     rate_stats[synapse_type].add_items(
@@ -527,6 +527,9 @@ class SynapticManager(object):
 
                     # total_weights[synapse_type] += spikes_per_tick * (
                     #     weight_max)
+
+                    # total_weights[synapse_type] += spikes_per_tick * (
+                    #     weight_max * 0.5)
 
                     # total_weights[synapse_type] += spikes_per_tick * (
                     #     weight_mean * n_connections * 0.01)
@@ -1405,17 +1408,18 @@ class SynapticManager(object):
                 # hash names of synapse, weights and delay types
                 param_block.append(dyn_type) #static or plastic #17
                 param_block.append(syn_type) #inhibitory, excitatory, etc. #18
-                param_block.append(conn._param_hash(conn._weights)) #const, random, etc.
-                # 19
-                param_block.append(conn._param_hash(conn._delays))  #const, random, etc.
-                # 20
+                # const, random, etc. 19
+                param_block.append(conn._param_hash(conn._weights))
+                # const, random, etc. 20
+                param_block.append(conn._param_hash(conn._delays))
 
                 # using signed weights or not (kernel yes, everything else no)
-                if isinstance(conn, KernelConnector) and \
-                   isinstance(conn._weights, ConvolutionKernel):
-                    use_signed_weights = numpy.uint32(True)
-                else:
-                    use_signed_weights = numpy.uint32(False)
+                # if isinstance(conn, KernelConnector) and \
+                #    isinstance(conn._weights, ConvolutionKernel):
+                #     use_signed_weights = numpy.uint32(True)
+                # else:
+                #     use_signed_weights = numpy.uint32(False)
+                use_signed_weights = numpy.uint32(False)
 
                 param_block.append(use_signed_weights) #21
 
@@ -1453,11 +1457,12 @@ class SynapticManager(object):
 
                 #weights in u1616 or s1516 fixed-point
                 if numpy.isscalar(conn._weights):
-                    ws  = float(weight_scales[syn_type])
-                    ws *= float(conn._weights)
+                    # ws  = float(weight_scales[syn_type])
+                    ws = numpy.abs(float(conn._weights) * float(1<<16))
                     w = numpy.uint32(ws)
-                    w = w << 16
-                    param_block.append(w)
+                    # w = w << 16
+                    # param_block.append(w)
+                    param_block.append(conn._weights)
 
                 elif isinstance(conn, KernelConnector) and \
                      isinstance(conn._weights, ConvolutionKernel):
@@ -1466,7 +1471,8 @@ class SynapticManager(object):
 
                     for r in range(conn._weights.shape[0]):
                         for c in range(conn._weights.shape[1]):
-                            w = numpy.int32(float(conn._weights[r, c]) * (1 << 16))
+                            w = numpy.uint32(
+                                    float(conn._weights[r, c]) * float(1 << 16))
                             param_block.append(w)
                 else:
                     dist = conn._weights.name
@@ -1481,7 +1487,7 @@ class SynapticManager(object):
 
                         param_block.append(v)
 
-                #delays (needed to be in
+                #delays (needed to be in u1616)
                 if numpy.isscalar(conn._delays):
                     param_block.append(numpy.uint32(conn._delays)<<16)
 
@@ -1610,27 +1616,28 @@ class SynapticManager(object):
                 v = 0.
             else:
                 v = numpy.ceil(v)
-            v = numpy.int32(v)
-            spec.write_value(v, data_type=DataType.INT32)
+            v = numpy.uint32(v)
+            spec.write_value(v, data_type=DataType.UINT32)
 
         # how many bytes we need to copy the data-block
         spec.write_value(len(conn_dict['data_block'])*4, data_type=DataType.UINT32)
 
-        for i in range(len(conn_dict['data_block'])):
-            w = conn_dict['data_block'][i]
-            if numpy.issubdtype(type(w), numpy.integer):
-                conn_dict['data_block'][i] = w#numpy.int32(w)
-            else:
-                conn_dict['data_block'][i] = numpy.int32(numpy.abs(
-                                                numpy.round(w*(1<<16))))
-
-        spec.write_array(conn_dict['data_block'])
-
-        # for w in conn_dict['data_block']:
+        # for i in range(len(conn_dict['data_block'])):
+        #     w = conn_dict['data_block'][i]
         #     if numpy.issubdtype(type(w), numpy.integer):
-        #         spec.write_value(int(w), data_type=DataType.UINT32)
+        #         # conn_dict['data_block'][i] = w
+        #         conn_dict['data_block'][i] = numpy.uint32(w)
         #     else:
-        #         spec.write_value(w, data_type=DataType.U1616)
+        #         conn_dict['data_block'][i] = \
+        #             numpy.uint32(numpy.abs(numpy.round(w*float(1<<16))))
+        #
+        # spec.write_array(conn_dict['data_block'])
+
+        for w in conn_dict['data_block']:
+            if numpy.issubdtype(type(w), numpy.integer):
+                spec.write_value(int(w), data_type=DataType.UINT32)
+            else:
+                spec.write_value(w, data_type=DataType.U1616)
 
 
         conn_dict['data_block'][:] = []

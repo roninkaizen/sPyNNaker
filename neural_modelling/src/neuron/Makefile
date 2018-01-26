@@ -4,6 +4,8 @@ MODELS = IF_curr_exp \
          IF_curr_exp_stdp_mad_pair_additive \
          IF_curr_exp_supervision \
          IF_curr_exp_supervision_stdp_mad_neuromodulated \
+         IF_curr_exp_supervision_adpt \
+         IF_curr_exp_supervision_adpt_stdp_mad_neuromodulated \
 
          #IZK_curr_exp_supervision \
          IZK_curr_exp_supervision_stdp_mad_neuromodulated \
