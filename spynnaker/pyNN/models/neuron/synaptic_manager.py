@@ -522,8 +522,8 @@ class SynapticManager(object):
                     rate_stats[synapse_type].add_items(
                         spikes_per_second, 0, n_connections)
 
-                    # total_weights[synapse_type] += spikes_per_tick * (
-                    #     weight_max * n_connections)
+                    total_weights[synapse_type] += spikes_per_tick * (
+                        weight_max * n_connections)
 
                     # total_weights[synapse_type] += spikes_per_tick * (
                     #     weight_max)
@@ -534,8 +534,8 @@ class SynapticManager(object):
                     # total_weights[synapse_type] += spikes_per_tick * (
                     #     weight_mean * n_connections * 0.01)
 
-                    total_weights[synapse_type] = max(total_weights[synapse_type],
-                            spikes_per_tick * (weight_max * n_connections))
+                    # total_weights[synapse_type] = max(total_weights[synapse_type],
+                    #         spikes_per_tick * (weight_max * n_connections))
 
                     if synapse_dynamics.are_weights_signed():
                         weights_signed = True
