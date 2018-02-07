@@ -16,7 +16,7 @@ class CorticalConnector(AbstractConnector):
     """
 
     def __init__(self, probability, max_distance, shape_pre, shape_post,
-                 shape_common=None, allow_self_connections=True,
+                 shape_common=None, allow_self_connections=True, min_distance=0.,
                  pre_n_per_zone=1, pre_sample_steps=None, pre_start_coords=None,
                  post_n_per_zone=1, post_sample_steps=None, post_start_coords=None,
                  weights=0.0, delays=1, safe=True,
@@ -50,6 +50,7 @@ class CorticalConnector(AbstractConnector):
         self._probability = probability
         self._self_conns = allow_self_connections
         self._max_distance = max_distance
+        self._min_distance = min_distance
         self._pre_per_zone = pre_n_per_zone
         self._post_per_zone = post_n_per_zone
 
@@ -498,11 +499,15 @@ class CorticalConnector(AbstractConnector):
         block = []
 
         block.append( numpy.uint32(
-                        numpy.floor(self._probability*float(1<<32) )) - 1)
+                        numpy.floor(self._probability*float((1 << 32) - 1))))
         block.append(
             numpy.uint32(self._self_conns) |
-            (numpy.uint32(numpy.round(self._max_distance)) & 0x7FFF) << 1 |
-            (numpy.uint32(numpy.round(self._max_distance**2)) & 0xFFFF) << 16 )
+            ((numpy.uint32(
+                numpy.round(
+                    (self._min_distance**2) * float(1 << 2)))) & 0x7FFF) << 1 |
+            (numpy.uint32(
+                numpy.round(
+                    (self._max_distance**2) * float(1 << 2))) & 0xFFFF) << 16 )
 
 
         block.append( shape2word(self._pre_per_zone,
@@ -529,6 +534,6 @@ class CorticalConnector(AbstractConnector):
 
 
     def __repr__(self):
-        return "CorticalConnector(p {}, d {}, nPre {}, nPost {})".\
-            format(self._probability, self._max_distance,
+        return "CorticalConnector(p {}, d [{}-{}], nPre {}, nPost {})".\
+            format(self._probability, self._min_distance, self._max_distance,
                    self._pre_per_zone, self._post_per_zone)
