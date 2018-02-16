@@ -2,6 +2,9 @@
 #define _THRESHOLD_TYPE_DYNAMIC_H_
 
 #include "threshold_type.h"
+#include "../profile_tags.h"
+
+#include <profiler.h>
 
 typedef struct threshold_type_t {
 
@@ -22,6 +25,8 @@ typedef struct threshold_type_t {
 static inline bool threshold_type_is_above_threshold(state_t value,
                         threshold_type_pointer_t threshold_type) {
 
+    profiler_write_entry_disable_irq_fiq(PROFILER_ENTER | PROFILER_DYNAMIC_THRESHOLD);
+
 	// If neuron has spiked
 	if REAL_COMPARE((value - threshold_type->threshold_resting),
 			>=, (threshold_type->threshold_value
@@ -32,6 +37,8 @@ static inline bool threshold_type_is_above_threshold(state_t value,
 		threshold_type->threshold_value = threshold_type->threhsold_Na_reversal -
 				threshold_type->threshold_resting;
 
+        profiler_write_entry_disable_irq_fiq(PROFILER_EXIT | PROFILER_DYNAMIC_THRESHOLD);
+
 		// Return true as neuron spiked
 		return true;
 
@@ -39,6 +46,8 @@ static inline bool threshold_type_is_above_threshold(state_t value,
 		// Decay threshold value back towards resting threshold
 		threshold_type->threshold_value *=
 				threshold_type->threshold_decay;
+
+        profiler_write_entry_disable_irq_fiq(PROFILER_EXIT | PROFILER_DYNAMIC_THRESHOLD);
 
 		// Return false 'has not spiked' to neuron.c
 		return false;

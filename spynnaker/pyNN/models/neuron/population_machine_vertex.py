@@ -41,7 +41,8 @@ class PopulationMachineVertex(
         1: "DMA_READ",
         2: "INCOMING_SPIKE",
         3: "PROCESS_FIXED_SYNAPSES",
-        4: "PROCESS_PLASTIC_SYNAPSES"}
+        4: "PROCESS_PLASTIC_SYNAPSES",
+        5: "PROFILER_DYNAMIC_THRESHOLD"}
 
     N_ADDITIONAL_PROVENANCE_DATA_ITEMS = 4
 
