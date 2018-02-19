@@ -78,6 +78,9 @@ typedef struct {
 	// INHIBITORY
 	_shape_input(&parameter->inh1_str);
 	_shape_input(&parameter->inh2_str);
+
+
+
  }
 
  static inline void _add_input(bi_exp_parm* bi_exp_params, input_t input){
@@ -152,7 +155,20 @@ typedef struct {
  }
 
  static inline void synapse_types_print_parameters(synapse_param_pointer_t parameter) {
-	 use(parameter);
+
+	 	log_debug("AMPA: %k, NMDA: %K, GABA_A: %k, GABA_B: %k",
+	 			((parameter->ex1_str.a_A * parameter->ex1_str.a_response)
+	 			 + (parameter->ex1_str.b_B * parameter->ex1_str.b_response)),
+
+	 			((parameter->ex2_str.a_A * parameter->ex2_str.a_response)
+	 			 + (parameter->ex2_str.b_B * parameter->ex2_str.b_response)),
+
+	 			((parameter->inh1_str.a_A * parameter->inh1_str.a_response)
+	 			 + (parameter->inh1_str.b_B * parameter->inh1_str.b_response)),
+
+	 			((parameter->inh2_str.a_A * parameter->inh2_str.a_response)
+	 			 + (parameter->inh2_str.b_B * parameter->inh2_str.b_response)));
+
  }
 
  #endif // _DIFF_SYNAPSE_H_
