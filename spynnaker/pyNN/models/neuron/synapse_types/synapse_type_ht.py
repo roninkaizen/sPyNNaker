@@ -38,7 +38,7 @@ class SynapseTypeCombExp4E4I(AbstractSynapseType):
     def __init__(self,
                 n_neurons,
 
-                # excitatory
+                # excitatory - AMPA
                 exc_a_response,
                 exc_a_A,
                 exc_a_tau,
@@ -46,7 +46,7 @@ class SynapseTypeCombExp4E4I(AbstractSynapseType):
                 exc_b_B,
                 exc_b_tau,
 
-                # excitatory2
+                # excitatory2 - NMDA
                 exc2_a_response,
                 exc2_a_A,
                 exc2_a_tau,
@@ -54,24 +54,7 @@ class SynapseTypeCombExp4E4I(AbstractSynapseType):
                 exc2_b_B,
                 exc2_b_tau,
 
-                # excitatory3
-                exc3_a_response,
-                exc3_a_A,
-                exc3_a_tau,
-                exc3_b_response,
-                exc3_b_B,
-                exc3_b_tau,
-
-                # excitatory4
-                exc4_a_response,
-                exc4_a_A,
-                exc4_a_tau,
-                exc4_b_response,
-                exc4_b_B,
-                exc4_b_tau,
-
-
-                # inhibitory
+                # inhibitory - GABA_A
                 inh_a_response,
                 inh_a_A,
                 inh_a_tau,
@@ -79,7 +62,7 @@ class SynapseTypeCombExp4E4I(AbstractSynapseType):
                 inh_b_B,
                 inh_b_tau,
 
-                # inhibitory2
+                # inhibitory2 - GABA_B
                 inh2_a_response,
                 inh2_a_A,
                 inh2_a_tau,
@@ -87,21 +70,7 @@ class SynapseTypeCombExp4E4I(AbstractSynapseType):
                 inh2_b_B,
                 inh2_b_tau,
 
-                # inhibitory3
-                inh3_a_response,
-                inh3_a_A,
-                inh3_a_tau,
-                inh3_b_response,
-                inh3_b_B,
-                inh3_b_tau,
-
-                # inhibitory4
-                inh4_a_response,
-                inh4_a_A,
-                inh4_a_tau,
-                inh4_b_response,
-                inh4_b_B,
-                inh4_b_tau):
+                ):
 
 
         AbstractSynapseType.__init__(self)
@@ -127,27 +96,6 @@ class SynapseTypeCombExp4E4I(AbstractSynapseType):
 
         self.exc2_a_A, self.exc2_b_B = set_excitatory_scalar(self._exc2_a_tau, self._exc2_b_tau)
 
-        # excitatory3
-        self._exc3_a_response = utility_calls.convert_param_to_numpy(exc3_a_response, n_neurons)
-        self._exc3_a_A = utility_calls.convert_param_to_numpy(exc3_a_A, n_neurons)
-        self._exc3_a_tau = utility_calls.convert_param_to_numpy(exc3_a_tau, n_neurons)
-        self._exc3_b_response = utility_calls.convert_param_to_numpy(exc3_b_response, n_neurons)
-        self._exc3_b_B = utility_calls.convert_param_to_numpy(exc3_b_B, n_neurons)
-        self._exc3_b_tau = utility_calls.convert_param_to_numpy(exc3_b_tau, n_neurons)
-
-        self.exc3_a_A, self.exc3_b_B = set_excitatory_scalar(self._exc3_a_tau, self._exc3_b_tau)
-
-        # excitatory4
-        self._exc4_a_response = utility_calls.convert_param_to_numpy(exc4_a_response, n_neurons)
-        self._exc4_a_A = utility_calls.convert_param_to_numpy(exc4_a_A, n_neurons)
-        self._exc4_a_tau = utility_calls.convert_param_to_numpy(exc4_a_tau, n_neurons)
-        self._exc4_b_response = utility_calls.convert_param_to_numpy(exc4_b_response, n_neurons)
-        self._exc4_b_B = utility_calls.convert_param_to_numpy(exc4_b_B, n_neurons)
-        self._exc4_b_tau = utility_calls.convert_param_to_numpy(exc4_b_tau, n_neurons)
-
-        self.exc4_a_A, self.exc4_b_B = set_excitatory_scalar(self._exc4_a_tau, self._exc4_b_tau)
-
-
 
         #inhibitory
         self._inh_a_response = utility_calls.convert_param_to_numpy(inh_a_response, n_neurons)
@@ -169,25 +117,6 @@ class SynapseTypeCombExp4E4I(AbstractSynapseType):
 
         self._inh2_a_A, self._inh2_b_B = set_excitatory_scalar(self._inh2_a_tau, self._inh2_b_tau)
 
-        # inhibitory3
-        self._inh3_a_response = utility_calls.convert_param_to_numpy(inh3_a_response, n_neurons)
-        self._inh3_a_A = utility_calls.convert_param_to_numpy(inh3_a_A, n_neurons)
-        self._inh3_a_tau = utility_calls.convert_param_to_numpy(inh3_a_tau, n_neurons)
-        self._inh3_b_response = utility_calls.convert_param_to_numpy(inh3_b_response, n_neurons)
-        self._inh3_b_B = utility_calls.convert_param_to_numpy(inh3_b_B, n_neurons)
-        self._inh3_b_tau = utility_calls.convert_param_to_numpy(inh3_b_tau, n_neurons)
-
-        self._inh3_a_A, self._inh3_b_B = set_excitatory_scalar(self._inh3_a_tau, self._inh3_b_tau)
-
-        # inhibitory4
-        self._inh4_a_response = utility_calls.convert_param_to_numpy(inh4_a_response, n_neurons)
-        self._inh4_a_A = utility_calls.convert_param_to_numpy(inh4_a_A, n_neurons)
-        self._inh4_a_tau = utility_calls.convert_param_to_numpy(inh4_a_tau, n_neurons)
-        self._inh4_b_response = utility_calls.convert_param_to_numpy(inh4_b_response, n_neurons)
-        self._inh4_b_B = utility_calls.convert_param_to_numpy(inh4_b_B, n_neurons)
-        self._inh4_b_tau = utility_calls.convert_param_to_numpy(inh4_b_tau, n_neurons)
-
-        self._inh4_a_A, self._inh4_b_B = set_excitatory_scalar(self._inh4_a_tau, self._inh4_b_tau)
 
 
     #excitatory
@@ -306,124 +235,6 @@ class SynapseTypeCombExp4E4I(AbstractSynapseType):
             exc2_b_tau, self._n_neurons)
         self.exc2_a_A, self.exc2_b_B = set_excitatory_scalar(self._exc2_a_tau, self._exc2_b_tau)
 
-    # excitatory3
-
-    ################
-    @property
-    def exc3_a_response(self):
-        return self._exc3_a_response
-
-    @exc3_a_response.setter
-    def exc3_a_response(self, exc3_a_response):
-        self._exc3_a_response = utility_calls.convert_param_to_numpy(
-            exc3_a_response, self._n_neurons)
-
-    @property
-    def exc3_a_A(self):
-        return self._exc3_a_A
-
-    @exc3_a_A.setter
-    def exc3_a_A(self, exc3_a_A):
-        self._exc3_a_A = utility_calls.convert_param_to_numpy(
-            exc3_a_A, self._n_neurons)
-
-    @property
-    def exc3_a_tau(self):
-        return self._exc3_a_tau
-
-    @exc3_a_tau.setter
-    def exc3_a_tau(self, exc3_a_tau):
-        self._exc3_a_tau = utility_calls.convert_param_to_numpy(
-            exc3_a_tau, self._n_neurons)
-        self._exc3_a_A, self._exc3_b_B = set_excitatory_scalar(self._exc3_a_tau, self._exc3_b_tau)
-
-    @property
-    def exc3_b_response(self):
-        return self._exc3_b_response
-
-    @exc3_b_response.setter
-    def exc3_b_response(self, exc3_b_response):
-        self._exc3_b_response = utility_calls.convert_param_to_numpy(
-            exc3_b_response, self._n_neurons)
-
-    @property
-    def exc3_b_B(self):
-        return self._exc3_b_B
-
-    @exc3_b_B.setter
-    def exc3_b_B(self, exc3_b_B):
-        self._exc3_b_B = utility_calls.convert_param_to_numpy(
-            exc3_b_B, self._n_neurons)
-
-    @property
-    def exc3_b_tau(self):
-        return self._exc3_b_tau
-
-    @exc3_b_tau.setter
-    def exc3_b_tau(self, exc3_b_tau):
-        self._exc3_b_tau = utility_calls.convert_param_to_numpy(
-            exc3_b_tau, self._n_neurons)
-        self._exc3_a_A, self._exc3_b_B = set_excitatory_scalar(self._exc3_a_tau, self._exc3_b_tau)
-
-
-    # excitatory4
-    @property
-    def exc4_a_response(self):
-        return self._exc4_a_response
-
-    @exc4_a_response.setter
-    def exc4_a_response(self, exc4_a_response):
-        self._exc4_a_response = utility_calls.convert_param_to_numpy(
-            exc4_a_response, self._n_neurons)
-
-    @property
-    def exc4_a_A(self):
-        return self._exc4_a_A
-
-    @exc4_a_A.setter
-    def exc4_a_A(self, exc4_a_A):
-        self._exc4_a_A = utility_calls.convert_param_to_numpy(
-            exc4_a_A, self._n_neurons)
-
-    @property
-    def exc4_a_tau(self):
-        return self._exc4_a_tau
-
-    @exc4_a_tau.setter
-    def exc4_a_tau(self, exc4_a_tau):
-        self._exc4_a_tau = utility_calls.convert_param_to_numpy(
-            exc4_a_tau, self._n_neurons)
-        self._exc4_a_A, self._exc4_b_B = set_excitatory_scalar(self._exc4_a_tau, self._exc4_b_tau)
-
-    @property
-    def exc4_b_response(self):
-        return self._exc4_b_response
-
-    @exc4_b_response.setter
-    def exc4_b_response(self, exc4_b_response):
-        self._exc4_b_response = utility_calls.convert_param_to_numpy(
-            exc4_b_response, self._n_neurons)
-
-    @property
-    def exc4_b_B(self):
-        return self._exc4_b_B
-
-    @exc4_b_B.setter
-    def exc4_b_B(self, exc4_b_B):
-        self._exc4_b_B = utility_calls.convert_param_to_numpy(
-            exc4_b_B, self._n_neurons)
-
-    @property
-    def exc4_b_tau(self):
-        return self._exc4_b_tau
-
-    @exc4_b_tau.setter
-    def exc4_b_tau(self, exc4_b_tau):
-        self._exc4_b_tau = utility_calls.convert_param_to_numpy(
-            exc4_b_tau, self._n_neurons)
-        self._exc4_a_A, self._exc4_b_B = set_excitatory_scalar(self._exc4_a_tau, self._exc4_b_tau)
-
-
 
     # inhibitory
     @property
@@ -484,7 +295,6 @@ class SynapseTypeCombExp4E4I(AbstractSynapseType):
 
 
     # inhibitory2
-
     @property
     def inh2_a_response(self):
         return self._inh2_a_response
@@ -541,156 +351,30 @@ class SynapseTypeCombExp4E4I(AbstractSynapseType):
             inh2_b_tau, self._n_neurons)
         self._inh2_a_A, self._inh2_b_B = set_excitatory_scalar(self._inh2_a_tau, self._inh2_b_tau)
 
-
-    # inhibitory3
-
-    @property
-    def inh3_a_response(self):
-        return self._inh3_a_response
-
-    @inh3_a_response.setter
-    def inh3_a_response(self, inh3_a_response):
-        self._inh3_a_response = utility_calls.convert_param_to_numpy(
-            inh3_a_response, self._n_neurons)
-
-    @property
-    def inh3_a_A(self):
-        return self._inh3_a_A
-
-    @inh3_a_A.setter
-    def inh3_a_A(self, inh3_a_A):
-        self._inh3_a_A = utility_calls.convert_param_to_numpy(
-            inh3_a_A, self._n_neurons)
-
-    @property
-    def inh3_a_tau(self):
-        return self._inh3_a_tau
-
-    @inh3_a_tau.setter
-    def inh3_a_tau(self, inh3_a_tau):
-        self._inh3_a_tau = utility_calls.convert_param_to_numpy(
-            inh3_a_tau, self._n_neurons)
-        self._inh3_a_A, self._inh3_b_B = set_excitatory_scalar(self._inh3_a_tau, self._inh3_b_tau)
-
-    @property
-    def inh3_b_response(self):
-        return self._inh3_b_response
-
-    @inh3_b_response.setter
-    def inh3_b_response(self, inh3_b_response):
-        self._inh3_b_response = utility_calls.convert_param_to_numpy(
-            inh3_b_response, self._n_neurons)
-
-    @property
-    def inh3_b_B(self):
-        return self._inh3_b_B
-
-    @inh3_b_B.setter
-    def inh3_b_B(self, inh3_b_B):
-        self._inh3_b_B = utility_calls.convert_param_to_numpy(
-            inh3_b_B, self._n_neurons)
-
-    @property
-    def inh3_b_tau(self):
-        return self._inh3_b_tau
-
-    @inh3_b_tau.setter
-    def inh3_b_tau(self, inh3_b_tau):
-        self._inh3_b_tau = utility_calls.convert_param_to_numpy(
-            inh3_b_tau, self._n_neurons)
-        self._inh3_a_A, self._inh3_b_B = set_excitatory_scalar(self._inh3_a_tau, self._inh3_b_tau)
-
-
-    # inhibitory4
-    @property
-    def inh4_a_response(self):
-        return self._inh4_a_response
-
-    @inh4_a_response.setter
-    def inh4_a_response(self, inh4_a_response):
-        self._inh4_a_response = utility_calls.convert_param_to_numpy(
-            inh4_a_response, self._n_neurons)
-
-    @property
-    def inh4_a_A(self):
-        return self._inh4_a_A
-
-    @inh4_a_A.setter
-    def inh4_a_A(self, inh4_a_A):
-        self._inh4_a_A = utility_calls.convert_param_to_numpy(
-            inh4_a_A, self._n_neurons)
-
-    @property
-    def inh4_a_tau(self):
-        return self._inh4_a_tau
-
-    @inh4_a_tau.setter
-    def inh4_a_tau(self, inh4_a_tau):
-        self._inh4_a_tau = utility_calls.convert_param_to_numpy(
-            inh4_a_tau, self._n_neurons)
-        self._inh4_a_A, self._inh4_b_B = set_excitatory_scalar(self._inh4_a_tau, self._inh4_b_tau)
-
-    @property
-    def inh4_b_response(self):
-        return self._inh4_b_response
-
-    @inh4_b_response.setter
-    def inh4_b_response(self, inh4_b_response):
-        self._inh4_b_response = utility_calls.convert_param_to_numpy(
-            inh4_b_response, self._n_neurons)
-
-    @property
-    def inh4_b_B(self):
-        return self._inh4_b_B
-
-    @inh4_b_B.setter
-    def inh4_b_B(self, inh4_b_B):
-        self._inh4_b_B = utility_calls.convert_param_to_numpy(
-            inh4_b_B, self._n_neurons)
-
-    @property
-    def inh4_b_tau(self):
-        return self._inh4_b_tau
-
-    @inh4_b_tau.setter
-    def inh4_b_tau(self, inh4_b_tau):
-        self._inh4_b_tau = utility_calls.convert_param_to_numpy(
-            inh4_b_tau, self._n_neurons)
-        self._inh4_a_A, self._inh4_b_B = set_excitatory_scalar(self._inh4_a_tau, self._inh4_b_tau)
-
     def get_n_synapse_types(self):
-        return 8 # EX, EX2, EX3, EX4 and INH, INH2, INH3, INH4
+        return 4 # AMPA, NMDA, GABA_A, GABA_B
 
     def get_synapse_id_by_target(self, target):
 
-        if target == "excitatory":
+        if target == "AMPA":
             return 0
-        elif target == "excitatory2":
+        elif target == "NMDA":
             return 1
-        elif target == "excitatory3":
+        elif target == "GABA_A":
             return 2
-        elif target == "excitatory4":
+        elif target == "GABA_B":
             return 3
-        elif target == "inhibitory":
-            return 4
-        elif target == "inhibitory2":
-            return 5
-        elif target == "inhibitory3":
-            return 6
-        elif target == "inhibitory4":
-            return 7
         return None
 
     def get_synapse_targets(self):
-        return "excitatory", "excitatory2", "inhibitory", "inhibitory2"
+        return "AMPA", "NMDA", "GABA_A", "GABA_B"
 
     def get_n_synapse_type_parameters(self):
-        return 8*6
+        return self.get_n_synapse_types()* 6
 
     @inject_items({"machine_time_step": "MachineTimeStep"})
     def get_synapse_type_parameters(self, machine_time_step):
-        # do we still need the init adjustment if using the alpha-shape
-        # synapse?
+
         # excitatory
         e_a_decay, e_a_init = get_exponential_decay_and_init(
             self._exc_a_tau, machine_time_step)
