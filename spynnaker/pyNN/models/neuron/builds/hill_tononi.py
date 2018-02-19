@@ -6,7 +6,7 @@ from spynnaker.pyNN.models.neuron.threshold_types import ThresholdTypeHTDynamic
 from spynnaker.pyNN.models.neuron import AbstractPopulationVertex
 
 # global objects
-DEFAULT_MAX_ATOMS_PER_CORE = 255
+DEFAULT_MAX_ATOMS_PER_CORE = 128
 
 
 class HillTononi(AbstractPopulationVertex):
@@ -15,7 +15,7 @@ class HillTononi(AbstractPopulationVertex):
         intrinsic HH-like currents, bi-exponential synapses (voltage-dependent
         NMDA), short-term plasticity and dynamic threshold.
     """
-
+    _max_feasible_atoms_per_core = 128
     _model_based_max_atoms_per_core = DEFAULT_MAX_ATOMS_PER_CORE
 
     default_parameters = {
@@ -175,7 +175,8 @@ class HillTononi(AbstractPopulationVertex):
             incoming_spike_buffer_size=incoming_spike_buffer_size,
             model_name="Hill_Tononi", neuron_model=neuron_model,
             input_type=input_type, synapse_type=synapse_type,
-            threshold_type=threshold_type, constraints=constraints)
+            threshold_type=threshold_type, constraints=constraints,
+            max_feasible_atoms_per_core = self._max_feasible_atoms_per_core)
 
     @staticmethod
     def set_model_max_atoms_per_core(new_value=DEFAULT_MAX_ATOMS_PER_CORE):

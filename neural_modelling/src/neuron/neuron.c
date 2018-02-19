@@ -400,6 +400,7 @@ void neuron_do_timestep_update(timer_t time) {
          // If we should be recording input, record the values
         inputs_excitatory->inputs[neuron_index].input = total_exc;
         inputs_inhibitory->inputs[neuron_index].input = total_inh;
+
         // For recording and visualising threshold
         // inputs_inhibitory->inputs[neuron_index].input = (threshold_type->threshold_value +
         //        		threshold_type->threshold_resting);
