@@ -1,6 +1,6 @@
 from spynnaker.pyNN.models.neuron.neuron_models \
     import NeuronModelLeakyIntegrateAndFire
-from spynnaker.pyNN.models.neuron.synapse_types import SynapseTypeExponential
+from spynnaker.pyNN.models.neuron.synapse_types import SynapseTypeHillTononi
 from spynnaker.pyNN.models.neuron.input_types import InputTypeCurrent
 from spynnaker.pyNN.models.neuron.threshold_types import ThresholdTypeHTDynamic
 from spynnaker.pyNN.models.neuron import AbstractPopulationVertex
@@ -20,7 +20,7 @@ class HillTononi(AbstractPopulationVertex):
 
     default_parameters = {
     # #### Neuron Model ####
-        'tau_refrac': 0.1, 'i_offset': 0, 'isyn_exc': 0.0, 'isyn_inh': 0.0,
+        'tau_refrac': 0.1, 'i_offset': 0,
         'tau_m': 20.0, 'cm': 1.0, 'v_rest': -65.0, 'v_reset': -65.0,
 
     # #### Threshold ####
@@ -29,21 +29,21 @@ class HillTononi(AbstractPopulationVertex):
 
     # ##### Synapse Type #####
         # AMPA - excitatory
-        'exc_a_response':0, 'exc_a_A':1, 'exc_a_tau': 0.5,
-        'exc_b_response':0, 'exc_b_B':-1, 'exc_b_tau': 2.4,
+        'exc_a_response': 0, 'exc_a_A': 1, 'exc_a_tau': 0.5,
+        'exc_b_response': 0, 'exc_b_B': -1, 'exc_b_tau': 2.4,
         # NMDA - excitatory2
-        'exc2_a_response':0, 'exc2_a_A':1, 'exc2_a_tau': 4,
-        'exc2_b_response':0, 'exc2_b_B':-1, 'exc2_b_tau': 40,
+        'exc2_a_response': 0, 'exc2_a_A': 1, 'exc2_a_tau': 4,
+        'exc2_b_response': 0, 'exc2_b_B': -1, 'exc2_b_tau': 40,
         # GABA_A - inhibitory
-        'inh_a_response': 0, 'inh_a_A':1, 'inh_a_tau': 1,
-        'inh_b_response':0, 'inh_b_B':-1, 'inh_b_tau': 7,
+        'inh_a_response': 0, 'inh_a_A': 1, 'inh_a_tau': 1,
+        'inh_b_response': 0, 'inh_b_B': -1, 'inh_b_tau': 7,
         # GABA_B - inhibitory2
-        'inh2_a_response': 0, 'inh2_a_A':1, 'inh2_a_tau': 60,
-        'inh2_b_response':0, 'inh2_b_B':-1, 'inh2_b_tau': 200,
+        'inh2_a_response': 0, 'inh2_a_A': 1, 'inh2_a_tau': 60,
+        'inh2_b_response': 0, 'inh2_b_B':-1, 'inh2_b_tau': 200,
 
     # #### Input Type ####
-        'e_rev_AMPA': 0, 'e_rev_NMDA': 0,
-        'e_rev_GABA_A': -70 , 'e_rev_GABA_B': -90,
+#         'e_rev_AMPA': 0, 'e_rev_NMDA': 0,
+#         'e_rev_GABA_A': -70 , 'e_rev_GABA_B': -90,
         # note that GABA_A_TC connections have a reversal potential of -80 mV
 
     # ##### Additional Inputs ####
@@ -65,7 +65,7 @@ class HillTononi(AbstractPopulationVertex):
             label=AbstractPopulationVertex.none_pynn_default_parameters[
                 'label'],
 
-        # Neuron paramters
+        # Neuron parameters
             tau_refrac=default_parameters['tau_refrac'],
             tau_m=default_parameters['tau_m'],
             cm=default_parameters['cm'],
@@ -81,7 +81,7 @@ class HillTononi(AbstractPopulationVertex):
             v_thresh_Na_reversal=default_parameters['v_thresh_Na_reversal'],
 
         # Synapse parameters
-            # AMAP - excitatory
+            # AMPA - excitatory
             exc_a_response=default_parameters['exc_a_response'],
             exc_a_A=default_parameters['exc_a_A'],
             exc_a_tau=default_parameters['exc_a_tau'],
@@ -114,18 +114,51 @@ class HillTononi(AbstractPopulationVertex):
             inh2_b_tau=default_parameters['inh2_b_tau'],
 
         # Input Type
-            e_rev_AMPA=default_parameters['e_rev_AMPA'],
-            e_rev_NMDA=default_parameters['e_rev_NMDA'],
-            e_rev_GABA_A=default_parameters['e_rev_GABA_A'],
-            e_rev_GABA_B=default_parameters['e_rev_GABA_B']
+#             e_rev_AMPA=default_parameters['e_rev_AMPA'],
+#             e_rev_NMDA=default_parameters['e_rev_NMDA'],
+#             e_rev_GABA_A=default_parameters['e_rev_GABA_A'],
+#             e_rev_GABA_B=default_parameters['e_rev_GABA_B']
             ):
 
         neuron_model = NeuronModelLeakyIntegrateAndFire(
             n_neurons, v_init, v_rest, tau_m, cm, i_offset,
             v_reset, tau_refrac)
 
-        synapse_type = SynapseTypeExponential(
-            n_neurons, tau_syn_E, tau_syn_I, isyn_exc, isyn_inh)
+        synapse_type = SynapseTypeHillTononi(
+                n_neurons,
+
+                # AMPA - excitatory
+                exc_a_response,
+                exc_a_A,
+                exc_a_tau,
+                exc_b_response,
+                exc_b_B,
+                exc_b_tau,
+
+                # NMDA - excitatory2
+                exc2_a_response,
+                exc2_a_A,
+                exc2_a_tau,
+                exc2_b_response,
+                exc2_b_B,
+                exc2_b_tau,
+
+                # GABA_A - inhibitory
+                inh_a_response,
+                inh_a_A,
+                inh_a_tau,
+                inh_b_response,
+                inh_b_B,
+                inh_b_tau,
+
+                # GABA_B - inhibitory2
+                inh2_a_response,
+                inh2_a_A,
+                inh2_a_tau,
+                inh2_b_response,
+                inh2_b_B,
+                inh2_b_tau
+            )
 
         input_type = InputTypeCurrent()
 
@@ -152,18 +185,12 @@ class HillTononi(AbstractPopulationVertex):
     def get_max_atoms_per_core():
         return HillTononi._model_based_max_atoms_per_core
 
-    @property
-    def isyn_exc(self):
-        return self.synapse_type.initial_value_exc
-
-    @property
-    def isyn_inh(self):
-        return self.synapse_type.initial_value_inh
-
-    @isyn_exc.setter
-    def isyn_exc(self, new_value):
-        self.synapse_type.initial_value_exc = new_value
-
-    @isyn_inh.setter
-    def isyn_inh(self, new_value):
-        self.synapse_type.initial_value_inh = new_value
+#
+#
+#     @isyn_exc.setter
+#     def isyn_exc(self, new_value):
+#         self.synapse_type.initial_value_exc = new_value
+#
+#     @isyn_inh.setter
+#     def isyn_inh(self, new_value):
+#         self.synapse_type.initial_value_inh = new_value
