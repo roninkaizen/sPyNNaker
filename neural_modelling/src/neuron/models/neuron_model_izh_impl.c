@@ -56,8 +56,14 @@ static inline void _rk2_kernel_midpoint(REAL h, neuron_pointer_t neuron,
     // could be represented as a long fract?
     REAL beta = REAL_HALF(h * (b * lastV1 - lastU1) * a);
 
-    neuron->V += h * (pre_alph - beta
+    REAL dv = h * (pre_alph - beta
                       + ( REAL_CONST(5.0) + REAL_CONST(0.0400) * eta) * eta);
+
+    if ((neuron->V < 0) && (dv < 0) && ((neuron->V + dv) > 0)){
+        return;
+    }
+
+    neuron->V += dv
 
     neuron->U += a * h * (-lastU1 - beta + b * eta);
 }

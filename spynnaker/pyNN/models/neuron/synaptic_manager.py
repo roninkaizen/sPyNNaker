@@ -657,7 +657,7 @@ class SynapticManager(object):
 
         gen_in_spinn = False
         max_row_length = 0
-
+        stl = []
         # For each machine edge in the vertex, create a synaptic list
         for m_edge in in_edges:
             app_edge = graph_mapper.get_application_edge(m_edge)
@@ -671,7 +671,7 @@ class SynapticManager(object):
                     m_edge.pre_vertex)
                 
                 for synapse_info in app_edge.synapse_information:
-
+                    stl.append(synapse_info.synapse_type)
                     conn = synapse_info.connector
                     gen_in_spinn = conn.generate_on_machine()
                     self._any_gen_on_machine |= gen_in_spinn
@@ -903,6 +903,7 @@ class SynapticManager(object):
                                                   spec, master_pop_table_region)
         self._pop_table = pt
         self._address_list = al
+        self._synapse_types_list = stl
 
         # Write the size and data of single synapses to the end of the region
         spec.switch_write_focus(synaptic_matrix_region)
@@ -1272,17 +1273,23 @@ class SynapticManager(object):
 
         #TODO:   This should probably be merged with another loop so we don't visit
         #todo:   the same data many times
-        # print("\n\nPopulation Table / Address List")
-        # print(self._pop_table)
-        # print(self._address_list)
+
         addresses   = [(a & 0x7FFFFF00) >> 8 for a in self._address_list]
         row_lengths = [(a & 0xFF) for a in self._address_list]
+
+        # print("\n\nPopulation Table / Address List")
+        # print(len(self._pop_table))
+        # print(self._pop_table)
+        # print(len(self._address_list))
+        # print(self._address_list)
         # print("Addresses")
         # print(addresses)
         # print("Row Lengths")
         # print(row_lengths)
 
+        base_addresses = []
         syn_infos = []
+        syn_types = []
         param_block = []
         slices = []
         delayed_places = []
@@ -1304,7 +1311,9 @@ class SynapticManager(object):
                                                            routing_infos)
                 key  = key_and_mask.key
                 mask = key_and_mask.mask
+
                 for synapse_info in app_edge.synapse_information:
+                    syn_types.append(synapse_info.synapse_type)
                     keys.append(numpy.uint32(key))
                     masks.append(numpy.uint32(mask))
                     delayed_places.append(dplaces)
@@ -1319,8 +1328,10 @@ class SynapticManager(object):
         n_32bit_header_words = 0
         max_n_pre_neurons = 0
         for i in range(len(syn_infos)):
+            # print("%03d/%03d"%(i+1, len(syn_infos)))
 
             syn_info = syn_infos[i]
+            syn_type = numpy.uint32(syn_info.synapse_type)
 
             slice_start = numpy.uint32(slices[i].lo_atom)
             slice_count = numpy.uint32(slices[i].n_atoms)
@@ -1331,18 +1342,25 @@ class SynapticManager(object):
             row_len = 0
             # print(key, mask)
             # print(self._pop_table)
-            for addr_idx in range(len(self._pop_table)):
+            break_out = False
+            accum_idx = 0
+            for tbl_idx in range(len(self._pop_table)):
+                if key == self._pop_table[tbl_idx][0] and \
+                   mask == self._pop_table[tbl_idx][1]:
+                    for entry in range(self._pop_table[tbl_idx][3]):
 
-                if key == self._pop_table[addr_idx][0] and \
-                   mask == self._pop_table[addr_idx][1]:
-                    # print("key curr %s == pop %s" % (key, self._pop_table[addr_idx][0]))
-                    address_delta = addresses[addr_idx]
-                    row_len = row_lengths[addr_idx]
-                    # print("\n*********++++++++++++++++++++++++++++++++++")
-                    # print(address_delta, row_len)
-                    # print("\n*********++++++++++++++++++++++++++++++++++")
+                        if syn_type == syn_types[accum_idx+entry]:
+                            address_delta = addresses[accum_idx+entry]
+                            row_len = row_lengths[accum_idx+entry]
+                            # print("\n*********++++++++++++++++++++++++++++++++++")
+                            # print(accum_idx+entry, key, mask, address_delta, row_len,
+                            #       syn_type)
+                            # print("\n*********++++++++++++++++++++++++++++++++++")
+                            break_out = True
+                            break
+                accum_idx += self._pop_table[tbl_idx][3]
+                if break_out:
                     break
-
             address_delta = numpy.uint32(address_delta)
             conn = syn_info.connector
             direct = numpy.uint32(isinstance(syn_info.connector, OneToOneConnector))
@@ -1356,7 +1374,7 @@ class SynapticManager(object):
             dyn_type = STATIC_HASH if syn_info.synapse_dynamics.is_static \
                        else PLASTIC_HASH
             # print("syn_info.synapse_type", syn_info.synapse_type)
-            syn_type = numpy.uint32(syn_info.synapse_type)
+
 
             int_dyn_type = numpy.uint32(syn_info.synapse_dynamics.is_plastic)
             # max_per_pre = numpy.uint32(conn.get_max_per_neuron_connections(
