@@ -57,6 +57,7 @@ static inline pre_trace_t timing_apply_stp(
 	return last_stp_trace;
 }
 
+
 //---------------------------------------
 // Timing dependence inline functions
 //---------------------------------------

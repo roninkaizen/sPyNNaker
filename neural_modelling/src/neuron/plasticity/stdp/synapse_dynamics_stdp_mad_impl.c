@@ -50,6 +50,8 @@ uint32_t num_plastic_pre_synaptic_events = 0;
 #error "Not enough bits for axonal synaptic delay bits"
 #endif
 
+#define STP true
+
 //---------------------------------------
 // Structures
 //---------------------------------------
@@ -244,9 +246,13 @@ bool synapse_dynamics_process_plastic_synapses(
     log_debug("Adding pre-synaptic event to trace at time:%u", time);
     event_history->prev_time = time;
     event_history->prev_trace = timing_add_pre_spike(time, last_pre_time,
-                                                     last_pre_trace);
-    event_history->stp_trace = timing_apply_stp(time, last_pre_time,
+    													last_pre_trace);
+
+    if (STP == true){
+    	event_history->stp_trace = timing_apply_stp(time, last_pre_time,
     												last_stp_trace);
+    }
+
     // Loop through plastic synapses
     for (; plastic_synapse > 0; plastic_synapse--) {
 
@@ -279,8 +285,14 @@ bool synapse_dynamics_process_plastic_synapses(
         // Add weight to ring-buffer entry
         // **NOTE** Dave suspects that this could be a
         // potential location for overflow
-        ring_buffers[ring_buffer_index] += synapse_structure_get_final_weight(
-            final_state);
+        if (STP==true){
+            ring_buffers[ring_buffer_index] += event_history->stp_trace *
+            		synapse_structure_get_final_weight(
+                final_state);
+        }else{
+        	ring_buffers[ring_buffer_index] += synapse_structure_get_final_weight(
+        			final_state);
+        }
 
         // Write back updated synaptic word to plastic region
         *plastic_words++ = synapse_structure_get_final_synaptic_word(
