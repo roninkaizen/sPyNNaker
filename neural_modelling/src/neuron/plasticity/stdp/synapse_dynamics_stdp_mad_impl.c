@@ -245,7 +245,6 @@ bool synapse_dynamics_process_plastic_synapses(
     // Here is where we need to do the STP processing
 
 
-    log_info("\n time: %u \n pre_trace: %u \n stp_trace: %u \n", last_pre_time, last_pre_trace, last_stp_trace);
 
     // Update pre-synaptic trace
     log_debug("Adding pre-synaptic event to trace at time:%u", time);
@@ -257,6 +256,8 @@ bool synapse_dynamics_process_plastic_synapses(
     	event_history->stp_trace = timing_apply_stp(time, last_pre_time,
     												last_stp_trace);
     }
+
+    log_info("\n time: %u \n pre_trace: %u \n stp_trace: %u \n", last_pre_time, last_pre_trace, last_stp_trace);
 
     // Loop through plastic synapses
     for (; plastic_synapse > 0; plastic_synapse--) {

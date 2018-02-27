@@ -53,8 +53,15 @@ static inline pre_trace_t timing_apply_stp(
 	// This function is called once per synaptic row, so update multiplier
 	// for entire row here - using time since last pre spike
 
+	// Get time since last spike
+	uint32_t delta_time = time - last_time;
+
+	// Decay previous o1 and o2 traces
+	int32_t decayed_one = STDP_FIXED_MUL_16X16(STDP_FIXED_POINT_ONE,
+	            DECAY_LOOKUP_TAU_MINUS(delta_time));
+
 	// To begin with, we'll return
-	return last_stp_trace *2;
+	return last_stp_trace + decayed_one;
 }
 
 
