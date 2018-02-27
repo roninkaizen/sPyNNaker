@@ -54,7 +54,7 @@ static inline pre_trace_t timing_apply_stp(
 	// for entire row here - using time since last pre spike
 
 	// To begin with, we'll return
-	return last_stp_trace;
+	return last_stp_trace *2;
 }
 
 

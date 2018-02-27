@@ -1,11 +1,12 @@
 from spinn_utilities.overrides import overrides
+from spynnaker.pyNN.models.neuron.plasticity.stdp.common.plasticity_helpers import STDP_FIXED_POINT_ONE
 from spynnaker.pyNN.models.neuron.plasticity.stdp.common \
     import plasticity_helpers
 from .abstract_timing_dependence import AbstractTimingDependence
 from spynnaker.pyNN.models.neuron.plasticity.stdp.synapse_structure\
     import SynapseStructureWeightOnly
 
-
+import numpy
 import logging
 logger = logging.getLogger(__name__)
 
@@ -93,3 +94,10 @@ class TimingDependenceAbbotSTP(AbstractTimingDependence):
     @overrides(AbstractTimingDependence.get_parameter_names)
     def get_parameter_names(self):
         return ['tau_plus', 'tau_minus']
+
+    @overrides(AbstractTimingDependence.initialise_row_headers)
+    def initialise_row_headers(self, n_rows, n_header_bytes):
+        header = numpy.zeros(
+            (n_rows, (n_header_bytes/2)), dtype="uint16")
+        header[0,0] = STDP_FIXED_POINT_ONE
+        return header.view(dtype="uint8")

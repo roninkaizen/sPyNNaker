@@ -193,11 +193,9 @@ class SynapseDynamicsSTDP(
         # Get the plastic data
         synapse_structure = self._timing_dependence.synaptic_structure
         plastic_plastic = synapse_structure.get_synaptic_data(connections)
-        plastic_headers = numpy.zeros(
-            (n_rows, self._n_header_bytes), dtype="uint8")
 
-
-        # code to initialise STP traces goes here
+        plastic_headers = self._timing_dependence.initialise_row_headers(
+            n_rows, self._n_header_bytes)
 
         plastic_plastic_row_data = self.convert_per_connection_data_to_rows(
             connection_row_indices, n_rows, plastic_plastic)
