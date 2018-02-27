@@ -335,6 +335,12 @@ void synapses_do_timestep_update(timer_t time) {
                     ring_buffers[ring_buffer_index],
                     ring_buffer_to_input_left_shifts[synapse_type_index]));
 
+            if (ring_buffers[ring_buffer_index] > 0){
+            	log_info("adding weight: %k", synapses_convert_weight_to_input(
+                    ring_buffers[ring_buffer_index],
+                    ring_buffer_to_input_left_shifts[synapse_type_index]));
+            }
+
             // Clear ring buffer
             ring_buffers[ring_buffer_index] = 0;
         }

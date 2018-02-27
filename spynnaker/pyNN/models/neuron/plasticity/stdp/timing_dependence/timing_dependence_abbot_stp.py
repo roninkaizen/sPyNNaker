@@ -51,7 +51,7 @@ class TimingDependenceAbbotSTP(AbstractTimingDependence):
     @property
     def pre_trace_n_bytes(self):
         # work in progress
-        return 2
+        return 2 # same as four due to 32-bit packing
 
     @overrides(AbstractTimingDependence.get_parameters_sdram_usage_in_bytes)
     def get_parameters_sdram_usage_in_bytes(self):
@@ -99,5 +99,5 @@ class TimingDependenceAbbotSTP(AbstractTimingDependence):
     def initialise_row_headers(self, n_rows, n_header_bytes):
         header = numpy.zeros(
             (n_rows, (n_header_bytes/2)), dtype="uint16")
-        header[0,0] = STDP_FIXED_POINT_ONE
+        header[0,0] = 0 #STDP_FIXED_POINT_ONE
         return header.view(dtype="uint8")

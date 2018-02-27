@@ -257,7 +257,11 @@ bool synapse_dynamics_process_plastic_synapses(
     												last_stp_trace);
     }
 
-    log_info("\n time: %u \n pre_trace: %u \n stp_trace: %u \n", last_pre_time, last_pre_trace, last_stp_trace);
+    log_info("\n time: %u \n pre_trace: %u \n stp_trace: %k\n",
+    		event_history->prev_time,
+			event_history->prev_trace,
+			event_history->stp_trace << 4); // shift up by four to make
+    		// STDP_FIXED_POINT_ONE be first bit in s1615
 
     // Loop through plastic synapses
     for (; plastic_synapse > 0; plastic_synapse--) {

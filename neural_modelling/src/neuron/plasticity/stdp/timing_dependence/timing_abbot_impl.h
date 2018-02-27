@@ -56,12 +56,12 @@ static inline pre_trace_t timing_apply_stp(
 	// Get time since last spike
 	uint32_t delta_time = time - last_time;
 
-	// Decay previous o1 and o2 traces
-	int32_t decayed_one = STDP_FIXED_MUL_16X16(STDP_FIXED_POINT_ONE,
+	// Decay previous stp trace
+	int32_t decayed_one = STDP_FIXED_MUL_16X16(last_stp_trace,
 	            DECAY_LOOKUP_TAU_MINUS(delta_time));
 
-	// To begin with, we'll return
-	return last_stp_trace + decayed_one;
+	// Now add one - if trace was decayed to zero, this will scale the weight by 1
+	return  decayed_one + STDP_FIXED_POINT_ONE;
 }
 
 
