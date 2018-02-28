@@ -28,21 +28,34 @@ typedef int16_t pre_trace_t;
 #define TAU_MINUS_TIME_SHIFT 0
 #define TAU_MINUS_SIZE 256
 
+#define TAU_P_TIME_SHIFT 0
+#define TAU_P_SIZE 256
+
 // Helper macros for looking up decays
-#define DECAY_LOOKUP_TAU_PLUS(time) \
+//#define DECAY_LOOKUP_TAU_PLUS(time) \
+//    maths_lut_exponential_decay( \
+//        time, TAU_PLUS_TIME_SHIFT, TAU_PLUS_SIZE, tau_plus_lookup)
+//#define DECAY_LOOKUP_TAU_MINUS(time) \
+//    maths_lut_exponential_decay( \
+//        time, TAU_MINUS_TIME_SHIFT, TAU_MINUS_SIZE, tau_minus_lookup)
+#define DECAY_LOOKUP_TAU_P(time) \
     maths_lut_exponential_decay( \
-        time, TAU_PLUS_TIME_SHIFT, TAU_PLUS_SIZE, tau_plus_lookup)
-#define DECAY_LOOKUP_TAU_MINUS(time) \
-    maths_lut_exponential_decay( \
-        time, TAU_MINUS_TIME_SHIFT, TAU_MINUS_SIZE, tau_minus_lookup)
+        time, TAU_P_TIME_SHIFT, TAU_P_SIZE, tau_P_lookup)
+//---------------------------------------
+// Structures
+//---------------------------------------
+typedef struct {
+    int32_t f;
+} stp_params_t;
+
 
 //---------------------------------------
 // Externals
 //---------------------------------------
-extern int16_t tau_plus_lookup[TAU_PLUS_SIZE];
-extern int16_t tau_minus_lookup[TAU_MINUS_SIZE];
-
-
+//extern int16_t tau_plus_lookup[TAU_PLUS_SIZE];
+//extern int16_t tau_minus_lookup[TAU_MINUS_SIZE];
+extern int16_t tau_P_lookup[TAU_P_SIZE];
+extern stp_params_t STP_params;
 
 //---------------------------------------
 // STP Inline functions
@@ -58,10 +71,15 @@ static inline pre_trace_t timing_apply_stp(
 
 	// Decay previous stp trace
 	int32_t decayed_one = STDP_FIXED_MUL_16X16(last_stp_trace,
-	            DECAY_LOOKUP_TAU_MINUS(delta_time));
+	            DECAY_LOOKUP_TAU_P(delta_time));
+
+	log_info("\n old STP trace: %k \n delta_t: %u \n decayed STP trace: %k",
+			last_stp_trace << 4,
+			delta_time,
+			decayed_one << 4);
 
 	// Now add one - if trace was decayed to zero, this will scale the weight by 1
-	return  decayed_one + STDP_FIXED_POINT_ONE;
+	return STDP_FIXED_POINT_ONE + decayed_one;
 }
 
 

@@ -56,8 +56,10 @@ uint32_t num_plastic_pre_synaptic_events = 0;
 // Structures
 //---------------------------------------
 typedef struct {
+    // empty 16 bits
+	pre_trace_t prev_trace;
+    int16_t P_basline;
 	stp_trace_t stp_trace;
-    pre_trace_t prev_trace;
     uint32_t prev_time;
 } pre_event_history_t;
 
@@ -241,6 +243,7 @@ bool synapse_dynamics_process_plastic_synapses(
     const uint32_t last_pre_time = event_history->prev_time;
     const pre_trace_t last_pre_trace = event_history->prev_trace;
     const stp_trace_t last_stp_trace = event_history->stp_trace;
+    const uint16_t P_baseline = event_history->P_basline;
 
     // Here is where we need to do the STP processing
 
@@ -257,9 +260,10 @@ bool synapse_dynamics_process_plastic_synapses(
     												last_stp_trace);
     }
 
-    log_info("\n time: %u \n pre_trace: %u \n stp_trace: %k\n",
+    log_info("\n time: %u \n pre_trace: %k \n P_0: %k \n stp_trace: %k\n",
     		event_history->prev_time,
-			event_history->prev_trace,
+			event_history->prev_trace << 4,
+			event_history->P_basline << 4,
 			event_history->stp_trace << 4); // shift up by four to make
     		// STDP_FIXED_POINT_ONE be first bit in s1615
 
