@@ -81,8 +81,8 @@ class TimingDependenceAbbotSTP(AbstractTimingDependence):
     @property
     def pre_trace_n_bytes(self):
         # Organised as array of 32-bit datastructures
-        # [0] = [16 bit STDP pre_trace, 16-bit empty]
-        # [1] = [16-bit STP P_baseline, 16-bit STP_trace]
+        # [0] = [16 bit STDP pre_trace, 16-bit STP P_baseline]
+        # [1] = [16-bit STP_trace, 16-bit empty]
 
         # note that a third entry will be added by synapse_dynamics_stdp_mad
         # [2] = [32-bit time stamp]
@@ -138,12 +138,20 @@ class TimingDependenceAbbotSTP(AbstractTimingDependence):
 
     @overrides(AbstractTimingDependence.initialise_row_headers)
     def initialise_row_headers(self, n_rows, n_header_bytes):
+        # note that data is written here as 16-bit quantities, but converted
+        # back to 8-bit qunatities for consistency with synaptic row generation
+        # code
+
+        # Initialise header structure
         header = numpy.zeros(
             (n_rows, (n_header_bytes/2)), dtype="uint16")
-        header[0,0] = int(0.6 * STDP_FIXED_POINT_ONE) # STDP pre_trace
+
+        # Initialise header parameters
+        # header[0,0] = int(0.6 * STDP_FIXED_POINT_ONE) # STDP pre_trace
         header[0,1] = int(self._P_baseline * STDP_FIXED_POINT_ONE) # P_Baseline
-        header[0,2] = int(0.25 * STDP_FIXED_POINT_ONE) # STP trace
-        header[0,3] = 0 # empty (unused)
+        # header[0,2] = int(0.25 * STDP_FIXED_POINT_ONE) # STP trace
+        # header[0,3] = 0 # empty (unused) - only here due to 32-bit packing
+        # header[0,4-5] = 32-bit timestamp
 
         # re-cast as array of 8-bit quantities to facilitate row generation
         return header.view(dtype="uint8")
