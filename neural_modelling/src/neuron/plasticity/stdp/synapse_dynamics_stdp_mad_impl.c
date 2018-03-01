@@ -242,11 +242,11 @@ bool synapse_dynamics_process_plastic_synapses(
     // Get last pre-synaptic event from event history
     const uint32_t last_pre_time = event_history->prev_time;
     const pre_trace_t last_pre_trace = event_history->prev_trace;
-    const stp_trace_t last_stp_trace = event_history->stp_trace;
+    const stp_trace_t current_stp_trace = timing_decay_stp_trace(
+    		time, last_pre_time,
+    		event_history->stp_trace,
+			event_history->P_basline);
     const uint16_t P_baseline = event_history->P_basline;
-
-    // Here is where we need to do the STP processing
-
 
 
     // Update pre-synaptic trace
@@ -256,15 +256,19 @@ bool synapse_dynamics_process_plastic_synapses(
     													last_pre_trace);
 
     if (STP == true){
-    	event_history->stp_trace = timing_apply_stp(time, last_pre_time,
-    												last_stp_trace);
+    	event_history->stp_trace = timing_apply_stp_spike(
+    	        time, last_pre_time,
+				current_stp_trace, P_baseline);
     }
 
-    log_info("\n time: %u \n pre_trace: %k \n P_0: %k \n stp_trace: %k\n",
-    		event_history->prev_time,
-			event_history->prev_trace << 4,
-			event_history->P_basline << 4,
-			event_history->stp_trace << 4); // shift up by four to make
+    log_info(//"\n time: %u "
+    		//"\n pre_trace: %k "
+    		//"\n P_0: %k \n "
+    		"Updated stp_trace: %k\n",
+//    		event_history->prev_time,
+//			event_history->prev_trace << 4,
+//			event_history->P_basline << 4,
+			(event_history->stp_trace) << 4); // shift up by four to make
     		// STDP_FIXED_POINT_ONE be first bit in s1615
 
     // Loop through plastic synapses
@@ -300,7 +304,7 @@ bool synapse_dynamics_process_plastic_synapses(
         // **NOTE** Dave suspects that this could be a
         // potential location for overflow
         if (STP==true){
-            ring_buffers[ring_buffer_index] += (event_history->stp_trace *
+            ring_buffers[ring_buffer_index] += (current_stp_trace *
             		synapse_structure_get_final_weight(
                 final_state)) >> 11;
         }else{

@@ -149,7 +149,7 @@ class TimingDependenceAbbotSTP(AbstractTimingDependence):
         # Initialise header parameters
         # header[0,0] = int(0.6 * STDP_FIXED_POINT_ONE) # STDP pre_trace
         header[0,1] = int(self._P_baseline * STDP_FIXED_POINT_ONE) # P_Baseline
-        # header[0,2] = int(0.25 * STDP_FIXED_POINT_ONE) # STP trace
+        header[0,2] = int(self._P_baseline * STDP_FIXED_POINT_ONE) # STP trace
         # header[0,3] = 0 # empty (unused) - only here due to 32-bit packing
         # header[0,4-5] = 32-bit timestamp
 

@@ -60,8 +60,9 @@ extern stp_params_t STP_params;
 //---------------------------------------
 // STP Inline functions
 //---------------------------------------
-static inline pre_trace_t timing_apply_stp(
-        uint32_t time, uint32_t last_time, stp_trace_t last_stp_trace) {
+
+static inline stp_trace_t timing_decay_stp_trace(
+        uint32_t time, uint32_t last_time, stp_trace_t last_stp_trace, uint16_t P_Baseline) {
 
 	// This function is called once per synaptic row, so update multiplier
 	// for entire row here - using time since last pre spike
@@ -70,16 +71,26 @@ static inline pre_trace_t timing_apply_stp(
 	uint32_t delta_time = time - last_time;
 
 	// Decay previous stp trace
-	int32_t decayed_one = STDP_FIXED_MUL_16X16(last_stp_trace,
+	int32_t decayed_one = P_Baseline + STDP_FIXED_MUL_16X16(last_stp_trace - P_Baseline,
 	            DECAY_LOOKUP_TAU_P(delta_time));
 
-	log_info("\n old STP trace: %k \n delta_t: %u \n decayed STP trace: %k",
+	log_info("Decaying STP trace: "
+			"\n old STP trace: %k "
+			"\n delta_t: %u "
+			"\n decayed STP trace: %k",
 			last_stp_trace << 4,
 			delta_time,
 			decayed_one << 4);
 
 	// Now add one - if trace was decayed to zero, this will scale the weight by 1
-	return STDP_FIXED_POINT_ONE + decayed_one;
+	return decayed_one;
+}
+
+static inline stp_trace_t timing_apply_stp_spike(
+        uint32_t time, uint32_t last_time, stp_trace_t last_stp_trace, uint16_t P_Baseline) {
+
+	return last_stp_trace + STDP_FIXED_MUL_16X16(
+			STP_params.f, (STDP_FIXED_POINT_ONE - last_stp_trace));
 }
 
 
