@@ -24,8 +24,10 @@ static update_state_t timing_apply_post_spike(
     pre_trace_t last_pre_trace, uint32_t last_post_time,
     post_trace_t last_post_trace, update_state_t previous_state);
 
-static inline stp_trace_t timing_apply_stp(
+static inline stp_trace_t timing_decay_stp_trace(
         uint32_t time, uint32_t last_time, stp_trace_t last_stp_trace, uint16_t P_Baseline);
 
+static inline stp_trace_t timing_apply_stp_spike(
+        uint32_t time, uint32_t last_time, stp_trace_t last_stp_trace, uint16_t P_Baseline);
 
 #endif // _TIMING_H_

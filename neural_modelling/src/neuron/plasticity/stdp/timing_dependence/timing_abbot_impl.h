@@ -32,12 +32,6 @@ typedef int16_t pre_trace_t;
 #define TAU_P_SIZE 256
 
 // Helper macros for looking up decays
-//#define DECAY_LOOKUP_TAU_PLUS(time) \
-//    maths_lut_exponential_decay( \
-//        time, TAU_PLUS_TIME_SHIFT, TAU_PLUS_SIZE, tau_plus_lookup)
-//#define DECAY_LOOKUP_TAU_MINUS(time) \
-//    maths_lut_exponential_decay( \
-//        time, TAU_MINUS_TIME_SHIFT, TAU_MINUS_SIZE, tau_minus_lookup)
 #define DECAY_LOOKUP_TAU_P(time) \
     maths_lut_exponential_decay( \
         time, TAU_P_TIME_SHIFT, TAU_P_SIZE, tau_P_lookup)
@@ -45,6 +39,7 @@ typedef int16_t pre_trace_t;
 // Structures
 //---------------------------------------
 typedef struct {
+	int32_t stp_type;
     int32_t f;
 } stp_params_t;
 
@@ -52,8 +47,6 @@ typedef struct {
 //---------------------------------------
 // Externals
 //---------------------------------------
-//extern int16_t tau_plus_lookup[TAU_PLUS_SIZE];
-//extern int16_t tau_minus_lookup[TAU_MINUS_SIZE];
 extern int16_t tau_P_lookup[TAU_P_SIZE];
 extern stp_params_t STP_params;
 
@@ -70,9 +63,16 @@ static inline stp_trace_t timing_decay_stp_trace(
 	// Get time since last spike
 	uint32_t delta_time = time - last_time;
 
-	// Decay previous stp trace
-	int32_t decayed_one = P_Baseline + STDP_FIXED_MUL_16X16(last_stp_trace - P_Baseline,
+	int32_t decayed_one;
+	if (STP_params.stp_type==0){ // todo: mask compare to only look at first bit
+		// Decay previous stp trace UP to baseline
+		decayed_one = P_Baseline - STDP_FIXED_MUL_16X16(P_Baseline - last_stp_trace,
 	            DECAY_LOOKUP_TAU_P(delta_time));
+	} else {
+		// Decay previous stp trace DOWN to baseline
+		decayed_one = P_Baseline + STDP_FIXED_MUL_16X16(last_stp_trace - P_Baseline,
+	            DECAY_LOOKUP_TAU_P(delta_time));
+	} // note that two functions are required to swap update to ensure integers don't wrap
 
 	log_info("Decaying STP trace: "
 			"\n old STP trace: %k "
@@ -88,9 +88,21 @@ static inline stp_trace_t timing_decay_stp_trace(
 
 static inline stp_trace_t timing_apply_stp_spike(
         uint32_t time, uint32_t last_time, stp_trace_t last_stp_trace, uint16_t P_Baseline) {
+	use(time);
+	use(last_time);
+	use(P_Baseline);
 
-	return last_stp_trace + STDP_FIXED_MUL_16X16(
+	if (STP_params.stp_type == 0){ // todo: mask compare to only look at first bit
+		// depress
+		log_info("depressing");
+		return last_stp_trace - STDP_FIXED_MUL_16X16(
+			STP_params.f, last_stp_trace);
+	} else { // STP_params.stp_type = 1
+		// Potentiate
+		log_info("potentiating");
+		return last_stp_trace + STDP_FIXED_MUL_16X16(
 			STP_params.f, (STDP_FIXED_POINT_ONE - last_stp_trace));
+	}
 }
 
 

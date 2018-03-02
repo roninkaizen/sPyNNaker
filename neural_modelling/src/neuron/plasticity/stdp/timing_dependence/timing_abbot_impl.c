@@ -16,17 +16,21 @@ address_t timing_initialise(address_t address) {
 
     log_info("timing_initialise: starting");
     log_info("\tAbbot STP rule");
-    // **TODO** assert number of neurons is less than max
 
     // Copy LUTs from following memory
     address_t next_param_address = maths_copy_int16_lut(&address[0], TAU_P_SIZE,
                                                  &tau_P_lookup[0]);
 
     // Copy parameters
-    STP_params.f = (int32_t) next_param_address[0];
+    STP_params.stp_type = (int32_t) next_param_address[0];
+    STP_params.f = (int32_t) next_param_address[1];
 
-    log_info("Parameters: \n \t f = %k", STP_params.f << 4);
+    log_info("Parameters: "
+    		"\n \t Type = %u"
+    		"\n \t f = %k",
+			STP_params.stp_type,
+			STP_params.f << 4);
     log_info("STP memory initialisation completed successfully");
 
-    return next_param_address[1];
+    return (address_t) next_param_address[2];
 }

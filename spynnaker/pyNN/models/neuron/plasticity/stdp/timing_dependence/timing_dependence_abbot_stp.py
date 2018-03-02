@@ -94,7 +94,7 @@ class TimingDependenceAbbotSTP(AbstractTimingDependence):
     def get_parameters_sdram_usage_in_bytes(self):
         size = 0
         size += 2 * LOOKUP_TAU_P_SIZE # two bytes per lookup table entry
-        size += 1 * 4 # 1 parameters at 4 bytes
+        size += 2 * 4 # 1 parameters at 4 bytes
         return size
 
     @property
@@ -114,11 +114,15 @@ class TimingDependenceAbbotSTP(AbstractTimingDependence):
             LOOKUP_TAU_P_SHIFT)
 
         # Write rule parameters
+        # STP type: 1 = potentiation; 0 = depression
+        spec.write_value(data=self._STP_type, data_type=DataType.INT32)
+
         # f
         fixed_point_f = plasticity_helpers.float_to_fixed(
             self._f, plasticity_helpers.STDP_FIXED_POINT_ONE)
         spec.write_value(data=fixed_point_f,
                          data_type=DataType.INT32)
+
 
 
     @property
