@@ -574,7 +574,7 @@ class SynapticManager(object):
             self, spec, post_slices, post_slice_index, machine_vertex,
             post_vertex_slice, all_syn_block_sz, weight_scales,
             master_pop_table_region, synaptic_matrix_region, routing_info,
-            graph_mapper, machine_graph, machine_time_step, max_feasible_atoms_per_core):
+            graph_mapper, machine_graph, machine_time_step):
         """ Simultaneously generates both the master population table and
             the synaptic matrix.
         """
@@ -621,7 +621,7 @@ class SynapticManager(object):
                         machine_time_step,
                         routing_info.get_routing_info_for_edge(machine_edge),
                         all_syn_block_sz, block_addr, single_addr)
-        
+
         self._poptable_type.finish_master_pop_table(
             spec, master_pop_table_region)
 
@@ -649,7 +649,7 @@ class SynapticManager(object):
              synapse_info, pre_slices, pre_slice_idx, post_slices,
              post_slice_index, pre_vertex_slice, post_vertex_slice,
              app_edge.n_delay_stages, self._poptable_type, n_synapse_types,
-             weight_scales, machine_time_step, max_feasible_atoms_per_core)
+             weight_scales, machine_time_step)
 
         if app_edge.delay_edge is not None:
             app_edge.delay_edge.pre_vertex.add_delays(
@@ -734,7 +734,7 @@ class SynapticManager(object):
     def write_data_spec(
             self, spec, application_vertex, post_vertex_slice, machine_vertex,
             placement, machine_graph, application_graph, routing_info,
-            graph_mapper, input_type, machine_time_step, max_feasible_atoms_per_core):
+            graph_mapper, input_type, machine_time_step):
         # Create an index of delay keys into this vertex
         for m_edge in machine_graph.get_edges_ending_at_vertex(machine_vertex):
             app_edge = graph_mapper.get_application_edge(m_edge)
@@ -767,7 +767,7 @@ class SynapticManager(object):
             post_vertex_slice, all_syn_block_sz, weight_scales,
             POPULATION_BASED_REGIONS.POPULATION_TABLE.value,
             POPULATION_BASED_REGIONS.SYNAPTIC_MATRIX.value,
-            routing_info, graph_mapper, machine_graph, machine_time_step, max_feasible_atoms_per_core)
+            routing_info, graph_mapper, machine_graph, machine_time_step)
 
         self._synapse_dynamics.write_parameters(
             spec, POPULATION_BASED_REGIONS.SYNAPSE_DYNAMICS.value,
@@ -780,7 +780,7 @@ class SynapticManager(object):
 
     def get_connections_from_machine(
             self, transceiver, placement, machine_edge, graph_mapper,
-            routing_infos, synapse_info, machine_time_step, max_feasible_atoms_per_core,
+            routing_infos, synapse_info, machine_time_step,
             using_extra_monitor_cores, placements=None, data_receiver=None,
             sender_extra_monitor_core_placement=None,
             extra_monitor_cores_for_router_timeout=None,
@@ -832,7 +832,7 @@ class SynapticManager(object):
             synapse_info, pre_vertex_slice, post_vertex_slice,
             max_row_length, delayed_max_row_len, n_synapse_types,
             self._weight_scales[placement], data, delayed_data,
-            app_edge.n_delay_stages, machine_time_step, max_feasible_atoms_per_core)
+            app_edge.n_delay_stages, machine_time_step)
 
     def __compute_addresses(self, transceiver, placement):
         """ Helper for computing the addresses of the master pop table and\

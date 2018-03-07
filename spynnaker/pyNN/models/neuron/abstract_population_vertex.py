@@ -135,8 +135,7 @@ class AbstractPopulationVertex(
             self, n_neurons, binary, label, max_atoms_per_core,
             spikes_per_second, ring_buffer_sigma, incoming_spike_buffer_size,
             model_name, neuron_model, input_type, synapse_type, threshold_type,
-            additional_input=None, constraints=None, 
-            max_feasible_atoms_per_core=255):
+            additional_input=None, constraints=None):
         # pylint: disable=too-many-arguments, too-many-locals
         super(AbstractPopulationVertex, self).__init__(
             label, constraints, max_atoms_per_core)
@@ -149,8 +148,6 @@ class AbstractPopulationVertex(
 
         self._binary = binary
         self._n_atoms = n_neurons
-        self._max_feasible_atoms_per_core = max_feasible_atoms_per_core
-
 
         # buffer data
         self._incoming_spike_buffer_size = incoming_spike_buffer_size
@@ -618,8 +615,7 @@ class AbstractPopulationVertex(
         self._synapse_manager.write_data_spec(
             spec, self, vertex_slice, vertex, placement, machine_graph,
             application_graph, routing_info, graph_mapper,
-            self._input_type, machine_time_step, 
-            self._max_feasible_atoms_per_core)
+            self._input_type, machine_time_step)
 
         # End the writing of this specification:
         spec.end_specification()
@@ -835,9 +831,9 @@ class AbstractPopulationVertex(
         # pylint: disable=too-many-arguments
         return self._synapse_manager.get_connections_from_machine(
             transceiver, placement, edge, graph_mapper,
-            routing_infos, synapse_information, machine_time_step, 
-            self._max_feasible_atoms_per_core, using_extra_monitor_cores, 
-            placements, data_receiver, sender_extra_monitor_core_placement,
+            routing_infos, synapse_information, machine_time_step,
+            using_extra_monitor_cores, placements, data_receiver,
+            sender_extra_monitor_core_placement,
             extra_monitor_cores_for_router_timeout,
             handle_time_out_configuration, fixed_routes)
 

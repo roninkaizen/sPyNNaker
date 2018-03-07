@@ -122,15 +122,14 @@ class SynapseIORowBased(AbstractSynapseIO):
     @staticmethod
     def _get_max_row_length_and_row_data(
             connections, row_indices, n_rows, post_vertex_slice,
-            n_synapse_types, population_table, synapse_dynamics, 
-            max_feasible_atoms_per_core):
+            n_synapse_types, population_table, synapse_dynamics):
         # pylint: disable=too-many-arguments, too-many-locals
         row_ids = range(n_rows)
         if isinstance(synapse_dynamics, AbstractStaticSynapseDynamics):
             # Get the static data
             ff_data, ff_size = synapse_dynamics.get_static_synaptic_data(
                 connections, row_indices, n_rows, post_vertex_slice,
-                n_synapse_types, max_feasible_atoms_per_core)
+                n_synapse_types)
 
             # Blank the plastic data
             fp_data = [numpy.zeros(0, dtype="uint32") for _ in row_ids]
@@ -146,7 +145,7 @@ class SynapseIORowBased(AbstractSynapseIO):
             fp_data, pp_data, fp_size, pp_size = \
                 synapse_dynamics.get_plastic_synaptic_data(
                     connections, row_indices, n_rows, post_vertex_slice,
-                    n_synapse_types, max_feasible_atoms_per_core)
+                    n_synapse_types)
 
         # Add some padding
         row_lengths = [
@@ -174,8 +173,7 @@ class SynapseIORowBased(AbstractSynapseIO):
             self, synapse_info, pre_slices, pre_slice_index,
             post_slices, post_slice_index, pre_vertex_slice,
             post_vertex_slice, n_delay_stages, population_table,
-            n_synapse_types, weight_scales, machine_time_step, 
-            max_feasible_atoms_per_core):
+            n_synapse_types, weight_scales, machine_time_step):
         # pylint: disable=too-many-arguments, too-many-locals, arguments-differ
 
         # Get delays in timesteps
@@ -221,8 +219,7 @@ class SynapseIORowBased(AbstractSynapseIO):
             max_row_length, row_data = self._get_max_row_length_and_row_data(
                 undelayed_connections, undelayed_row_indices,
                 pre_vertex_slice.n_atoms, post_vertex_slice, n_synapse_types,
-                population_table, synapse_info.synapse_dynamics, 
-                max_feasible_atoms_per_core)
+                population_table, synapse_info.synapse_dynamics)
 
             del undelayed_row_indices
         del undelayed_connections
@@ -252,7 +249,7 @@ class SynapseIORowBased(AbstractSynapseIO):
                     delayed_connections, delayed_row_indices,
                     pre_vertex_slice.n_atoms * n_delay_stages,
                     post_vertex_slice, n_synapse_types, population_table,
-                    synapse_info.synapse_dynamics, max_feasible_atoms_per_core)
+                    synapse_info.synapse_dynamics)
             del delayed_row_indices
         del delayed_connections
 
@@ -264,7 +261,7 @@ class SynapseIORowBased(AbstractSynapseIO):
             self, synapse_info, pre_vertex_slice, post_vertex_slice,
             max_row_length, delayed_max_row_length, n_synapse_types,
             weight_scales, data, delayed_data, n_delay_stages,
-            machine_time_step, max_feasible_atoms_per_core):
+            machine_time_step):
         # pylint: disable=too-many-arguments, too-many-locals, arguments-differ
 
         # Translate the data into rows
@@ -290,20 +287,47 @@ class SynapseIORowBased(AbstractSynapseIO):
                 dynamics, pre_vertex_slice, post_vertex_slice, n_synapse_types,
                 row_data, delayed_row_data)
 
-            # Read static data
-            if row_data is not None and len(row_data) > 0:
-                ff_size, ff_data = self._get_static_data(row_data, dynamics)
-                undelayed_connections = dynamics.read_static_synaptic_data(
-                    post_vertex_slice, n_synapse_types, ff_size, ff_data, 
-                    max_feasible_atoms_per_core)
-                undelayed_connections["source"] += pre_vertex_slice.lo_atom
-                connections.append(undelayed_connections)
-            if delayed_row_data is not None and len(delayed_row_data) > 0:
-                ff_size, ff_data = self._get_static_data(
-                    delayed_row_data, dynamics)
-                delayed_connections = dynamics.read_static_synaptic_data(
-                    post_vertex_slice, n_synapse_types, ff_size, ff_data, 
-                    max_feasible_atoms_per_core)
+        if not connections:
+            return numpy.zeros(
+                0, dtype=AbstractSynapseDynamics.NUMPY_CONNECTORS_DTYPE)
+
+        # Join the connections into a single list
+        connections = numpy.concatenate(connections)
+
+        # Return the delays values to milliseconds
+        connections["delay"] = (
+            connections["delay"] / (1000.0 / machine_time_step))
+
+        # Undo the weight scaling
+        connections["weight"] = (
+            connections["weight"] / weight_scales[synapse_info.synapse_type])
+
+        # Return the connections
+        return connections
+
+    @staticmethod
+    def _parse_static_data(row_data, dynamics):
+        n_rows = row_data.shape[0]
+        ff_size = row_data[:, 1]
+        ff_words = dynamics.get_n_static_words_per_row(ff_size)
+        ff_start = _N_HEADER_WORDS
+        ff_end = ff_start + ff_words
+        return (
+            ff_size,
+            [row_data[row, ff_start:ff_end[row]] for row in range(n_rows)])
+
+    def _read_static_data(self, dynamics, pre_vertex_slice, post_vertex_slice,
+                          n_synapse_types, row_data, delayed_row_data):
+        """Read static data"""
+        # pylint: disable=too-many-arguments, too-many-locals
+        connections = []
+
+        if row_data is not None and row_data.size:
+            ff_size, ff_data = self._parse_static_data(row_data, dynamics)
+            undelayed_connections = dynamics.read_static_synaptic_data(
+                post_vertex_slice, n_synapse_types, ff_size, ff_data)
+            undelayed_connections["source"] += pre_vertex_slice.lo_atom
+            connections.append(undelayed_connections)
 
         if delayed_row_data is not None and delayed_row_data.size:
             ff_size, ff_data = self._parse_static_data(
@@ -331,22 +355,23 @@ class SynapseIORowBased(AbstractSynapseIO):
             delayed_connections["delay"] += connection_min_delay
             connections.append(delayed_connections)
 
-            # Read plastic data
-            if row_data is not None:
-                pp_size, pp_data, fp_size, fp_data = self._get_plastic_data(
-                    row_data, dynamics)
-                undelayed_connections = dynamics.read_plastic_synaptic_data(
-                    post_vertex_slice, n_synapse_types, pp_size, pp_data,
-                    fp_size, fp_data, max_feasible_atoms_per_core)
-                undelayed_connections["source"] += pre_vertex_slice.lo_atom
-                connections.append(undelayed_connections)
+        return connections
 
-            if delayed_row_data is not None:
-                pp_size, pp_data, fp_size, fp_data = self._get_plastic_data(
-                    delayed_row_data, dynamics)
-                delayed_connections = dynamics.read_plastic_synaptic_data(
-                    post_vertex_slice, n_synapse_types, pp_size, pp_data,
-                    fp_size, fp_data, max_feasible_atoms_per_core)
+    @staticmethod
+    def _parse_plastic_data(row_data, dynamics):
+        n_rows = row_data.shape[0]
+        pp_size = row_data[:, 0]
+        pp_words = dynamics.get_n_plastic_plastic_words_per_row(pp_size)
+        fp_size = row_data[numpy.arange(n_rows), pp_words + 2]
+        fp_words = dynamics.get_n_fixed_plastic_words_per_row(fp_size)
+        fp_start = pp_size + _N_HEADER_WORDS
+        fp_end = fp_start + fp_words
+        row_ids = range(n_rows)
+        return (
+            pp_size,
+            [row_data[row, 1:pp_words[row] + 1] for row in row_ids],
+            fp_size,
+            [row_data[row, fp_start[row]:fp_end[row]] for row in row_ids])
 
     def _read_plastic_data(
             self, dynamics, pre_vertex_slice, post_vertex_slice,

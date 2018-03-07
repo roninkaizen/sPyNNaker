@@ -57,7 +57,8 @@ class SynapseDynamicsStatic(
               0xFFFF) << 16) |
             ((connections["delay"].astype("uint32") & 0xF) <<
              (n_neuron_id_bits + n_synapse_type_bits)) |
-            (connections["synapse_type"].astype("uint32") << n_neuron_id_bits) |
+            (connections["synapse_type"].astype(
+                "uint32") << n_neuron_id_bits) |
             ((connections["target"] - post_vertex_slice.lo_atom) & 0xFF))
         fixed_fixed_rows = self.convert_per_connection_data_to_rows(
             connection_row_indices, n_rows,
