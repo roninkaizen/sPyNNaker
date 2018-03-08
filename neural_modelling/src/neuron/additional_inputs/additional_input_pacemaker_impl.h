@@ -43,9 +43,9 @@ static input_t additional_input_get_input_value_as_current(
 			// this last exponential is hard to avoid
 
 	// H is 1 and constant, so ignore
-	additional_input->I_H = additional_input->g_H *
-			additional_input->m *
-			(membrane_voltage - additional_input->E_H);
+	additional_input->I_H = __stdfix_smul_k(additional_input->g_H,
+			__stdfix_smul_k(additional_input->m,
+			(membrane_voltage - additional_input->E_H)));
 
     return additional_input->I_H;
 }
