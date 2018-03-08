@@ -74,12 +74,18 @@ static inline stp_trace_t timing_decay_stp_trace(
 	            DECAY_LOOKUP_TAU_P(delta_time));
 	} // note that two functions are required to swap update to ensure integers don't wrap
 
+//	log_info("Decaying STP trace: "
+//			"\n old STP trace: %k "
+//			"\n delta_t: %u "
+//			"\n decayed STP trace: %k",
+//			last_stp_trace << 4,
+//			delta_time,
+//			decayed_one << 4);
+
 	log_info("Decaying STP trace: "
-			"\n old STP trace: %k "
-			"\n delta_t: %u "
+			"\n time: %u "
 			"\n decayed STP trace: %k",
-			last_stp_trace << 4,
-			delta_time,
+			time,
 			decayed_one << 4);
 
 	// Now add one - if trace was decayed to zero, this will scale the weight by 1

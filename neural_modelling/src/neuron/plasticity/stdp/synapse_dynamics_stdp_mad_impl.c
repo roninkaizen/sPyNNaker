@@ -271,6 +271,7 @@ bool synapse_dynamics_process_plastic_synapses(
 			(event_history->stp_trace) << 4); // shift up by four to make
     		// STDP_FIXED_POINT_ONE be first bit in s1615
 
+
     // Loop through plastic synapses
     for (; plastic_synapse > 0; plastic_synapse--) {
 
