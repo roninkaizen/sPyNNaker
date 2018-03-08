@@ -38,8 +38,8 @@ static input_t additional_input_get_input_value_as_current(
 
 	// Update m
 	additional_input->m = additional_input->m_inf +
-			(additional_input->m - additional_input->m_inf) *
-			expk(-additional_input->dt/additional_input->tau_m_inf);
+			__stdfix_smul_k((additional_input->m - additional_input->m_inf),
+			        expk(kdivi(-additional_input->dt, additional_input->tau_m_inf)));
 			// this last exponential is hard to avoid
 
 	// H is 1 and constant, so ignore
