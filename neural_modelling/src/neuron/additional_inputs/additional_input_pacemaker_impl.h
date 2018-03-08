@@ -12,13 +12,13 @@
 typedef struct additional_input_t {
 
     // Pacemaker Current
-    REAL    I_H;
-	REAL 	m;
-    REAL    m_inf;
-    REAL    tau_m_inf;
-    REAL	g_H; // max pacemaker conductance
-    REAL 	E_H; // reversal potential
-    REAL	dt;
+    accum    I_H;
+    accum    m;
+    accum    m_inf;
+    accum    tau_m_inf;
+    accum    g_H; // max pacemaker conductance
+    accum    E_H; // reversal potential
+    accum    dt;
 
 } additional_input_t;
 
