@@ -15,7 +15,7 @@ typedef struct additional_input_t {
     accum    I_H;
     accum    m;
     accum    m_inf;
-    accum    tau_m_inf;
+    accum    e_to_t_on_tau_m_approx;
     accum    g_H; // max pacemaker conductance
     accum    E_H; // reversal potential
     accum    dt;
@@ -25,27 +25,26 @@ typedef struct additional_input_t {
 static input_t additional_input_get_input_value_as_current(
         additional_input_pointer_t additional_input,
         state_t membrane_voltage) {
-//
-//	// Update m_inf
-//	additional_input->m_inf = 1 / (1 + expk((membrane_voltage - -75)/5.5));
-//		// this could be approximated with polynomial
-//
-//	// Update tau_m_inf
-//	additional_input->tau_m_inf = 1 / (
-//			expk(-14.59 - (0.086 * membrane_voltage)) +
-//			expk(-1.87 + (0.0701*membrane_voltage))
-//			); // this could be approximated with polynomial
+
+	// Update m_inf (Substitute polynomial approximation)
+	additional_input->m_inf = 0.783385k +  membrane_voltage * (1.42433k + membrane_voltage * (-3.00206k
+			+ membrane_voltage * (-3.70779k + membrane_voltage * (12.1412k + 15.3091k * membrane_voltage))));
+
+    // Update exp(t/tau_m) (Substitute polynomial approximation)
+	additional_input->e_to_t_on_tau_m_approx = 0.783385k +  membrane_voltage * (1.42433k + membrane_voltage * (-3.00206k
+			+ membrane_voltage * (-3.70779k + membrane_voltage * (12.1412k + 15.3091k * membrane_voltage))));
 
 	// Update m
 	additional_input->m = additional_input->m_inf +
-			__stdfix_smul_k((additional_input->m - additional_input->m_inf),
-			        expk(kdivi(-additional_input->dt, additional_input->tau_m_inf)));
+			(additional_input->m - additional_input->m_inf) *
+			additional_input->e_to_t_on_tau_m_approx;
 			// this last exponential is hard to avoid
 
 	// H is 1 and constant, so ignore
-	additional_input->I_H = __stdfix_smul_k(additional_input->g_H,
-			__stdfix_smul_k(additional_input->m,
-			(membrane_voltage - additional_input->E_H)));
+	additional_input->I_H = additional_input->g_H *
+			additional_input->m *
+			(membrane_voltage - additional_input->E_H);
+
 
     return additional_input->I_H;
 }
