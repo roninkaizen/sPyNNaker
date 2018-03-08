@@ -51,18 +51,18 @@ class HillTononi(AbstractPopulationVertex):
 
         }
 
-    none_pynn_default_parameters = {'v_init': None}
+    initialize_parameters = {'v_init': None}
 
     def __init__(
             self, n_neurons, spikes_per_second=AbstractPopulationVertex.
-            none_pynn_default_parameters['spikes_per_second'],
+            non_pynn_default_parameters['spikes_per_second'],
             ring_buffer_sigma=AbstractPopulationVertex.
-            none_pynn_default_parameters['ring_buffer_sigma'],
+            non_pynn_default_parameters['ring_buffer_sigma'],
             incoming_spike_buffer_size=AbstractPopulationVertex.
-            none_pynn_default_parameters['incoming_spike_buffer_size'],
-            constraints=AbstractPopulationVertex.none_pynn_default_parameters[
+            non_pynn_default_parameters['incoming_spike_buffer_size'],
+            constraints=AbstractPopulationVertex.non_pynn_default_parameters[
                 'constraints'],
-            label=AbstractPopulationVertex.none_pynn_default_parameters[
+            label=AbstractPopulationVertex.non_pynn_default_parameters[
                 'label'],
 
         # Neuron parameters
@@ -72,7 +72,7 @@ class HillTononi(AbstractPopulationVertex):
             v_rest=default_parameters['v_rest'],
             v_reset=default_parameters['v_reset'],
             i_offset=default_parameters['i_offset'],
-            v_init=none_pynn_default_parameters['v_init'],
+            v_init=initialize_parameters['v_init'],
 
         # Threshold parameters
             v_thresh=default_parameters['v_thresh'],
@@ -175,8 +175,8 @@ class HillTononi(AbstractPopulationVertex):
             incoming_spike_buffer_size=incoming_spike_buffer_size,
             model_name="Hill_Tononi", neuron_model=neuron_model,
             input_type=input_type, synapse_type=synapse_type,
-            threshold_type=threshold_type, constraints=constraints,
-            max_feasible_atoms_per_core = self._max_feasible_atoms_per_core)
+            threshold_type=threshold_type, constraints=constraints)
+
 
     @staticmethod
     def set_model_max_atoms_per_core(new_value=DEFAULT_MAX_ATOMS_PER_CORE):
