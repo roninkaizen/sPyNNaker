@@ -98,12 +98,6 @@ class SynapticManager(object):
             self._spikes_per_second = config.getfloat(
                 "Simulation", "spikes_per_second")
 
-        # don't get this from config, as a user may want different scales for
-        # different neuron models in there network
-#         if self._weight_precision is None:
-#             self._weight_precision = [float(w) for w in
-#                 config.get("Simulation", "weight_precision")[1:-1].split(",")]
-
         # Prepare for dealing with STDP - there can only be one (non-static)
         # synapse dynamics per vertex at present
         self._synapse_dynamics = SynapseDynamicsStatic()

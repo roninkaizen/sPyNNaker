@@ -7,6 +7,7 @@ from spynnaker.pyNN.models.neuron import AbstractPopulationVertex
 
 # global objects
 DEFAULT_MAX_ATOMS_PER_CORE = 255
+DEFAULT_WEIGHT_PRECISION = [0.0001, 0.0001]
 _apv_defs = AbstractPopulationVertex.non_pynn_default_parameters
 
 
@@ -16,14 +17,12 @@ class IFCurrExpBase(AbstractPopulationVertex):
     """
 
     _model_based_max_atoms_per_core = DEFAULT_MAX_ATOMS_PER_CORE
+    _weight_precision = DEFAULT_WEIGHT_PRECISION
 
     default_parameters = {
         'tau_m': 20.0, 'cm': 1.0, 'v_rest': -65.0, 'v_reset': -65.0,
         'v_thresh': -50.0, 'tau_syn_E': 5.0, 'tau_syn_I': 5.0,
         'tau_refrac': 0.1, 'i_offset': 0, 'isyn_exc': 0.0, 'isyn_inh': 0.0}
-
-
-    non_pynn_default_parameters = {'weight_precision': [0.001, 0.001]}
 
     initialize_parameters = {'v_init': None}
 
@@ -45,8 +44,7 @@ class IFCurrExpBase(AbstractPopulationVertex):
             i_offset=default_parameters['i_offset'],
             v_init=initialize_parameters['v_init'],
             isyn_exc=default_parameters['isyn_exc'],
-            isyn_inh=default_parameters['isyn_inh'],
-            weight_precision=non_pynn_default_parameters['weight_precision']):
+            isyn_inh=default_parameters['isyn_inh']):
         # pylint: disable=too-many-arguments, too-many-locals
         neuron_model = NeuronModelLeakyIntegrateAndFire(
             n_neurons, v_init, v_rest, tau_m, cm, i_offset,
@@ -65,7 +63,7 @@ class IFCurrExpBase(AbstractPopulationVertex):
             model_name="IF_curr_exp", neuron_model=neuron_model,
             input_type=input_type, synapse_type=synapse_type,
             threshold_type=threshold_type, constraints=constraints,
-            weight_precision=weight_precision)
+            weight_precision=IFCurrExpBase._weight_precision)
 
     @staticmethod
     def set_model_max_atoms_per_core(new_value=DEFAULT_MAX_ATOMS_PER_CORE):
@@ -74,6 +72,14 @@ class IFCurrExpBase(AbstractPopulationVertex):
     @staticmethod
     def get_max_atoms_per_core():
         return IFCurrExpBase._model_based_max_atoms_per_core
+
+#     @staticmethod
+#     def set_weight_precision(new_value=DEFAULT_WEIGHT_PRECISION):
+#         IFCurrExpBase._weight_precision = new_value
+#
+#     @staticmethod
+#     def get_weight_precision():
+#         return IFCurrExpBase._weight_precision
 
     @property
     def isyn_exc(self):
@@ -90,3 +96,4 @@ class IFCurrExpBase(AbstractPopulationVertex):
     @isyn_inh.setter
     def isyn_inh(self, new_value):
         self.synapse_type.initial_value_inh = new_value
+
