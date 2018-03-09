@@ -22,6 +22,9 @@ class IFCurrExpBase(AbstractPopulationVertex):
         'v_thresh': -50.0, 'tau_syn_E': 5.0, 'tau_syn_I': 5.0,
         'tau_refrac': 0.1, 'i_offset': 0, 'isyn_exc': 0.0, 'isyn_inh': 0.0}
 
+
+    non_pynn_default_parameters = {'weight_precision': [0.001, 0.001]}
+
     initialize_parameters = {'v_init': None}
 
     def __init__(
@@ -42,7 +45,8 @@ class IFCurrExpBase(AbstractPopulationVertex):
             i_offset=default_parameters['i_offset'],
             v_init=initialize_parameters['v_init'],
             isyn_exc=default_parameters['isyn_exc'],
-            isyn_inh=default_parameters['isyn_inh']):
+            isyn_inh=default_parameters['isyn_inh'],
+            weight_precision=non_pynn_default_parameters['weight_precision']):
         # pylint: disable=too-many-arguments, too-many-locals
         neuron_model = NeuronModelLeakyIntegrateAndFire(
             n_neurons, v_init, v_rest, tau_m, cm, i_offset,
@@ -60,7 +64,8 @@ class IFCurrExpBase(AbstractPopulationVertex):
             incoming_spike_buffer_size=incoming_spike_buffer_size,
             model_name="IF_curr_exp", neuron_model=neuron_model,
             input_type=input_type, synapse_type=synapse_type,
-            threshold_type=threshold_type, constraints=constraints)
+            threshold_type=threshold_type, constraints=constraints,
+            weight_precision=weight_precision)
 
     @staticmethod
     def set_model_max_atoms_per_core(new_value=DEFAULT_MAX_ATOMS_PER_CORE):

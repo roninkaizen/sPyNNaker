@@ -135,7 +135,7 @@ class AbstractPopulationVertex(
             self, n_neurons, binary, label, max_atoms_per_core,
             spikes_per_second, ring_buffer_sigma, incoming_spike_buffer_size,
             model_name, neuron_model, input_type, synapse_type, threshold_type,
-            additional_input=None, constraints=None):
+            additional_input=None, constraints=None, weight_precision=[0.01, 0.01]):
         # pylint: disable=too-many-arguments, too-many-locals
         super(AbstractPopulationVertex, self).__init__(
             label, constraints, max_atoms_per_core)
@@ -148,6 +148,7 @@ class AbstractPopulationVertex(
 
         self._binary = binary
         self._n_atoms = n_neurons
+        self._weight_precision = weight_precision
 
         # buffer data
         self._incoming_spike_buffer_size = incoming_spike_buffer_size
@@ -202,7 +203,8 @@ class AbstractPopulationVertex(
 
         # Set up synapse handling
         self._synapse_manager = SynapticManager(
-            synapse_type, ring_buffer_sigma, spikes_per_second, config)
+            synapse_type, ring_buffer_sigma, spikes_per_second, config,
+            weight_precision=weight_precision)
 
         # bool for if state has changed.
         self._change_requires_mapping = True
