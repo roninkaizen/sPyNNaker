@@ -67,6 +67,9 @@ static uint32_t recording_flags;
 // The synapse shaping parameters
 static synapse_param_t *neuron_synapse_shaping_params;
 
+// The scalars to convert synapse buffers to neuron input
+static uint32_t *precision_based_weight_scales;
+
 typedef struct global_record_params_t {
     uint32_t spike_rate;
     uint32_t v_rate;
@@ -497,6 +500,12 @@ void neuron_set_neuron_synapse_shaping_params(
     neuron_synapse_shaping_params = neuron_synapse_shaping_params_value;
 }
 
+//
+void neuron_set_precision_based_weight_scales(
+		uint32_t *synapses_precision_based_weight_scales) {
+	precision_based_weight_scales = synapses_precision_based_weight_scales;
+}
+
 void recording_done_callback() {
     n_recordings_outstanding -= 1;
 }
@@ -549,15 +558,31 @@ void neuron_do_timestep_update(timer_t time) {
         input_t* exc_syn_input = input_type_get_input_value(
         		synapse_types_get_excitatory_input(
         				&(neuron_synapse_shaping_params[neuron_index])),
-						input_type, NUM_EXCITATORY_RECEPTORS);
+						input_type, NUM_EXCITATORY_RECEPTORS, &precision_based_weight_scales[0]);
+
         input_t* inh_syn_input = input_type_get_input_value(
         		synapse_types_get_inhibitory_input(
         				&(neuron_synapse_shaping_params[neuron_index])),
-						input_type, NUM_INHIBITORY_RECEPTORS);
+						input_type, NUM_INHIBITORY_RECEPTORS,
+						&precision_based_weight_scales[NUM_EXCITATORY_RECEPTORS]);
 
         // Sum g_syn contributions from all receptors for recording
         REAL total_exc = 0;
         REAL total_inh = 0;
+
+
+//        for (int i = 0; i < NUM_EXCITATORY_RECEPTORS; i++){
+//        	log_info("Excitatory precision-based weight scale: %u",
+//        			precision_based_weight_scales[i]);
+//        }
+//        for (int i = NUM_EXCITATORY_RECEPTORS -1;
+//        		i < NUM_EXCITATORY_RECEPTORS -1 + NUM_INHIBITORY_RECEPTORS;
+//        		i ++){
+//        	log_info("Inhibitory precision-based weight scale: %u",
+//        			precision_based_weight_scales[i]);
+//        }
+
+
 
         for (int i = 0; i < NUM_EXCITATORY_RECEPTORS; i++){
         	total_exc += exc_syn_input[i];

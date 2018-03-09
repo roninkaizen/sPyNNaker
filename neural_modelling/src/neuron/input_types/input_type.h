@@ -14,7 +14,8 @@ typedef struct input_type_t* input_type_pointer_t;
 //!  scaling
 static input_t* input_type_get_input_value(
     input_t* value, input_type_pointer_t input_type,
-	uint16_t num_receptors);
+	uint16_t num_receptors,
+	uint32_t *weight_scalars);
 
 //! \brief Converts an excitatory input into an excitatory current
 //! \param[in/out] exc_input Pointer to array of excitatory inputs from

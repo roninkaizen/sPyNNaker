@@ -65,14 +65,16 @@ class SynapticManager(object):
         "_synapse_dynamics",
         "_synapse_io",
         "_synapse_type",
-        "_weight_scales"]
+        "_weight_scales",
+        "_weight_precision"]
 
     def __init__(self, synapse_type, ring_buffer_sigma,
                  spikes_per_second, config, population_table_type=None,
-                 synapse_io=None):
+                 synapse_io=None, weight_precision=None):
         self._synapse_type = synapse_type
         self._ring_buffer_sigma = ring_buffer_sigma
         self._spikes_per_second = spikes_per_second
+        self._weight_precision = weight_precision
 
         # Get the type of population table
         self._poptable_type = population_table_type
@@ -95,6 +97,10 @@ class SynapticManager(object):
         if self._spikes_per_second is None:
             self._spikes_per_second = config.getfloat(
                 "Simulation", "spikes_per_second")
+
+        if self._weight_precision is None:
+            self._weight_precision = [float(w) for w in
+                config.get("Simulation", "weight_precision")[1:-1].split(",")]
 
         # Prepare for dealing with STDP - there can only be one (non-static)
         # synapse dynamics per vertex at present
@@ -183,7 +189,9 @@ class SynapticManager(object):
             self._synapse_type.get_sdram_usage_per_neuron_in_bytes())
         return (_SYNAPSES_BASE_SDRAM_USAGE_IN_BYTES +
                 (per_neuron_usage * vertex_slice.n_atoms) +
-                (4 * self._synapse_type.get_n_synapse_types()))
+                # Multiply by 2 to account for ring buffer shifts
+                # and precision scalars
+                ( 4 * self._synapse_type.get_n_synapse_types()) * 2)
 
     def _get_static_synaptic_matrix_sdram_requirements(self):
 
@@ -528,14 +536,26 @@ class SynapticManager(object):
         """
         return float(math.pow(2, 16 - (ring_buffer_to_input_left_shift + 1)))
 
-    @staticmethod
-    def _get_precision_based_weight_scale(precision=1):
+    def _get_precision_based_weight_scale(self):
         """ Return the amount to scale the weights by when using
             precision-based scaling.
         """
-        precision = 0.000035
-        return int(1/precision)
+        return [1/w_precision for w_precision in self._weight_precision]
 
+    def _get_SpiNNaker_scalars(self, ring_buffer_shifts):
+        """ Return the scalars to be loaded to SpiNNaker and interpreted there
+         as UFRACT (u0.32)
+        """
+        # first accournt for precision based scaling
+        precision_scaled = [w_precision * 2**32
+                for w_precision in self._weight_precision]
+
+        # then for remaining left shift
+        precision_ring_buffer_scaled = [int(precision_scaled[i] *
+                                            2**(16-(ring_buffer_shifts[i]+1)))
+                                        for i in range(len(precision_scaled))]
+
+        return precision_ring_buffer_scaled
 
     def _write_synapse_parameters(
             self, spec, machine_vertex, machine_graph, graph_mapper,
@@ -543,7 +563,8 @@ class SynapticManager(object):
             machine_time_step):
         # Get the ring buffer shifts and scaling factors
         weight_scale = input_type.get_global_weight_scale()
-        ring_buffer_shifts = [12,12]
+        ring_buffer_shifts = [10,10]
+
 #         self._get_ring_buffer_to_input_left_shifts(
 #             machine_vertex, machine_graph, graph_mapper, post_slices,
 #             post_slice_index, post_vertex_slice, machine_time_step,
@@ -556,13 +577,15 @@ class SynapticManager(object):
 
         spec.write_array(ring_buffer_shifts)
 
+        # write scales to SpiNNaker
+        spec.write_array(self._get_SpiNNaker_scalars(ring_buffer_shifts))
+
         weight_scales = numpy.array([
             #self._get_precision_based_weight_scale() *
-            weight_scale
-            for r in ring_buffer_shifts])
+            weight_scale * r
+            for r in self._get_precision_based_weight_scale()])
 
-#         print weight_scales
-
+        print "\n Receptor-based weight scales: {} \n".format(weight_scales)
         return weight_scales
 
     def _write_padding(

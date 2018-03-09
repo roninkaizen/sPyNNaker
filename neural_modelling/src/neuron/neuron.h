@@ -41,6 +41,11 @@ void neuron_set_neuron_synapse_shaping_params(
         synapse_param_t *neuron_synapse_shaping_params_value);
 
 
+void neuron_set_precision_based_weight_scales(
+		uint32_t *synapses_precision_based_weight_scales);
+
+
+
 //! \brief executes all the updates to neural parameters when a given timer
 //!        period has occurred.
 //! \param[in] time the timer tick value currently being executed

@@ -147,6 +147,8 @@ static bool initialise(uint32_t *timer_period) {
     // Set up the synapses
     synapse_param_t *neuron_synapse_shaping_params;
     uint32_t *ring_buffer_to_input_buffer_left_shifts;
+    uint32_t *precision_based_input_scaling;
+
     address_t indirect_synapses_address;
     address_t direct_synapses_address;
     if (!synapses_initialise(
@@ -154,12 +156,14 @@ static bool initialise(uint32_t *timer_period) {
             data_specification_get_region(SYNAPTIC_MATRIX_REGION, address),
             n_neurons, &neuron_synapse_shaping_params,
             &ring_buffer_to_input_buffer_left_shifts,
+			&precision_based_input_scaling,
             &indirect_synapses_address, &direct_synapses_address)) {
         return false;
     }
 
     // set the neuron up properly
     neuron_set_neuron_synapse_shaping_params(neuron_synapse_shaping_params);
+    neuron_set_precision_based_weight_scales(precision_based_input_scaling);
 
     // Set up the population table
     uint32_t row_max_n_words;

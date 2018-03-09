@@ -28,6 +28,9 @@ static weight_t ring_buffers[RING_BUFFER_SIZE];
 // Amount to left shift the ring buffer by to make it an input
 static uint32_t ring_buffer_to_input_left_shifts[SYNAPSE_TYPE_COUNT];
 
+// Amount by which to scale an input type by to recover original weight
+static uint32_t precision_based_input_scaling_array[SYNAPSE_TYPE_COUNT];
+
 // The synapse shaping parameters
 static synapse_param_t *neuron_synapse_shaping_params;
 
@@ -222,6 +225,7 @@ bool synapses_initialise(
         uint32_t n_neurons_value,
         synapse_param_t **neuron_synapse_shaping_params_value,
         uint32_t **ring_buffer_to_input_buffer_left_shifts,
+		uint32_t **precision_based_input_scaling,
         address_t *indirect_synapses_address,
         address_t *direct_synapses_address) {
 
@@ -253,7 +257,7 @@ bool synapses_initialise(
                n_neurons * sizeof(synapse_param_t));
     }
 
-    // Get the ring buffer left shifts
+//    // Get the ring buffer left shifts
     uint32_t ring_buffer_input_left_shifts_base =
         ((n_neurons * sizeof(synapse_param_t)) / 4);
     for (index_t synapse_index = 0; synapse_index < SYNAPSE_TYPE_COUNT;
@@ -266,6 +270,20 @@ bool synapses_initialise(
                  ring_buffer_to_input_left_shifts[synapse_index]);
     }
     *ring_buffer_to_input_buffer_left_shifts = ring_buffer_to_input_left_shifts;
+
+    // Get scalars to convert weights back from precision representation
+    uint32_t precision_based_input_scaling_base =
+    		ring_buffer_input_left_shifts_base + SYNAPSE_TYPE_COUNT;
+    for (index_t synapse_index = 0; synapse_index < SYNAPSE_TYPE_COUNT;
+    		synapse_index++){
+    	precision_based_input_scaling_array[synapse_index] =
+    			synapse_params_address[precision_based_input_scaling_base
+									   + synapse_index];
+    	log_info("synapse type %s, weight scalar %u",
+    			synapse_types_get_type_char(synapse_index),
+    			precision_based_input_scaling_array[synapse_index]);
+    }
+    *precision_based_input_scaling = precision_based_input_scaling_array;
 
     // Work out the positions of the direct and indirect synaptic matrices
     // and copy the direct matrix to DTCM
