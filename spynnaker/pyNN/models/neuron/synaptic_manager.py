@@ -1284,6 +1284,7 @@ class SynapticManager(object):
         # print(vtx_name)
         # print("\n\nPopulation Table / Address List")
         # print(len(self._pop_table))
+        # print("key, mask, start, count")
         # for row in self._pop_table:
         #     print("0x%08x" % row[0], "0x%08x" % row[1], row[2], row[3])
         # print(len(self._address_list))
@@ -1295,6 +1296,7 @@ class SynapticManager(object):
 
 
         base_addresses = []
+        row_lens = []
         syn_infos = []
         syn_types = []
         param_block = []
@@ -1318,8 +1320,16 @@ class SynapticManager(object):
                                                            routing_infos)
                 key  = key_and_mask.key
                 mask = key_and_mask.mask
+                array_start = 0
+                for tbl_idx in range(len(self._pop_table)):
+                        if key == self._pop_table[tbl_idx][0] and \
+                           mask == self._pop_table[tbl_idx][1]:
+                            array_start = self._pop_table[tbl_idx][2]
+                            break
 
-                for synapse_info in app_edge.synapse_information:
+                for i, synapse_info in enumerate(app_edge.synapse_information):
+                    base_addresses.append(addresses[array_start + i])
+                    row_lens.append(row_lengths[array_start + i])
                     syn_types.append(synapse_info.synapse_type)
                     keys.append(numpy.uint32(key))
                     masks.append(numpy.uint32(mask))
@@ -1329,11 +1339,6 @@ class SynapticManager(object):
                     slices.append(pre_vertex_slice)
                     any_delayed |= (synapse_info.connector.get_delay_maximum() > 16)
 
-        # if 'ganglion' in vtx_name:
-        #     print("before syn_infos loop")
-        #     print("idx, syn_type, address delta, key, mask")
-        #     for i in range(len(syn_types)):
-        #         print(i, syn_types[i], addresses[i], "0x%08x" %keys[i], "0x%08x" %masks[i])
         conn = None
         dist = None
         max_per_dyn_type = [0, 0]
@@ -1349,35 +1354,8 @@ class SynapticManager(object):
             slice_count = numpy.uint32(slices[syn_info_idx].n_atoms)
             key = keys[syn_info_idx]
             mask = masks[syn_info_idx]
-            # if 'ganglion' in vtx_name:
-            #     print("in syn info loop :D")
-            #     print(syn_type, -1, "0x%08x" % key, "0x%08x" % mask)
-            address_delta = 0
-            row_len = 0
-            # print(key, mask)
-            # print(self._pop_table)
-            break_out = False
-            for tbl_idx in range(len(self._pop_table)):
-                entry = 0
-
-                if key == self._pop_table[tbl_idx][0] and \
-                   mask == self._pop_table[tbl_idx][1]:
-
-                    for entry in range(self._pop_table[tbl_idx][3]):
-                        if syn_type == syn_types[syn_info_idx  + entry]:
-                            address_delta = addresses[syn_info_idx + entry]
-                            row_len = row_lengths[syn_info_idx + entry]
-                            # print("\n---------++++++++++++++++++++++++++++++++++")
-                            # print(syn_info_idx+entry,
-                            #       "0x%08x"%key, "0x%08x"%mask,
-                            #       address_delta, row_len, syn_type)
-                            # print("\n*********++++++++++++++++++++++++++++++++++")
-                            break_out = True
-                            break
-                # accum_idx += self._pop_table[tbl_idx][3]
-                if break_out:
-                    break
-            address_delta = numpy.uint32(address_delta)
+            address_delta = numpy.uint32(base_addresses[syn_info_idx])
+            row_len = row_lens[syn_info_idx]
             conn = syn_info.connector
             direct = numpy.uint32(isinstance(syn_info.connector, OneToOneConnector))
             # WRONG! should be 16*machine_time_step/1000.0
@@ -1685,3 +1663,4 @@ class SynapticManager(object):
         del conn_dict
 
         # print("Writing connector builder region --- finished")
+
