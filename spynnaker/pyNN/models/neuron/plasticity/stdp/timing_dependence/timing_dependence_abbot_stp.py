@@ -27,21 +27,25 @@ class TimingDependenceAbbotSTP(AbstractTimingDependence):
                 # existing STDP framework
                 tau_plus=20.0, tau_minus=20.0):
         AbstractTimingDependence.__init__(self)
-#         self._tau_plus = tau_plus
-#         self._tau_minus = tau_minus
+        self._tau_plus = tau_plus
+        self._tau_minus = tau_minus
 
-        self._STP_type = STP_type
+        if (STP_type is 0 or STP_type is 1):
+            self._STP_type = STP_type
+        else:
+            print "Invalid STP type. Should be: 0 for depression," \
+                "or 1 for potentiation"
+
         self._f = f
         self._P_baseline = P_baseline
         self._tau_P = tau_P
 
         self._synapse_structure = SynapseStructureWeightOnly()
 
-        # provenance data
-        self._tau_P_last_entry = None # To check transition back to baseline
-#         self._tau_plus_last_entry = None
-#         self._tau_minus_last_entry = None
-
+        # For Provenance Data
+        self._tau_P_last_entry = None
+        # Check transition back to baseline, and
+        # what's resolvable precision-wise
 
     @property
     def STP_type(self):
@@ -59,17 +63,17 @@ class TimingDependenceAbbotSTP(AbstractTimingDependence):
     def tau_P(self):
         return self._tau_P
 
-#     @property
-#     def tau_plus(self):
-#         return self._tau_plus
-#
-#     @property
-#     def tau_minus(self):
-#         return self._tau_minus
+    @property
+    def tau_plus(self):
+        return self._tau_plus
+
+    @property
+    def tau_minus(self):
+        return self._tau_minus
 
     @overrides(AbstractTimingDependence.is_same_as)
     def is_same_as(self, timing_dependence):
-        if not isinstance(timing_dependence, TimingDependenceSpikePair):
+        if not isinstance(timing_dependence, TimingDependenceAbbotSTP):
             return False
         return ((self.tau_plus == timing_dependence.tau_plus) and
                 (self.tau_minus == timing_dependence.tau_minus))
@@ -82,7 +86,7 @@ class TimingDependenceAbbotSTP(AbstractTimingDependence):
     def pre_trace_n_bytes(self):
         # Organised as array of 32-bit datastructures
         # [0] = [16 bit STDP pre_trace, 16-bit STP P_baseline]
-        # [1] = [16-bit STP_trace, 16-bit empty]
+        # [1] = [16-bit STP_trace, 16-bit STP type]
 
         # note that a third entry will be added by synapse_dynamics_stdp_mad
         # [2] = [32-bit time stamp]
@@ -114,6 +118,8 @@ class TimingDependenceAbbotSTP(AbstractTimingDependence):
             LOOKUP_TAU_P_SHIFT)
 
         # Write rule parameters
+        # Todo: move this to the synaptic row header, as we need an indiviual
+        # value per projection, not per post-synaptic population
         # STP type: 1 = potentiation; 0 = depression
         spec.write_value(data=self._STP_type, data_type=DataType.INT32)
 
@@ -154,7 +160,8 @@ class TimingDependenceAbbotSTP(AbstractTimingDependence):
         # header[0,0] = int(0.6 * STDP_FIXED_POINT_ONE) # STDP pre_trace
         header[0,1] = int(self._P_baseline * STDP_FIXED_POINT_ONE) # P_Baseline
         header[0,2] = int(self._P_baseline * STDP_FIXED_POINT_ONE) # STP trace
-        # header[0,3] = 0 # empty (unused) - only here due to 32-bit packing
+        header[0,3] = int(self._STP_type) # STP type (enables facilitation and
+                                    # depression on same post-synaptic neuron)
         # header[0,4-5] = 32-bit timestamp
 
         # re-cast as array of 8-bit quantities to facilitate row generation

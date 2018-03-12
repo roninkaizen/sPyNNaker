@@ -22,13 +22,11 @@ address_t timing_initialise(address_t address) {
                                                  &tau_P_lookup[0]);
 
     // Copy parameters
-    STP_params.stp_type = (int32_t) next_param_address[0];
+    // STP_params.stp_type = (int32_t) next_param_address[0]; // now read from synaptic row
     STP_params.f = (int32_t) next_param_address[1];
 
     log_info("Parameters: "
-    		"\n \t Type = %u"
     		"\n \t f = %k",
-			STP_params.stp_type,
 			STP_params.f << 4);
     log_info("STP memory initialisation completed successfully");
 

@@ -39,7 +39,6 @@ typedef int16_t pre_trace_t;
 // Structures
 //---------------------------------------
 typedef struct {
-	int32_t stp_type;
     int32_t f;
 } stp_params_t;
 
@@ -55,7 +54,7 @@ extern stp_params_t STP_params;
 //---------------------------------------
 
 static inline stp_trace_t timing_decay_stp_trace(
-        uint32_t time, uint32_t last_time, stp_trace_t last_stp_trace, uint16_t P_Baseline) {
+        uint32_t time, uint32_t last_time, stp_trace_t last_stp_trace, uint16_t P_Baseline, uint16_t stp_type) {
 
 	// This function is called once per synaptic row, so update multiplier
 	// for entire row here - using time since last pre spike
@@ -64,16 +63,17 @@ static inline stp_trace_t timing_decay_stp_trace(
 	uint32_t delta_time = time - last_time;
 
 	int32_t decayed_one;
-	if (STP_params.stp_type==0){ // todo: mask compare to only look at first bit
-		// Decay previous stp trace UP to baseline
-		decayed_one = P_Baseline - STDP_FIXED_MUL_16X16(P_Baseline - last_stp_trace,
-	            DECAY_LOOKUP_TAU_P(delta_time));
-	} else {
+
+
+	if (stp_type){ // todo: mask compare to only look at first bit
 		// Decay previous stp trace DOWN to baseline
 		decayed_one = P_Baseline + STDP_FIXED_MUL_16X16(last_stp_trace - P_Baseline,
 	            DECAY_LOOKUP_TAU_P(delta_time));
+	} else {
+		// Decay previous stp trace UP to baseline
+		decayed_one = P_Baseline - STDP_FIXED_MUL_16X16(P_Baseline - last_stp_trace,
+	            DECAY_LOOKUP_TAU_P(delta_time));
 	} // note that two functions are required to swap update to ensure integers don't wrap
-
 	log_info("Decaying STP trace: "
 			"\n old STP trace: %k "
 			"\n delta_t: %u "
@@ -87,21 +87,20 @@ static inline stp_trace_t timing_decay_stp_trace(
 }
 
 static inline stp_trace_t timing_apply_stp_spike(
-        uint32_t time, uint32_t last_time, stp_trace_t last_stp_trace, uint16_t P_Baseline) {
+        uint32_t time, uint32_t last_time, stp_trace_t last_stp_trace, uint16_t P_Baseline, uint16_t stp_type) {
 	use(time);
 	use(last_time);
 	use(P_Baseline);
-
-	if (STP_params.stp_type == 0){ // todo: mask compare to only look at first bit
-		// depress
-		log_info("depressing");
-		return last_stp_trace - STDP_FIXED_MUL_16X16(
-			STP_params.f, last_stp_trace);
-	} else { // STP_params.stp_type = 1
+	if (stp_type){ // todo: mask compare to only look at first bit
 		// Potentiate
 		log_info("potentiating");
 		return last_stp_trace + STDP_FIXED_MUL_16X16(
 			STP_params.f, (STDP_FIXED_POINT_ONE - last_stp_trace));
+	} else { // STP_params.stp_type = 1
+		// depress
+		log_info("depressing");
+		return last_stp_trace - STDP_FIXED_MUL_16X16(
+			STP_params.f, last_stp_trace);
 	}
 }
 

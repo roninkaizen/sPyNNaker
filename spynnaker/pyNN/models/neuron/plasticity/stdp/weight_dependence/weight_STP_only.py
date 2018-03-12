@@ -23,7 +23,7 @@ class WeightSTPOnly(
         return self._w_max
 
     def is_same_as(self, weight_dependence):
-        if not isinstance(weight_dependence, WeightDependenceAdditive):
+        if not isinstance(weight_dependence, WeightSTPOnly):
             return False
         return (
             (self._w_min == weight_dependence.w_min) and
