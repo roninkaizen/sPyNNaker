@@ -43,7 +43,7 @@ class PyNNProjectionCommon(object):
         self._host_based_synapse_list = None
         self._has_retrieved_synaptic_list_from_machine = False
         self._requires_mapping = True
-        self._label = None
+        self._label = label
 
         if not isinstance(post_synaptic_population._get_vertex,
                           AbstractAcceptsIncomingSynapses):
@@ -100,15 +100,14 @@ class PyNNProjectionCommon(object):
 
         # Find out if there is an existing edge between the populations
         edge_to_merge = self._find_existing_edge(
-            pre_synaptic_population._get_vertex,
-            post_synaptic_population._get_vertex)
-        if edge_to_merge is not None:
+                            pre_synaptic_population._get_vertex,
+                            post_synaptic_population._get_vertex)
 
+        if edge_to_merge is not None:
             # If there is an existing edge, add the connector
             edge_to_merge.add_synapse_information(self._synapse_information)
             self._projection_edge = edge_to_merge
         else:
-
             # If there isn't an existing edge, create a new one
             self._projection_edge = ProjectionApplicationEdge(
                 pre_synaptic_population._get_vertex,

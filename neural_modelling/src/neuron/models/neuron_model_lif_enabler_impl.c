@@ -25,13 +25,15 @@ void neuron_model_set_global_neuron_params(
 state_t neuron_model_state_update(
         input_t exc_input, input_t inh_input, input_t external_bias,
         neuron_pointer_t neuron) {
-
+    input_t input_this_timestep = 0;
     // If outside of the refractory period
     if (neuron->refract_timer <= 0) {
 
         // Get the input in nA
-        input_t input_this_timestep =
-            exc_input + external_bias + neuron->I_offset;
+//        input_t input_this_timestep =
+//            exc_input + external_bias + neuron->I_offset;
+        input_this_timestep =
+            exc_input*inh_input + external_bias + neuron->I_offset;
 
         _lif_neuron_closed_form(
             neuron, neuron->V_membrane, input_this_timestep);
@@ -41,17 +43,28 @@ state_t neuron_model_state_update(
         neuron->refract_timer -= 1;
     }
 
-    log_debug("state update, v = %11.4k, inh = %11.4k > %11.4k",
-                neuron->V_membrane, inh_input, neuron->V_enable);
 
-    if(inh_input > neuron->V_enable){
-        log_debug("Try to spike");
-        return neuron->V_membrane;
-    }else{
-        log_debug("Don't spike!");
-        return neuron->V_rest;
-    }
+//    if(inh_input > neuron->V_enable){
+//        inh_input = neuron->V_enable;
+//    }
+//    REAL v_out = neuron->V_membrane * inh_input;
+    REAL v_out = neuron->V_membrane;
 
+//    log_debug("state update, v = %11.4k, inh = %11.4k > %11.4k",
+//                neuron->V_membrane, inh_input, neuron->V_enable);
+    log_debug(
+    "state update, v = %11.4k, fast = %11.4k, slow = %11.4k, "
+    "input = %11.4k, v_out = %11.4k",
+    neuron->V_membrane, exc_input, inh_input, input_this_timestep, v_out);
+
+//    if(inh_input > neuron->V_enable){
+//        log_debug("Try to spike");
+//        return neuron->V_membrane;
+//    }else{
+//        log_debug("Don't spike!");
+//        return neuron->V_rest;
+//    }
+    return v_out;
 }
 
 void neuron_model_has_spiked(neuron_pointer_t neuron) {

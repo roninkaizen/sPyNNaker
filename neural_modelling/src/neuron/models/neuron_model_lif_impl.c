@@ -11,9 +11,9 @@ static inline void _lif_neuron_closed_form(
     REAL new_V = alpha - (neuron->exp_TC * (alpha - V_prev));
 
     // update membrane voltage
-    if( (V_prev < 0) && (input_this_timestep < 0) && (new_V > 0) ){
-        return;
-    }
+//    if( (V_prev < 0) && (input_this_timestep < 0) && (new_V > 0) ){
+//        return;
+//    }
     neuron->V_membrane = new_V;
 }
 

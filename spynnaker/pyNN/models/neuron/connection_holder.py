@@ -12,11 +12,13 @@ def slugify(value):
     """
     import unicodedata
     import re
-    value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore')
-    value = unicode(re.sub('[^\w\s-]', '', value).strip().lower())
-    value = unicode(re.sub('[-\s]+', '-', value))
-    return value
-
+    try:
+        value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore')
+        value = unicode(re.sub('[^\w\s-]', '', value).strip().lower())
+        value = unicode(re.sub('[-\s]+', '-', value))
+        return value
+    except:
+        return ""
 
 class ConnectionHolder(object):
     """ Holds a set of connections to be returned in a PyNN-specific format

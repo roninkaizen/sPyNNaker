@@ -25,7 +25,7 @@ class FromListConnector(AbstractConnector):
         ("source", numpy.uint32), ("target", numpy.uint32),
         ("weight", numpy.float64), ("delay", numpy.float64)])
 
-    def __init__(self, conn_list, safe=True, verbose=False):
+    def __init__(self, conn_list, safe=True, verbose=False, index_by_post=False):
         """
         Creates a new FromListConnector.
         """
@@ -35,12 +35,98 @@ class FromListConnector(AbstractConnector):
                 "The connection list for the FromListConnector must contain"
                 " at least a list of tuples, each of which should contain:"
                 " (pre_idx, post_idx)")
-        self._conn_list = conn_list
 
+        self._conn_list = conn_list
+        self._index_by_post = index_by_post
         # supports setting these at different times
         self._weights = None
         self._delays = None
         self._converted_weights_and_delays = False
+
+        self._list_indices = {}
+        self._list_ranges = {}
+        self._pre_indices = {}
+        self._post_indices = {}
+        self._delay_maximum = None
+
+    def _to_post_dict(self, conn_list):
+        post_conn_dict = {}
+        weights = []
+        delays = []
+        for i, conn in enumerate(conn_list):
+            pre, post, w, d = conn
+            weights.append(w)
+            delays.append(d)
+            if post not in post_conn_dict.keys():
+                post_conn_dict[post] = {pre: i}
+            else:
+                post_conn_dict[post][pre] = i
+
+        return post_conn_dict, weights, delays
+
+    def _slices_str(self, pre_vtx_slice, post_vtx_slice):
+        return "---%s\n---%s" % (pre_vtx_slice, post_vtx_slice)
+
+
+    def _pre_indices_for_pre_post(self, pre_vertex_slice, post_vertex_slice):
+        key = self._slices_str(pre_vertex_slice, post_vertex_slice)
+        if key not in self._pre_indices:
+
+            post_range = [post for post in self._post_dict.keys()
+                            if post_vertex_slice.lo_atom <= post and \
+                                post <= post_vertex_slice.hi_atom ]
+
+            indices = numpy.asarray(\
+                [pre for post in post_range for pre in self._post_dict[post]
+                          if pre_vertex_slice.lo_atom <= pre and \
+                              pre <= pre_vertex_slice.hi_atom], dtype='uint32')
+
+            self._pre_indices[key] = indices
+        else:
+            indices = self._pre_indices[key]
+
+        return indices
+
+    def _post_indices_for_pre_post(self, pre_vertex_slice, post_vertex_slice):
+        key = self._slices_str(pre_vertex_slice, post_vertex_slice)
+        if key not in self._post_indices:
+
+            post_range = [post for post in self._post_dict.keys()
+                            if post_vertex_slice.lo_atom <= post and \
+                                post <= post_vertex_slice.hi_atom ]
+
+            indices = numpy.asarray( \
+                [post for post in post_range for pre in self._post_dict[post]
+                          if pre_vertex_slice.lo_atom <= pre and \
+                              pre <= pre_vertex_slice.hi_atom], dtype='uint32')
+
+            self._post_indices[key] = indices
+        else:
+            indices = self._post_indices[key]
+
+        return indices
+
+    def _indices_for_pre_post(self, pre_vertex_slice, post_vertex_slice):
+        key = self._slices_str(pre_vertex_slice, post_vertex_slice)
+        if key not in self._list_indices:
+
+            post_range = [post for post in self._post_dict.keys()
+                            if post_vertex_slice.lo_atom <= post and \
+                                post <= post_vertex_slice.hi_atom ]
+
+            self._list_ranges[key] = post_range
+
+            indices = numpy.asarray(\
+                [self._post_dict[post][pre] for post in post_range
+                        for pre in self._post_dict[post]
+                            if pre_vertex_slice.lo_atom <= pre and \
+                                pre <= pre_vertex_slice.hi_atom], dtype='uint32')
+
+            self._list_indices[key] = indices
+        else:
+            indices = self._list_indices[key]
+
+        return indices
 
     @staticmethod
     def _split_conn_list(conn_list, column_names):
@@ -108,33 +194,54 @@ class FromListConnector(AbstractConnector):
 
         # if got data, build connlist with correct dtypes
         if (self._weights is not None and self._delays is not None and not
-                self._converted_weights_and_delays):
-            # add weights and delays to the conn list
-            temp_conn_list = numpy.dstack(
-                (self._conn_list[:, 0], self._conn_list[:, 1],
-                 self._weights, self._delays))[0]
+        self._converted_weights_and_delays):
 
-            self._conn_list = list()
-            for element in temp_conn_list:
-                self._conn_list.append((element[0], element[1], element[2],
-                                        element[3]))
+            if not self._index_by_post:
+                # add weights and delays to the conn list
+                temp_conn_list = numpy.dstack(
+                    (self._conn_list[:, 0], self._conn_list[:, 1],
+                     self._weights, self._delays))[0]
 
-            # set dtypes (cant we just set them within the array?)
+                self._conn_list = list()
+                for element in temp_conn_list:
+                    self._conn_list.append((element[0], element[1], element[2],
+                                            element[3]))
+
+                # set dtypes (cant we just set them within the array?)
             self._conn_list = numpy.asarray(self._conn_list,
                                             dtype=self.CONN_LIST_DTYPE)
+
             self._converted_weights_and_delays = True
 
     def get_delay_maximum(self):
-        return numpy.max(self._conn_list["delay"])
+        if self._delay_maximum is None:
+            if self._index_by_post:
+                print("post - max delay %s"%numpy.max(self._delays))
+                d_max = numpy.max(self._delays)
+            else:
+                print("standard - max delay %s" % numpy.max(self._conn_list["delay"]))
+                d_max = numpy.max(self._conn_list["delay"])
+            self._delay_maximum = d_max
+
+
+        return self._delay_maximum
 
     def get_delay_variance(
             self, pre_slices, pre_slice_index, post_slices,
             post_slice_index, pre_vertex_slice, post_vertex_slice):
-        mask = ((self._conn_list["source"] >= pre_vertex_slice.lo_atom) &
-                (self._conn_list["source"] <= pre_vertex_slice.hi_atom) &
-                (self._conn_list["target"] >= post_vertex_slice.lo_atom) &
-                (self._conn_list["target"] <= post_vertex_slice.hi_atom))
-        delays = self._conn_list["delay"][mask]
+        if self._index_by_post:
+            mask = self._indices_for_pre_post(pre_vertex_slice, post_vertex_slice)
+            delays = self._delays[mask]
+        else:
+            mask = ((self._conn_list["source"] >= pre_vertex_slice.lo_atom) &
+            (self._conn_list["source"] <= pre_vertex_slice.hi_atom) &
+            (self._conn_list["target"] >= post_vertex_slice.lo_atom) &
+            (self._conn_list["target"] <= post_vertex_slice.hi_atom))
+
+            delays = self._conn_list["delay"][mask]
+        print("%s - delay var %s"%\
+              ("post" if self._index_by_post else "standard",
+                numpy.var(delays)))
         if delays.size == 0:
             return 0
         return numpy.var(delays)
@@ -146,18 +253,37 @@ class FromListConnector(AbstractConnector):
 
         mask = None
         if min_delay is None or max_delay is None:
-            mask = ((self._conn_list["source"] >= pre_vertex_slice.lo_atom) &
-                    (self._conn_list["source"] <= pre_vertex_slice.hi_atom) &
-                    (self._conn_list["target"] >= post_vertex_slice.lo_atom) &
-                    (self._conn_list["target"] <= post_vertex_slice.hi_atom))
+            if self._index_by_post:
+                sources = self._pre_indices_for_pre_post(
+                                    pre_vertex_slice, post_vertex_slice)
+            else:
+                mask = ((self._conn_list["source"] >= pre_vertex_slice.lo_atom) &
+                (self._conn_list["source"] <= pre_vertex_slice.hi_atom) &
+                (self._conn_list["target"] >= post_vertex_slice.lo_atom) &
+                (self._conn_list["target"] <= post_vertex_slice.hi_atom))
         else:
-            mask = ((self._conn_list["source"] >= pre_vertex_slice.lo_atom) &
-                    (self._conn_list["source"] <= pre_vertex_slice.hi_atom) &
-                    (self._conn_list["target"] >= post_vertex_slice.lo_atom) &
-                    (self._conn_list["target"] <= post_vertex_slice.hi_atom) &
-                    (self._conn_list["delay"] >= min_delay) &
-                    (self._conn_list["delay"] <= max_delay))
-        sources = self._conn_list["source"][mask]
+            if self._index_by_post:
+                all_mask = self._indices_for_pre_post(pre_vertex_slice, post_vertex_slice)
+                mask = [i for i in all_mask
+                            if min_delay <= self._delays[i] and \
+                                self._delays[i] <= max_delay]
+
+                sources = self._conn_list["source"][mask]
+            else:
+                mask = ((self._conn_list["source"] >= pre_vertex_slice.lo_atom) &
+                (self._conn_list["source"] <= pre_vertex_slice.hi_atom) &
+                (self._conn_list["target"] >= post_vertex_slice.lo_atom) &
+                (self._conn_list["target"] <= post_vertex_slice.hi_atom) &
+                (self._conn_list["delay"] >= min_delay) &
+                (self._conn_list["delay"] <= max_delay))
+
+                sources = self._conn_list["source"][mask]
+
+        print("%s - n from pre %s"%\
+              ("post" if self._index_by_post else "standard",
+               numpy.max(numpy.bincount(sources.view('int32')))))
+
+
         if sources.size == 0:
             return 0
         return numpy.max(numpy.bincount(sources.view('int32')))
@@ -165,23 +291,43 @@ class FromListConnector(AbstractConnector):
     def get_n_connections_to_post_vertex_maximum(
             self, pre_slices, pre_slice_index, post_slices,
             post_slice_index, pre_vertex_slice, post_vertex_slice):
-        mask = ((self._conn_list["source"] >= pre_vertex_slice.lo_atom) &
-                (self._conn_list["source"] <= pre_vertex_slice.hi_atom) &
-                (self._conn_list["target"] >= post_vertex_slice.lo_atom) &
-                (self._conn_list["target"] <= post_vertex_slice.hi_atom))
-        targets = self._conn_list["target"][mask]
+        if self._index_by_post:
+            targets = self._post_indices_for_pre_post(pre_vertex_slice, post_vertex_slice)
+        else:
+            mask = ((self._conn_list["source"] >= pre_vertex_slice.lo_atom) &
+            (self._conn_list["source"] <= pre_vertex_slice.hi_atom) &
+            (self._conn_list["target"] >= post_vertex_slice.lo_atom) &
+            (self._conn_list["target"] <= post_vertex_slice.hi_atom))
+            targets = self._conn_list["target"][mask]
+
+        print("%s - n to post %s"%\
+              ("post" if self._index_by_post else "standard",
+               numpy.max(numpy.bincount(targets.view('int32')))))
+
         if targets.size == 0:
             return 0
         return numpy.max(numpy.bincount(targets.view('int32')))
 
+
+
     def get_weight_mean(
             self, pre_slices, pre_slice_index, post_slices,
             post_slice_index, pre_vertex_slice, post_vertex_slice):
-        mask = ((self._conn_list["source"] >= pre_vertex_slice.lo_atom) &
-                (self._conn_list["source"] <= pre_vertex_slice.hi_atom) &
-                (self._conn_list["target"] >= post_vertex_slice.lo_atom) &
-                (self._conn_list["target"] <= post_vertex_slice.hi_atom))
-        weights = self._conn_list["weight"][mask]
+        if self._index_by_post:
+            mask = self._indices_for_pre_post(pre_vertex_slice, post_vertex_slice)
+            weights = self._weights[mask]
+        else:
+            mask = ((self._conn_list["source"] >= pre_vertex_slice.lo_atom) &
+            (self._conn_list["source"] <= pre_vertex_slice.hi_atom) &
+            (self._conn_list["target"] >= post_vertex_slice.lo_atom) &
+            (self._conn_list["target"] <= post_vertex_slice.hi_atom))
+            weights = self._conn_list["weight"][mask]
+
+        print("%s - weight mean %s"%\
+              ("post" if self._index_by_post else "standard",
+               numpy.mean(weights)
+               ))
+
         if weights.size == 0:
             return 0
         return numpy.mean(weights)
@@ -189,11 +335,21 @@ class FromListConnector(AbstractConnector):
     def get_weight_maximum(
             self, pre_slices, pre_slice_index, post_slices,
             post_slice_index, pre_vertex_slice, post_vertex_slice):
-        mask = ((self._conn_list["source"] >= pre_vertex_slice.lo_atom) &
-                (self._conn_list["source"] <= pre_vertex_slice.hi_atom) &
-                (self._conn_list["target"] >= post_vertex_slice.lo_atom) &
-                (self._conn_list["target"] <= post_vertex_slice.hi_atom))
-        weights = self._conn_list["weight"][mask]
+        if self._index_by_post:
+            mask = self._indices_for_pre_post(pre_vertex_slice, post_vertex_slice)
+            weights = self._weights[mask]
+        else:
+            mask = ((self._conn_list["source"] >= pre_vertex_slice.lo_atom) &
+            (self._conn_list["source"] <= pre_vertex_slice.hi_atom) &
+            (self._conn_list["target"] >= post_vertex_slice.lo_atom) &
+            (self._conn_list["target"] <= post_vertex_slice.hi_atom))
+            weights = self._conn_list["weight"][mask]
+
+        print("%s - weight max %s"%\
+              ("post" if self._index_by_post else "standard",
+               numpy.max(weights)
+               ))
+
         if weights.size == 0:
             return 0
         return numpy.max(weights)
@@ -201,11 +357,21 @@ class FromListConnector(AbstractConnector):
     def get_weight_variance(
             self, pre_slices, pre_slice_index, post_slices,
             post_slice_index, pre_vertex_slice, post_vertex_slice):
-        mask = ((self._conn_list["source"] >= pre_vertex_slice.lo_atom) &
-                (self._conn_list["source"] <= pre_vertex_slice.hi_atom) &
-                (self._conn_list["target"] >= post_vertex_slice.lo_atom) &
-                (self._conn_list["target"] <= post_vertex_slice.hi_atom))
-        weights = self._conn_list["weight"][mask]
+        if self._index_by_post:
+            mask = self._indices_for_pre_post(pre_vertex_slice, post_vertex_slice)
+            weights = self._weights[mask]
+        else:
+            mask = ((self._conn_list["source"] >= pre_vertex_slice.lo_atom) &
+            (self._conn_list["source"] <= pre_vertex_slice.hi_atom) &
+            (self._conn_list["target"] >= post_vertex_slice.lo_atom) &
+            (self._conn_list["target"] <= post_vertex_slice.hi_atom))
+            weights = self._conn_list["weight"][mask]
+
+        print("%s - weight variance %s"%\
+              ("post" if self._index_by_post else "standard",
+               numpy.var(weights)
+               ))
+
         if weights.size == 0:
             return 0
         return numpy.var(weights)
@@ -219,18 +385,30 @@ class FromListConnector(AbstractConnector):
             synapse_type):
         # print("FromListConnector - create_synaptic_block: pre = %s, post = %s"%
         #       (pre_slice_index, post_slice_index))
-        mask = ((self._conn_list["source"] >= pre_vertex_slice.lo_atom) &
-                (self._conn_list["source"] <= pre_vertex_slice.hi_atom) &
-                (self._conn_list["target"] >= post_vertex_slice.lo_atom) &
-                (self._conn_list["target"] <= post_vertex_slice.hi_atom))
-        items = self._conn_list[mask]
-        block = numpy.zeros(
-            items.size, dtype=AbstractConnector.NUMPY_SYNAPSES_DTYPE)
-        block["source"] = items["source"]
-        block["target"] = items["target"]
-        block["weight"] = items["weight"]
-        block["delay"] = self._clip_delays(items["delay"])
-        block["synapse_type"] = synapse_type
+        if self._index_by_post:
+            mask = self._indices_for_pre_post(pre_vertex_slice, post_vertex_slice)
+        else:
+            mask = ((self._conn_list["source"] >= pre_vertex_slice.lo_atom) &
+            (self._conn_list["source"] <= pre_vertex_slice.hi_atom) &
+            (self._conn_list["target"] >= post_vertex_slice.lo_atom) &
+            (self._conn_list["target"] <= post_vertex_slice.hi_atom))
+
+
+        if self._index_by_post:
+            block = numpy.zeros(
+                        len(mask), dtype=AbstractConnector.NUMPY_SYNAPSES_DTYPE)
+            block[:] = self._conn_list[mask]
+            block["delay"] = self._clip_delays(block["delay"])
+            block["synapse_type"] = synapse_type
+        else:
+            items = self._conn_list[mask]
+            block = numpy.zeros(
+                        items.size, dtype=AbstractConnector.NUMPY_SYNAPSES_DTYPE)
+            block["source"] = items["source"]
+            block["target"] = items["target"]
+            block["weight"] = items["weight"]
+            block["delay"] = self._clip_delays(items["delay"])
+            block["synapse_type"] = synapse_type
         return block
 
     def __repr__(self):

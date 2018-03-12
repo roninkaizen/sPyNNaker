@@ -59,9 +59,9 @@ static inline void _rk2_kernel_midpoint(REAL h, neuron_pointer_t neuron,
     REAL dv = h * (pre_alph - beta
                       + ( REAL_CONST(5.0) + REAL_CONST(0.0400) * eta) * eta);
 
-    if ((neuron->V < 0) && (dv < 0) && ((neuron->V + dv) > 0)){
-        return;
-    }
+//    if ((neuron->V < 0) && (dv < 0) && ((neuron->V + dv) > 0)){
+//        return;
+//    }
 
     neuron->V += dv
 

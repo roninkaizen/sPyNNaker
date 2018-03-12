@@ -438,7 +438,7 @@ class SynapticManager(object):
     def _get_ring_buffer_to_input_left_shifts(
             self, machine_vertex, machine_graph, graph_mapper, post_slices,
             post_slice_index, post_vertex_slice, machine_timestep,
-            weight_scale):
+            weight_scale, fixed_scale=None):
         """ Get the scaling of the ring buffer to provide as much accuracy as\
             possible without too much overflow
         """
@@ -547,7 +547,8 @@ class SynapticManager(object):
             stats = running_totals[synapse_type]
             rates = rate_stats[synapse_type]
             if delay_running_totals[synapse_type].variance == 0.0:
-                max_weights[synapse_type] = total_weights[synapse_type]
+                max_weights[synapse_type] = max(total_weights[synapse_type],
+                                                biggest_weight[synapse_type])
             else:
                 max_weights[synapse_type] = min(
                     self._ring_buffer_expected_upper_bound(
@@ -573,7 +574,9 @@ class SynapticManager(object):
         if weights_signed:
             max_weight_powers = (m + 1 for m in max_weight_powers)
         max_weight_powers_list = list(max_weight_powers)
-        return max_weight_powers_list
+        # print(max_weight_powers_list)
+        # return max_weight_powers_list
+        return [4 for _ in max_weight_powers_list]
 
     @staticmethod
     def _get_weight_scale(ring_buffer_to_input_left_shift):
@@ -1277,15 +1280,19 @@ class SynapticManager(object):
         addresses   = [(a & 0x7FFFFF00) >> 8 for a in self._address_list]
         row_lengths = [(a & 0xFF) for a in self._address_list]
 
+        # vtx_name = str(machine_post_vertex)
+        # print(vtx_name)
         # print("\n\nPopulation Table / Address List")
         # print(len(self._pop_table))
-        # print(self._pop_table)
+        # for row in self._pop_table:
+        #     print("0x%08x" % row[0], "0x%08x" % row[1], row[2], row[3])
         # print(len(self._address_list))
         # print(self._address_list)
         # print("Addresses")
         # print(addresses)
         # print("Row Lengths")
         # print(row_lengths)
+
 
         base_addresses = []
         syn_infos = []
@@ -1322,43 +1329,52 @@ class SynapticManager(object):
                     slices.append(pre_vertex_slice)
                     any_delayed |= (synapse_info.connector.get_delay_maximum() > 16)
 
+        # if 'ganglion' in vtx_name:
+        #     print("before syn_infos loop")
+        #     print("idx, syn_type, address delta, key, mask")
+        #     for i in range(len(syn_types)):
+        #         print(i, syn_types[i], addresses[i], "0x%08x" %keys[i], "0x%08x" %masks[i])
         conn = None
         dist = None
         max_per_dyn_type = [0, 0]
         n_32bit_header_words = 0
         max_n_pre_neurons = 0
-        for i in range(len(syn_infos)):
+        for syn_info_idx in range(len(syn_infos)):
             # print("%03d/%03d"%(i+1, len(syn_infos)))
 
-            syn_info = syn_infos[i]
+            syn_info = syn_infos[syn_info_idx]
             syn_type = numpy.uint32(syn_info.synapse_type)
 
-            slice_start = numpy.uint32(slices[i].lo_atom)
-            slice_count = numpy.uint32(slices[i].n_atoms)
-            key = keys[i]
-            mask = masks[i]
-
+            slice_start = numpy.uint32(slices[syn_info_idx].lo_atom)
+            slice_count = numpy.uint32(slices[syn_info_idx].n_atoms)
+            key = keys[syn_info_idx]
+            mask = masks[syn_info_idx]
+            # if 'ganglion' in vtx_name:
+            #     print("in syn info loop :D")
+            #     print(syn_type, -1, "0x%08x" % key, "0x%08x" % mask)
             address_delta = 0
             row_len = 0
             # print(key, mask)
             # print(self._pop_table)
             break_out = False
-            accum_idx = 0
             for tbl_idx in range(len(self._pop_table)):
+                entry = 0
+
                 if key == self._pop_table[tbl_idx][0] and \
                    mask == self._pop_table[tbl_idx][1]:
-                    for entry in range(self._pop_table[tbl_idx][3]):
 
-                        if syn_type == syn_types[accum_idx+entry]:
-                            address_delta = addresses[accum_idx+entry]
-                            row_len = row_lengths[accum_idx+entry]
-                            # print("\n*********++++++++++++++++++++++++++++++++++")
-                            # print(accum_idx+entry, key, mask, address_delta, row_len,
-                            #       syn_type)
+                    for entry in range(self._pop_table[tbl_idx][3]):
+                        if syn_type == syn_types[syn_info_idx  + entry]:
+                            address_delta = addresses[syn_info_idx + entry]
+                            row_len = row_lengths[syn_info_idx + entry]
+                            # print("\n---------++++++++++++++++++++++++++++++++++")
+                            # print(syn_info_idx+entry,
+                            #       "0x%08x"%key, "0x%08x"%mask,
+                            #       address_delta, row_len, syn_type)
                             # print("\n*********++++++++++++++++++++++++++++++++++")
                             break_out = True
                             break
-                accum_idx += self._pop_table[tbl_idx][3]
+                # accum_idx += self._pop_table[tbl_idx][3]
                 if break_out:
                     break
             address_delta = numpy.uint32(address_delta)
@@ -1366,9 +1382,9 @@ class SynapticManager(object):
             direct = numpy.uint32(isinstance(syn_info.connector, OneToOneConnector))
             # WRONG! should be 16*machine_time_step/1000.0
             delayed = self._is_delayed(syn_info)
-            num_delayed = len(delayed_places[i])
-            dly_places = [self._placement_to_uint32(dp) for dp in delayed_places[i]]
-            dly_slices = [ds for ds in delayed_slices[i]]
+            num_delayed = len(delayed_places[syn_info_idx])
+            dly_places = [self._placement_to_uint32(dp) for dp in delayed_places[syn_info_idx]]
+            dly_slices = [ds for ds in delayed_slices[syn_info_idx]]
 
             # max_conns = numpy.uint32(conn.get_max_num_connections(slices[i], post_slice))
             dyn_type = STATIC_HASH if syn_info.synapse_dynamics.is_static \
