@@ -38,23 +38,20 @@ typedef int16_t pre_trace_t;
 //---------------------------------------
 // Structures
 //---------------------------------------
-typedef struct {
-    int32_t f;
-} stp_params_t;
 
 
 //---------------------------------------
 // Externals
 //---------------------------------------
 extern int16_t tau_P_lookup[TAU_P_SIZE];
-extern stp_params_t STP_params;
 
 //---------------------------------------
 // STP Inline functions
 //---------------------------------------
 
 static inline stp_trace_t timing_decay_stp_trace(
-        uint32_t time, uint32_t last_time, stp_trace_t last_stp_trace, uint16_t P_Baseline, uint16_t stp_type) {
+        uint32_t time, uint32_t last_time, stp_trace_t last_stp_trace,
+		uint16_t P_Baseline, uint16_t stp_type) {
 
 	// This function is called once per synaptic row, so update multiplier
 	// for entire row here - using time since last pre spike
@@ -74,7 +71,7 @@ static inline stp_trace_t timing_decay_stp_trace(
 		decayed_one = P_Baseline - STDP_FIXED_MUL_16X16(P_Baseline - last_stp_trace,
 	            DECAY_LOOKUP_TAU_P(delta_time));
 	} // note that two functions are required to swap update to ensure integers don't wrap
-	log_info("Decaying STP trace: "
+	log_debug("Decaying STP trace: "
 			"\n old STP trace: %k "
 			"\n delta_t: %u "
 			"\n decayed STP trace: %k",
@@ -87,20 +84,21 @@ static inline stp_trace_t timing_decay_stp_trace(
 }
 
 static inline stp_trace_t timing_apply_stp_spike(
-        uint32_t time, uint32_t last_time, stp_trace_t last_stp_trace, uint16_t P_Baseline, uint16_t stp_type) {
+        uint32_t time, uint32_t last_time, stp_trace_t last_stp_trace,
+		uint16_t P_Baseline, uint16_t stp_type, uint16_t rate) {
 	use(time);
 	use(last_time);
 	use(P_Baseline);
 	if (stp_type){ // todo: mask compare to only look at first bit
 		// Potentiate
-		log_info("potentiating");
+		log_debug("potentiating");
 		return last_stp_trace + STDP_FIXED_MUL_16X16(
-			STP_params.f, (STDP_FIXED_POINT_ONE - last_stp_trace));
+			rate, (STDP_FIXED_POINT_ONE - last_stp_trace));
 	} else { // STP_params.stp_type = 1
 		// depress
-		log_info("depressing");
+		log_debug("depressing");
 		return last_stp_trace - STDP_FIXED_MUL_16X16(
-			STP_params.f, last_stp_trace);
+			rate, last_stp_trace);
 	}
 }
 

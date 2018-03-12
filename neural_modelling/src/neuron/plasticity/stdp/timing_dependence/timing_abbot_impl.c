@@ -7,7 +7,6 @@
 //int16_t tau_plus_lookup[TAU_PLUS_SIZE];
 //int16_t tau_minus_lookup[TAU_MINUS_SIZE];
 int16_t tau_P_lookup[TAU_P_SIZE];
-stp_params_t STP_params;
 
 //---------------------------------------
 // Functions
@@ -23,12 +22,12 @@ address_t timing_initialise(address_t address) {
 
     // Copy parameters
     // STP_params.stp_type = (int32_t) next_param_address[0]; // now read from synaptic row
-    STP_params.f = (int32_t) next_param_address[1];
-
-    log_info("Parameters: "
-    		"\n \t f = %k",
-			STP_params.f << 4);
+//    STP_params.f = (int32_t) next_param_address[1];
+//
+//    log_info("Parameters: "
+//    		"\n \t f = %k",
+//			STP_params.f << 4);
     log_info("STP memory initialisation completed successfully");
 
-    return (address_t) next_param_address[2];
+    return (address_t) next_param_address;
 }

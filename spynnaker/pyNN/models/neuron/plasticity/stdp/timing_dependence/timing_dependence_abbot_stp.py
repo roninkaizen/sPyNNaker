@@ -87,18 +87,19 @@ class TimingDependenceAbbotSTP(AbstractTimingDependence):
         # Organised as array of 32-bit datastructures
         # [0] = [16 bit STDP pre_trace, 16-bit STP P_baseline]
         # [1] = [16-bit STP_trace, 16-bit STP type]
+        # [2] = [16-bit stp_rate, 16-bit empty]
 
         # note that a third entry will be added by synapse_dynamics_stdp_mad
         # [2] = [32-bit time stamp]
 
-        # here we need only account for the first two entries = 4 * 16-bits
-        return 8
+        # here we need only account for the first three entries = 6 * 16-bits
+        return 12
 
     @overrides(AbstractTimingDependence.get_parameters_sdram_usage_in_bytes)
     def get_parameters_sdram_usage_in_bytes(self):
         size = 0
         size += 2 * LOOKUP_TAU_P_SIZE # two bytes per lookup table entry
-        size += 2 * 4 # 1 parameters at 4 bytes
+#         size += 2 * 4 # 1 parameters at 4 bytes
         return size
 
     @property
@@ -121,15 +122,12 @@ class TimingDependenceAbbotSTP(AbstractTimingDependence):
         # Todo: move this to the synaptic row header, as we need an indiviual
         # value per projection, not per post-synaptic population
         # STP type: 1 = potentiation; 0 = depression
-        spec.write_value(data=self._STP_type, data_type=DataType.INT32)
+#         spec.write_value(data=self._STP_type, data_type=DataType.INT32)
 
-        # f
-        fixed_point_f = plasticity_helpers.float_to_fixed(
-            self._f, plasticity_helpers.STDP_FIXED_POINT_ONE)
-        spec.write_value(data=fixed_point_f,
-                         data_type=DataType.INT32)
-
-
+#         # f
+#
+#         spec.write_value(data=fixed_point_f,
+#                          data_type=DataType.INT32)
 
     @property
     def synaptic_structure(self):
@@ -156,13 +154,18 @@ class TimingDependenceAbbotSTP(AbstractTimingDependence):
         header = numpy.zeros(
             (n_rows, (n_header_bytes/2)), dtype="uint16")
 
+#         fixed_point_f = plasticity_helpers.float_to_fixed(
+#             self._f, plasticity_helpers.STDP_FIXED_POINT_ONE)
+
         # Initialise header parameters
         # header[0,0] = int(0.6 * STDP_FIXED_POINT_ONE) # STDP pre_trace
         header[0,1] = int(self._P_baseline * STDP_FIXED_POINT_ONE) # P_Baseline
         header[0,2] = int(self._P_baseline * STDP_FIXED_POINT_ONE) # STP trace
         header[0,3] = int(self._STP_type) # STP type (enables facilitation and
                                     # depression on same post-synaptic neuron)
-        # header[0,4-5] = 32-bit timestamp
+        header[0,4] = int(self._f * STDP_FIXED_POINT_ONE)
+        # header[0,5] = empty
+        # header[0,6-7] = 32-bit timestamp
 
         # re-cast as array of 8-bit quantities to facilitate row generation
         return header.view(dtype="uint8")
