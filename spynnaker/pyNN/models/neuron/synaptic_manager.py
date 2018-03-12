@@ -559,7 +559,7 @@ class SynapticManager(object):
             machine_time_step):
         # Get the ring buffer shifts and scaling factors
         weight_scale = input_type.get_global_weight_scale()
-        ring_buffer_shifts = [10,10]
+        ring_buffer_shifts = [14,14]
 
 #         self._get_ring_buffer_to_input_left_shifts(
 #             machine_vertex, machine_graph, graph_mapper, post_slices,

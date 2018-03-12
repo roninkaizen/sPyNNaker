@@ -7,7 +7,7 @@ from spynnaker.pyNN.models.neuron import AbstractPopulationVertex
 
 # global objects
 DEFAULT_MAX_ATOMS_PER_CORE = 255
-DEFAULT_WEIGHT_PRECISION = [0.0001, 0.0001]
+DEFAULT_WEIGHT_PRECISION = [0.00005, 0.00005]
 _apv_defs = AbstractPopulationVertex.non_pynn_default_parameters
 
 
