@@ -56,10 +56,12 @@ uint32_t num_plastic_pre_synaptic_events = 0;
 // Structures
 //---------------------------------------
 typedef struct {
-    // empty 16 bits
 	pre_trace_t prev_trace;
     int16_t P_basline;
 	stp_trace_t stp_trace;
+    int16_t stp_type; // 0 for depression, 1 for potentiation
+    int16_t rate;
+    int16_t empty;
     uint32_t prev_time;
 } pre_event_history_t;
 
@@ -242,11 +244,16 @@ bool synapse_dynamics_process_plastic_synapses(
     // Get last pre-synaptic event from event history
     const uint32_t last_pre_time = event_history->prev_time;
     const pre_trace_t last_pre_trace = event_history->prev_trace;
+
+    // Extract STP parameters
+    const uint16_t P_baseline = event_history->P_basline;
+    const uint16_t stp_type = event_history->stp_type;
+    const stp_trace_t last_stp_trace = event_history->stp_trace;
+    const uint16_t rate = event_history->rate;
+    const uint16_t empty = event_history->empty;
     const stp_trace_t current_stp_trace = timing_decay_stp_trace(
     		time, last_pre_time,
-    		event_history->stp_trace,
-			event_history->P_basline);
-    const uint16_t P_baseline = event_history->P_basline;
+			last_stp_trace, P_baseline, stp_type);
 
 
     // Update pre-synaptic trace
@@ -257,20 +264,26 @@ bool synapse_dynamics_process_plastic_synapses(
 
     if (STP == true){
     	event_history->stp_trace = timing_apply_stp_spike(
-    	        time, last_pre_time,
-				current_stp_trace, P_baseline);
+    	        time, last_pre_time, current_stp_trace,
+				P_baseline, stp_type, rate);
     }
 
-//    log_info(//"\n time: %u "
-//    		//"\n pre_trace: %k "
-//    		//"\n P_0: %k \n "
-//    		"Updated stp_trace: %k\n",
-////    		event_history->prev_time,
-////			event_history->prev_trace << 4,
-////			event_history->P_basline << 4,
-//			(event_history->stp_trace) << 4); // shift up by four to make
-//    		// STDP_FIXED_POINT_ONE be first bit in s1615
 
+    log_info("\n time: %u "
+    		 "\n pre_trace: %k "
+    		 "\n P_0: %k "
+    		 "\n STP Type: %u "
+    		 "\n Updated stp_trace: %k"
+			 "\n Rate: %k"
+			 "\n empty: %u",
+    		 event_history->prev_time,
+			 event_history->prev_trace << 4,
+			 event_history->P_basline << 4,
+			 event_history->stp_type,
+			 event_history->stp_trace << 4,
+			 rate << 4,
+			 empty); // shift up by four to make
+    		// STDP_FIXED_POINT_ONE be first bit in s1615
 
     log_info("\n time: %u"
 //    		 "\n stp trace: %k"
