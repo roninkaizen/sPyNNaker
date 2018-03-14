@@ -22,6 +22,9 @@ LOOKUP_TAU_P_SHIFT = 0
 
 class TimingDependenceAbbotSTP(AbstractTimingDependence):
 
+    _tau_P_depress = 1
+    _tau_P_facil = 1
+
     def __init__(self, STP_type, f, P_baseline, tau_P,
                 # unused parameters, but required due to using
                 # existing STDP framework
@@ -38,12 +41,17 @@ class TimingDependenceAbbotSTP(AbstractTimingDependence):
 
         self._f = f
         self._P_baseline = P_baseline
-        self._tau_P = tau_P
+
+        if STP_type is 0:
+            TimingDependenceAbbotSTP._tau_P_depress = tau_P
+        else:
+            TimingDependenceAbbotSTP._tau_P_facil = tau_P
 
         self._synapse_structure = SynapseStructureWeightOnly()
 
         # For Provenance Data
-        self._tau_P_last_entry = None
+        self._tau_P_depression_last_entry = None
+        self._tau_P_facilitation_last_entry = None
         # Check transition back to baseline, and
         # what's resolvable precision-wise
 
@@ -98,8 +106,11 @@ class TimingDependenceAbbotSTP(AbstractTimingDependence):
     @overrides(AbstractTimingDependence.get_parameters_sdram_usage_in_bytes)
     def get_parameters_sdram_usage_in_bytes(self):
         size = 0
-        size += 2 * LOOKUP_TAU_P_SIZE # two bytes per lookup table entry
-#         size += 2 * 4 # 1 parameters at 4 bytes
+        # two bytes per lookup table entry,
+        size += (2 * LOOKUP_TAU_P_SIZE) # depression
+        size += (2 * LOOKUP_TAU_P_SIZE) # facilitation
+
+        # size += 2 * 4 # 1 parameters at 4 bytes
         return size
 
     @property
@@ -113,21 +124,16 @@ class TimingDependenceAbbotSTP(AbstractTimingDependence):
             raise NotImplementedError(
                 "STP LUT generation currently only supports 1ms timesteps")
 
-        # Write STP lookup table
-        self._tau_P_last_entry = plasticity_helpers.write_exp_lut(
-            spec, self._tau_P, LOOKUP_TAU_P_SIZE,
+        # Write STP depression lookup table
+        self._tau_P_depression_last_entry = plasticity_helpers.write_exp_lut(
+            spec, TimingDependenceAbbotSTP._tau_P_depress, LOOKUP_TAU_P_SIZE,
             LOOKUP_TAU_P_SHIFT)
 
-        # Write rule parameters
-        # Todo: move this to the synaptic row header, as we need an indiviual
-        # value per projection, not per post-synaptic population
-        # STP type: 1 = potentiation; 0 = depression
-#         spec.write_value(data=self._STP_type, data_type=DataType.INT32)
+        # Write STP depression lookup table
+        self._tau_P_facilitation_last_entry = plasticity_helpers.write_exp_lut(
+            spec, TimingDependenceAbbotSTP._tau_P_facil, LOOKUP_TAU_P_SIZE,
+            LOOKUP_TAU_P_SHIFT)
 
-#         # f
-#
-#         spec.write_value(data=fixed_point_f,
-#                          data_type=DataType.INT32)
 
     @property
     def synaptic_structure(self):
@@ -137,7 +143,12 @@ class TimingDependenceAbbotSTP(AbstractTimingDependence):
         prov_data = list()
         prov_data.append(plasticity_helpers.get_lut_provenance(
             pre_population_label, post_population_label, "STP_Abbot_Rule",
-            "tau_P_last_entry", "tau_P", self._tau_P_last_entry))
+            "tau_P_depression_last_entry", "tau_P",
+            self._tau_P_depression_last_entry))
+        prov_data.append(plasticity_helpers.get_lut_provenance(
+            pre_population_label, post_population_label, "STP_Abbot_Rule",
+            "tau_P_facilitation_entry", "tau_P",
+            self._tau_P_facilitation_last_entry))
         return prov_data
 
     @overrides(AbstractTimingDependence.get_parameter_names)
@@ -147,8 +158,7 @@ class TimingDependenceAbbotSTP(AbstractTimingDependence):
     @overrides(AbstractTimingDependence.initialise_row_headers)
     def initialise_row_headers(self, n_rows, n_header_bytes):
         # note that data is written here as 16-bit quantities, but converted
-        # back to 8-bit qunatities for consistency with synaptic row generation
-        # code
+        # back to 8-bit quantities for consistency with synaptic row generation
 
         # Initialise header structure
         header = numpy.zeros(
