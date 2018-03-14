@@ -76,17 +76,14 @@ static inline stp_trace_t timing_decay_stp_trace(
 
 //	log_info("Decaying STP trace: "
 //			"\n old STP trace: %k "
+//			"\n time: %u "
 //			"\n delta_t: %u "
 //			"\n decayed STP trace: %k",
 //			last_stp_trace << 4,
+//			time,
 //			delta_time,
 //			decayed_one << 4);
 
-	log_info("Decaying STP trace: "
-			"\n time: %u "
-			"\n decayed STP trace: %k",
-			time,
-			decayed_one << 4);
 
 	// Now add one - if trace was decayed to zero, this will scale the weight by 1
 	return decayed_one;
