@@ -29,7 +29,7 @@ typedef int16_t pre_trace_t;
 #define TAU_MINUS_SIZE 256
 
 #define TAU_P_TIME_SHIFT 0
-#define TAU_P_SIZE 256
+#define TAU_P_SIZE 4000
 
 // Helper macros for looking up decays
 #define DECAY_LOOKUP_TAU_P_DEPRESSION(time) \

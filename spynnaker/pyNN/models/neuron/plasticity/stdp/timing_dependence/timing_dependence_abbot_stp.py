@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 # LOOKUP_TAU_PLUS_SHIFT = 0
 # LOOKUP_TAU_MINUS_SIZE = 256
 # LOOKUP_TAU_MINUS_SHIFT = 0
-LOOKUP_TAU_P_SIZE = 256
+LOOKUP_TAU_P_SIZE = 4000
 LOOKUP_TAU_P_SHIFT = 0
 
 
@@ -143,11 +143,11 @@ class TimingDependenceAbbotSTP(AbstractTimingDependence):
         prov_data = list()
         prov_data.append(plasticity_helpers.get_lut_provenance(
             pre_population_label, post_population_label, "STP_Abbot_Rule",
-            "tau_P_depression_last_entry", "tau_P",
+            "tau_P_depression_last_entry", "tau_P_depression",
             self._tau_P_depression_last_entry))
         prov_data.append(plasticity_helpers.get_lut_provenance(
             pre_population_label, post_population_label, "STP_Abbot_Rule",
-            "tau_P_facilitation_entry", "tau_P",
+            "tau_P_facilitation_entry", "tau_P_facilitation",
             self._tau_P_facilitation_last_entry))
         return prov_data
 
