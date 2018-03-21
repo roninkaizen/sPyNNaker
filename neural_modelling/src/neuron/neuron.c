@@ -457,13 +457,16 @@ void neuron_store_neuron_parameters(address_t address){
 
     log_info("writing parameters");
 
+    // Do not write rates and indexex back.
+    // If you do you need to change python to read them too in:
+    // AbstractReadParametersBeforeSet.read_parameters_from_machine
     //log_info("writing gobal recordi parameters");
-    memcpy(&address[next], global_record_params, sizeof(global_record_params_t));
-    next += sizeof(global_record_params_t) / 4;
+    //memcpy(&address[next], global_record_params, sizeof(global_record_params_t));
+    //next += sizeof(global_record_params_t) / 4;
 
     //log_info("writing index local parameters");
-    memcpy(&address[next], indexes_array, n_neurons * sizeof(indexes_t));
-    next += (n_neurons * sizeof(indexes_t)) / 4;
+    //memcpy(&address[next], indexes_array, n_neurons * sizeof(indexes_t));
+    //next += (n_neurons * sizeof(indexes_t)) / 4;
 
     //log_info("writing neuron global parameters");
     memcpy(&address[next], global_parameters, sizeof(global_neuron_params_t));
@@ -538,8 +541,6 @@ void neuron_do_timestep_update(timer_t time) {
             &additional_input_array[neuron_index];
         state_t voltage = neuron_model_get_membrane_voltage(neuron);
 
-        // record this neuron parameter. Just as cheap to set then to gate
-        voltages->states[indexes->v] = voltage;
 
         // Get excitatory and inhibitory input from synapses and convert it
         // to current input
@@ -585,6 +586,10 @@ void neuron_do_timestep_update(timer_t time) {
             NUM_EXCITATORY_RECEPTORS, exc_syn_input,
 			NUM_INHIBITORY_RECEPTORS, inh_syn_input,
 			external_bias, neuron);
+
+        // record this neuron parameter. Just as cheap to set then to gate
+        voltages->states[indexes->v] = result;
+        log_info("time: %u, voltage: %k", time, result);
 
         // Determine if a spike should occur
         bool spike = threshold_type_is_above_threshold(result, threshold_type);
